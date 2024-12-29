@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Motion Adaptation Experiment</title>
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="icon" href="assets/images/favicon.ico" type="image/x-icon">
+</head>
+<body>
+    <div id="experiment-container">
+        <!-- Instructions Screen -->
+        <div id="instructions" class="screen active">
+            <h1>Welcome to the Motion Adaptation Experiment</h1>
+            <p>You will see a series of visual stimuli. Your task is to identify the direction of the moving dots as quickly and accurately as possible.</p>
+            <p><strong>Use the Left Arrow (←) for left and the Right Arrow (→) for right.</strong></p>
+            <button id="start-button">Start Experiment</button>
+        </div>
+
+        <!-- Stimulus Canvas -->
+        <canvas id="stimulus-canvas" width="800" height="600" class="screen hidden"></canvas>
+
+        <!-- Feedback Screen -->
+        <div id="feedback" class="screen hidden">
+            <p id="feedback-text"></p>
+        </div>
+
+        <!-- End Screen -->
+        <div id="end-screen" class="screen hidden">
+            <h2>Thank You for Participating!</h2>
+            <p>Your data has been recorded.</p>
+        </div>
+    </div>
+
+    <!-- JavaScript Files -->
+    <script src="../js/utils.js"></script>
+    <script src="../js/baseExperiment.js"></script>
+    <script src="js/grating.js"></script>
+    <script src="js/randomDotMotion.js"></script>
+    <script src="js/star.js"></script>
+</body>
+</html>
