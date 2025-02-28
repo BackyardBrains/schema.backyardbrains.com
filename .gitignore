@@ -20,6 +20,7 @@ current_project.txt
 #data files
 uploads/
 venv/
+env/
 __pycache__/
 
 # User-specific files (MonoDevelop/Xamarin Studio)
