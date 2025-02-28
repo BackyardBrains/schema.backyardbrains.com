@@ -81,7 +81,7 @@ class StarExperiment extends Experiment {
         console.log("Session UUID:", this.session);
         await this.startTrial();
     }
-
+        
     async startTrial() {
         if (this.currentTrial >= this.totalTrials) {
             this.end();
@@ -90,11 +90,30 @@ class StarExperiment extends Experiment {
 
         let trial = this.trials[this.currentTrial];
         console.log(`Starting Trial ${this.currentTrial}:`, trial);
-        // Show adapting stimulus
+
+        this.canvas.classList.add('active');
+        this.feedback.classList.remove('active');
+        this.feedbackText.textContent = '';
+
         await this.showAdaptingStimulus(trial.adaptDirection);
-        // Show test stimulus and collect response
         this.showTestStimulus(trial.testDirection);
     }
+
+    
+    // ORIGINAL
+    // async startTrial() {
+    //     if (this.currentTrial >= this.totalTrials) {
+    //         this.end();
+    //         return;
+    //     }
+
+    //     let trial = this.trials[this.currentTrial];
+    //     console.log(`Starting Trial ${this.currentTrial}:`, trial);
+    //     // Show adapting stimulus
+    //     await this.showAdaptingStimulus(trial.adaptDirection);
+    //     // Show test stimulus and collect response
+    //     this.showTestStimulus(trial.testDirection);
+    // }
 
     async showAdaptingStimulus(direction) {
         console.log(`Showing adapting stimulus direction: ${direction}`);
@@ -109,32 +128,60 @@ class StarExperiment extends Experiment {
             });
         });
     }
-
+    
     showTestStimulus(direction) {
         console.log(`Showing test stimulus direction: ${direction}`);
-        // Draw test stimulus (random dot motion)
         this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
-        const dotMotion = new RandomDotMotion(this.ctx, this.canvas.width, this.canvas.height, direction);
-        dotMotion.start();
-        // Record the time when test stimulus is shown
+
+        if (!this.dotMotion) {
+            this.dotMotion = new RandomDotMotion(this.ctx, this.canvas.width, this.canvas.height, direction);
+        }
+        this.dotMotion.resetDots(direction);
+        this.dotMotion.start();
+
         this.trialStartTime = performance.now();
         console.log("Test stimulus displayed, waiting for response");
 
-        // Open response window
         this.responseWindowOpen = true;
 
-        // Set timeout for 2 seconds to handle 'Too Slow!' scenario
         this.responseTimeout = setTimeout(() => {
             if (this.responseWindowOpen) {
                 console.log("Response window timed out. No response received.");
                 this.responseWindowOpen = false;
                 this.showTooSlowFeedback();
                 this.currentTrial++;
-                // Start next trial after short delay
                 setTimeout(() => this.startTrial(), 1000);
             }
-        }, 2000); // 2000 ms = 2 seconds
+        }, 2000);
     }
+
+    
+    // ORIGINAL
+    // showTestStimulus(direction) {
+    //     console.log(`Showing test stimulus direction: ${direction}`);
+    //     // Draw test stimulus (random dot motion)
+    //     this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+    //     const dotMotion = new RandomDotMotion(this.ctx, this.canvas.width, this.canvas.height, direction);
+    //     dotMotion.start();
+    //     // Record the time when test stimulus is shown
+    //     this.trialStartTime = performance.now();
+    //     console.log("Test stimulus displayed, waiting for response");
+
+    //     // Open response window
+    //     this.responseWindowOpen = true;
+
+    //     // Set timeout for 2 seconds to handle 'Too Slow!' scenario
+    //     this.responseTimeout = setTimeout(() => {
+    //         if (this.responseWindowOpen) {
+    //             console.log("Response window timed out. No response received.");
+    //             this.responseWindowOpen = false;
+    //             this.showTooSlowFeedback();
+    //             this.currentTrial++;
+    //             // Start next trial after short delay
+    //             setTimeout(() => this.startTrial(), 1000);
+    //         }
+    //     }, 2000); // 2000 ms = 2 seconds
+    // }
 
     handleResponse(e) {
         if (!this.responseWindowOpen) {
@@ -198,12 +245,25 @@ class StarExperiment extends Experiment {
         this.canvas.classList.remove('active');
         this.feedbackText.textContent = "Too Slow!";
         this.feedback.classList.add('active');
-        // Hide feedback after 5 seconds as per methods
+
         setTimeout(() => {
             this.feedback.classList.remove('active');
             this.canvas.classList.add('active');
-        }, 5000);
+            this.startTrial();
+        }, 1000);
     }
+    // ORIGINAL
+    // showTooSlowFeedback() {
+    //     console.log("Too Slow! Feedback displayed.");
+    //     this.canvas.classList.remove('active');
+    //     this.feedbackText.textContent = "Too Slow!";
+    //     this.feedback.classList.add('active');
+    //     // Hide feedback after 5 seconds as per methods
+    //     setTimeout(() => {
+    //         this.feedback.classList.remove('active');
+    //         this.canvas.classList.add('active');
+    //     }, 5000);
+    // }
 
     end() {
         console.log("Experiment ended");
