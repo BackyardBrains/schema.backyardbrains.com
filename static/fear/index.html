@@ -1,0 +1,18 @@
+<html>
+  <head>
+    <script src="https://aframe.io/releases/1.5.0/aframe.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/aframe-hand-tracking-controls/dist/aframe-hand-tracking-controls.min.js"></script>
+  </head>
+  <body>
+    <a-scene webxr="optionalFeatures: hand-tracking">
+      
+      <a-entity hand-tracking-controls="hand: left;"></a-entity>
+      <a-entity hand-tracking-controls="hand: right;"></a-entity>
+
+      <a-box position="0 1.5 -1" rotation="0 45 0" color="blue"></a-box>
+      <a-plane position="0 0 -1" rotation="-90 0 0" width="4" height="4" color="#CCC"></a-plane>
+      <a-sky color="#FAFAFA"></a-sky>
+
+    </a-scene>
+  </body>
+</html>
