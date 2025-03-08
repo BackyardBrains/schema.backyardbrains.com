@@ -1,17 +1,293 @@
 <html>
   <head>
+    <!-- A-Frame core library -->
     <script src="https://aframe.io/releases/1.5.0/aframe.min.js"></script>
+    <!-- Hand tracking support for VR controllers -->
     <script src="https://cdn.jsdelivr.net/npm/aframe-hand-tracking-controls/dist/aframe-hand-tracking-controls.min.js"></script>
+    <!-- Physics engine for realistic interactions -->
+    <script src="https://cdn.jsdelivr.net/npm/aframe-physics-system@4.0.1/dist/aframe-physics-system.min.js"></script>
+    <!-- Environment component for easy scene setup -->
+    <script src="https://unpkg.com/aframe-environment-component@1.3.2/dist/aframe-environment-component.min.js"></script>
+    <!-- Extra components for animation and enhanced functionality -->
+    <script src="https://unpkg.com/aframe-extras@7.0.0/dist/aframe-extras.min.js"></script>
+    <script>
+      /**
+       * The 'pushable' component allows objects to be interacted with by pushing
+       * but prevents them from being picked up or grabbed.
+       * This is used for the paper tube so users can tip it over but not carry it.
+       */
+      AFRAME.registerComponent('pushable', {
+        init: function() {
+          this.el.addEventListener('gripdown', this.onGripDown.bind(this));
+          this.el.addEventListener('gripup', this.onGripUp.bind(this));
+        },
+        onGripDown: function(evt) {
+          // Prevent default grip behavior which would allow picking up
+          evt.preventDefault();
+          evt.stopPropagation();
+        },
+        onGripUp: function(evt) {
+          // Prevent default grip release behavior
+          evt.preventDefault();
+          evt.stopPropagation();
+        }
+      });
+      
+      /**
+       * Sound effects for when the tube falls off the cliff.
+       * This component plays a sound when the tube hits the bottom of the cliff.
+       */
+      AFRAME.registerComponent('tube-fall-effects', {
+        init: function() {
+          this.el.addEventListener('collidestart', this.onCollideStart.bind(this));
+          this.hasPlayedSound = false;
+          
+          // Create sound element
+          this.sound = document.createElement('a-sound');
+          this.sound.setAttribute('src', 'https://cdn.aframe.io/basic-guide/audio/background.mp3');
+          this.sound.setAttribute('volume', '0.5');
+          this.el.appendChild(this.sound);
+        },
+        
+        onCollideStart: function(evt) {
+          // Only play sound once when it hits the bottom
+          if (!this.hasPlayedSound && evt.detail.body.el.getAttribute('class') === 'cliff-bottom') {
+            this.sound.components.sound.playSound();
+            this.hasPlayedSound = true;
+          }
+        }
+      });
+    </script>
   </head>
   <body>
-    <a-scene webxr="optionalFeatures: hand-tracking">
+    <!-- Main scene with WebXR support, physics system, and visual enhancements -->
+    <a-scene webxr="optionalFeatures: hand-tracking" physics="driver: ammo; debug: false;" 
+             renderer="antialias: true; colorManagement: true; physicallyCorrectLights: true;"
+             fog="type: linear; color: #555; near: 2; far: 20">
       
-      <a-entity hand-tracking-controls="hand: left;"></a-entity>
-      <a-entity hand-tracking-controls="hand: right;"></a-entity>
+      <!-- ================ LIGHTING SETUP ================ -->
+      <!-- Main room lighting - brighter now -->
+      <a-light type="ambient" color="#FFF" intensity="1.0"></a-light>
+      <a-light type="directional" color="#FFF" intensity="1.2" position="-1 4 1" cast-shadow="true"></a-light>
+      <a-light type="directional" color="#FFF" intensity="0.8" position="1 4 -1"></a-light>
+      <a-light type="point" color="#FFF" intensity="1.0" position="-2 2 -2"></a-light>
+      <a-light type="point" color="#FFF" intensity="1.0" position="0 2 0"></a-light>
+      
+      <!-- Outside area lighting - dim to create contrast -->
+      <a-light type="ambient" color="#334" intensity="0.3" position="2 0 -1"></a-light>
+      <!-- Street lighting (dim) -->
+      <a-light type="ambient" color="#333B44" intensity="0.4" position="2 -19 -1"></a-light>
+      
+      <!-- ================ HAND TRACKING ================ -->
+      <!-- User's hands for interacting with objects -->
+      <a-entity hand-tracking-controls="hand: left;" ammo-body="type: kinematic;" ammo-shape="type: sphere; fit: manual; halfExtents: 0.05 0.05 0.05;"></a-entity>
+      <a-entity hand-tracking-controls="hand: right;" ammo-body="type: kinematic;" ammo-shape="type: sphere; fit: manual; halfExtents: 0.05 0.05 0.05;"></a-entity>
 
-      <a-box position="0 1.5 -1" rotation="0 45 0" color="blue"></a-box>
-      <a-plane position="0 0 -1" rotation="-90 0 0" width="4" height="4" color="#CCC"></a-plane>
-      <a-sky color="#FAFAFA"></a-sky>
+      <!-- ================ ROOM STRUCTURE ================ -->
+      <!-- Back wall -->
+      <a-plane position="-2 2 -4" rotation="0 0 0" width="4" height="4" 
+               material="src: https://cdn.jsdelivr.net/gh/aframevr/sample-assets@master/assets/images/wall.jpg; repeat: 2 2; normalMap: https://cdn.jsdelivr.net/gh/aframevr/sample-assets@master/assets/images/wall-normal.jpg; emissive: #555; emissiveIntensity: 0.2"
+               ammo-body="type: static;" ammo-shape="type: box;"></a-plane>
+      
+      <!-- Left wall -->
+      <a-plane position="-4 2 -1" rotation="0 90 0" width="6" height="4" 
+               material="src: https://cdn.jsdelivr.net/gh/aframevr/sample-assets@master/assets/images/wall.jpg; repeat: 3 2; normalMap: https://cdn.jsdelivr.net/gh/aframevr/sample-assets@master/assets/images/wall-normal.jpg; emissive: #555; emissiveIntensity: 0.2"
+               ammo-body="type: static;" ammo-shape="type: box;"></a-plane>
+      
+      <!-- Front wall with door -->
+      <a-plane position="-2 2 2" rotation="0 180 0" width="4" height="4" 
+               material="src: https://cdn.jsdelivr.net/gh/aframevr/sample-assets@master/assets/images/wall.jpg; repeat: 2 2; normalMap: https://cdn.jsdelivr.net/gh/aframevr/sample-assets@master/assets/images/wall-normal.jpg; emissive: #555; emissiveIntensity: 0.2"
+               ammo-body="type: static;" ammo-shape="type: box;"></a-plane>
+               
+      <!-- Door in front wall -->
+      <a-entity position="-2 1 2">
+        <a-box position="0 0 0" width="1.2" height="2" depth="0.1" 
+               material="src: https://cdn.jsdelivr.net/gh/aframevr/sample-assets@master/assets/images/door.jpg; emissive: #444; emissiveIntensity: 0.2" 
+               ammo-body="type: static;" ammo-shape="type: box;"></a-box>
+        <a-sphere position="0.4 0 0.05" radius="0.05" material="color: #FFD700; metalness: 1.0; roughness: 0.2; emissive: #AA7700; emissiveIntensity: 0.3"></a-sphere>
+      </a-entity>
+      
+      <!-- Glass wall at cliff edge -->
+      <a-plane position="0 2 -1" rotation="0 -90 0" width="6" height="4" 
+               material="src: https://cdn.jsdelivr.net/gh/aframevr/sample-assets@master/assets/images/glass.png; repeat: 3 2; transparent: true; opacity: 0.2; emissive: #555; emissiveIntensity: 0.1" 
+               ammo-body="type: static;" ammo-shape="type: box;"></a-plane>
+      
+      <!-- Room ceiling -->
+      <a-plane position="-2 4 -1" rotation="90 0 0" width="4" height="6" 
+               material="src: https://cdn.jsdelivr.net/gh/aframevr/sample-assets@master/assets/images/ceiling.jpg; repeat: 4 6; emissive: #666; emissiveIntensity: 0.2" 
+               ammo-body="type: static;" ammo-shape="type: box;"></a-plane>
+
+      <!-- ================ TABLE AND PAPER TUBE ================ -->
+      <!-- Wooden table at the cliff edge - fixed positioning -->
+      <a-entity position="-0.6 0.5 -1" rotation="0 0 0">
+        <!-- Table top -->
+        <a-box position="0 0.4 0" width="1.2" height="0.05" depth="0.6" 
+               material="src: https://cdn.jsdelivr.net/gh/aframevr/sample-assets@master/assets/images/wood.jpg; repeat: 1 1; normalMap: https://cdn.jsdelivr.net/gh/aframevr/sample-assets@master/assets/images/wood-normal.jpg; emissive: #553311; emissiveIntensity: 0.2" 
+               ammo-body="type: static;" ammo-shape="type: box;"
+               shadow="cast: true; receive: false"></a-box>
+        <!-- Table legs -->
+        <a-box position="-0.55 0.2 -0.25" width="0.05" height="0.4" depth="0.05" 
+               material="src: https://cdn.jsdelivr.net/gh/aframevr/sample-assets@master/assets/images/wood.jpg; repeat: 1 1; emissive: #553311; emissiveIntensity: 0.2" 
+               ammo-body="type: static;" ammo-shape="type: box;"
+               shadow="cast: true; receive: false"></a-box>
+        <a-box position="0.55 0.2 -0.25" width="0.05" height="0.4" depth="0.05" 
+               material="src: https://cdn.jsdelivr.net/gh/aframevr/sample-assets@master/assets/images/wood.jpg; repeat: 1 1; emissive: #553311; emissiveIntensity: 0.2" 
+               ammo-body="type: static;" ammo-shape="type: box;"
+               shadow="cast: true; receive: false"></a-box>
+        <a-box position="-0.55 0.2 0.25" width="0.05" height="0.4" depth="0.05" 
+               material="src: https://cdn.jsdelivr.net/gh/aframevr/sample-assets@master/assets/images/wood.jpg; repeat: 1 1; emissive: #553311; emissiveIntensity: 0.2" 
+               ammo-body="type: static;" ammo-shape="type: box;"
+               shadow="cast: true; receive: false"></a-box>
+        <a-box position="0.55 0.2 0.25" width="0.05" height="0.4" depth="0.05" 
+               material="src: https://cdn.jsdelivr.net/gh/aframevr/sample-assets@master/assets/images/wood.jpg; repeat: 1 1; emissive: #553311; emissiveIntensity: 0.2" 
+               ammo-body="type: static;" ammo-shape="type: box;"
+               shadow="cast: true; receive: false"></a-box>
+      </a-entity>
+
+      <!-- Paper tube roll (toilet paper-like tube) -->
+      <a-cylinder position="-0.4 1.03 -1" rotation="0 0 0" radius="0.05" height="0.2" 
+                 material="src: https://cdn.jsdelivr.net/gh/aframevr/sample-assets@master/assets/images/paper.jpg; repeat: 1 1; emissive: #777; emissiveIntensity: 0.3" 
+                 ammo-body="type: dynamic; mass: 0.5; linearDamping: 0.5; angularDamping: 0.5;" 
+                 ammo-shape="type: cylinder;" 
+                 tube-fall-effects
+                 shadow="cast: true; receive: true"
+                 pushable></a-cylinder>
+      
+      <!-- Center hole of the paper tube -->
+      <a-cylinder position="-0.4 1.03 -1" rotation="0 0 0" radius="0.02" height="0.21" 
+                 material="src: https://cdn.jsdelivr.net/gh/aframevr/sample-assets@master/assets/images/cardboard.jpg; repeat: 1 1; side: double; emissive: #555; emissiveIntensity: 0.2" 
+                 ammo-body="type: dynamic; mass: 0.5; linearDamping: 0.5; angularDamping: 0.5;"
+                 ammo-shape="type: cylinder;"
+                 shadow="cast: true; receive: true"
+                 pushable></a-cylinder>
+     
+      <!-- ================ FLOOR AREAS ================ -->
+      <!-- Room floor with hardwood texture -->
+      <a-plane position="-2 0 -1" rotation="-90 0 0" width="4" height="6" 
+               material="src: https://cdn.jsdelivr.net/gh/aframevr/sample-assets@master/assets/images/hardwood2_diffuse.jpg; repeat: 4 6; normalMap: https://cdn.jsdelivr.net/gh/aframevr/sample-assets@master/assets/images/hardwood2_normal.jpg; emissive: #554433; emissiveIntensity: 0.2" 
+               ammo-body="type: static;" ammo-shape="type: box;"
+               shadow="cast: false; receive: true"></a-plane>
+      
+      <!-- ================ CLIFF AREA ================ -->
+      <!-- Cliff face -->
+      <a-plane position="0 -10 -1" rotation="0 0 0" width="0.1" height="20" 
+               material="src: https://cdn.jsdelivr.net/gh/aframevr/sample-assets@master/assets/images/cliff.jpg; repeat: 1 10; side: double; normalMap: https://cdn.jsdelivr.net/gh/aframevr/sample-assets@master/assets/images/cliff-normal.jpg; color: #333" 
+               shadow="cast: true; receive: true"></a-plane>
+      
+      <!-- ================ STREET SCENE BELOW ================ -->
+      <!-- Street surface (road) -->
+      <a-plane position="4 -20 -1" rotation="-90 0 0" width="16" height="8" 
+               class="cliff-bottom"
+               material="src: https://cdn.jsdelivr.net/gh/aframevr/sample-assets@master/assets/images/asphalt.jpg; repeat: 8 4; normalMap: https://cdn.jsdelivr.net/gh/aframevr/sample-assets@master/assets/images/asphalt-normal.jpg" 
+               ammo-body="type: static;" ammo-shape="type: box;"></a-plane>
+               
+      <!-- Street markings -->
+      <a-plane position="4 -19.99 -1" rotation="-90 90 0" width="0.3" height="16" 
+               material="color: #FFF; emissive: #999; emissiveIntensity: 0.1" 
+               shadow="cast: false; receive: false"></a-plane>
+      
+      <!-- Sidewalk opposite side -->
+      <a-plane position="10 -19.95 -1" rotation="-90 0 0" width="4" height="8" 
+               material="src: https://cdn.jsdelivr.net/gh/aframevr/sample-assets@master/assets/images/sidewalk.jpg; repeat: 4 8; normalMap: https://cdn.jsdelivr.net/gh/aframevr/sample-assets@master/assets/images/sidewalk-normal.jpg" 
+               ammo-body="type: static;" ammo-shape="type: box;"></a-plane>
+               
+      <!-- Sidewalk curb -->
+      <a-box position="8 -19.9 -1" width="0.3" height="0.1" depth="8" 
+             material="color: #999; roughness: 0.8"></a-box>
+               
+      <!-- Building 1 across street -->
+      <a-box position="12 -17 -3" width="6" height="6" depth="0.5"
+             material="src: https://cdn.jsdelivr.net/gh/aframevr/sample-assets@master/assets/images/building-facade.jpg; repeat: 3 3"
+             shadow="cast: true; receive: true"></a-box>
+             
+      <!-- Building 1 windows -->
+      <a-entity position="12 -17 -2.7">
+        <a-plane position="-1.5 1" rotation="0 0 0" width="1" height="1.5" 
+                 material="color: #333; emissive: #555; emissiveIntensity: 0.3; metalness: 0.8"></a-plane>
+        <a-plane position="0 1" rotation="0 0 0" width="1" height="1.5" 
+                 material="color: #333; emissive: #555; emissiveIntensity: 0.5; metalness: 0.8"></a-plane>
+        <a-plane position="1.5 1" rotation="0 0 0" width="1" height="1.5" 
+                 material="color: #333; emissive: #666; emissiveIntensity: 0.6; metalness: 0.8"></a-plane>
+        <a-plane position="-1.5 -1" rotation="0 0 0" width="1" height="1.5" 
+                 material="color: #333; emissive: #444; emissiveIntensity: 0.2; metalness: 0.8"></a-plane>
+        <a-plane position="0 -1" rotation="0 0 0" width="1" height="1.5" 
+                 material="color: #333; emissive: #555; emissiveIntensity: 0.4; metalness: 0.8"></a-plane>
+        <a-plane position="1.5 -1" rotation="0 0 0" width="1" height="1.5" 
+                 material="color: #333; emissive: #444; emissiveIntensity: 0.1; metalness: 0.8"></a-plane>
+      </a-entity>
+      
+      <!-- Building 2 across street -->
+      <a-box position="12 -17 1" width="6" height="6" depth="0.5"
+             material="src: https://cdn.jsdelivr.net/gh/aframevr/sample-assets@master/assets/images/brick_wall.jpg; repeat: 6 6"
+             shadow="cast: true; receive: true"></a-box>
+             
+      <!-- Building 2 windows -->
+      <a-entity position="12 -17 1.3">
+        <a-plane position="-1.5 1" rotation="0 0 0" width="1" height="1.5" 
+                 material="color: #333; emissive: #777; emissiveIntensity: 0.5; metalness: 0.8"></a-plane>
+        <a-plane position="0 1" rotation="0 0 0" width="1" height="1.5" 
+                 material="color: #333; emissive: #111; emissiveIntensity: 0.1; metalness: 0.8"></a-plane>
+        <a-plane position="1.5 1" rotation="0 0 0" width="1" height="1.5" 
+                 material="color: #333; emissive: #777; emissiveIntensity: 0.4; metalness: 0.8"></a-plane>
+        <a-plane position="-1.5 -1" rotation="0 0 0" width="1" height="1.5" 
+                 material="color: #333; emissive: #111; emissiveIntensity: 0.1; metalness: 0.8"></a-plane>
+        <a-plane position="0 -1" rotation="0 0 0" width="1" height="1.5" 
+                 material="color: #333; emissive: #777; emissiveIntensity: 0.6; metalness: 0.8"></a-plane>
+        <a-plane position="1.5 -1" rotation="0 0 0" width="1" height="1.5" 
+                 material="color: #333; emissive: #111; emissiveIntensity: 0.1; metalness: 0.8"></a-plane>
+      </a-entity>
+      
+      <!-- Street lamps -->
+      <a-entity position="7 -19.5 -4">
+        <a-box position="0 2 0" width="0.2" height="4" depth="0.2" color="#444"></a-box>
+        <a-sphere position="0 4 0" radius="0.3" material="color: #FFF; emissive: #FFD; emissiveIntensity: 0.7"></a-sphere>
+        <a-light type="point" color="#FFEECC" intensity="0.6" position="0 4 0" distance="10"></a-light>
+      </a-entity>
+      
+      <a-entity position="7 -19.5 2">
+        <a-box position="0 2 0" width="0.2" height="4" depth="0.2" color="#444"></a-box>
+        <a-sphere position="0 4 0" radius="0.3" material="color: #FFF; emissive: #FFD; emissiveIntensity: 0.7"></a-sphere>
+        <a-light type="point" color="#FFEECC" intensity="0.6" position="0 4 0" distance="10"></a-light>
+      </a-entity>
+      
+      <!-- Street objects -->
+      <a-entity position="9 -19.5 0">
+        <a-cylinder position="0 0.5 0" radius="0.3" height="1" color="#444"></a-cylinder>
+        <a-box position="1 0.15 0" width="0.3" height="0.3" depth="1.5" color="#854"></a-box>
+      </a-entity>
+      
+      <!-- ================ ROOM DECORATIONS ================ -->
+      <!-- Picture frame on the wall -->
+      <a-entity position="-3.9 2 -2" rotation="0 90 0" geometry="primitive: plane; width: 0.8; height: 1.2" 
+                material="src: https://cdn.jsdelivr.net/gh/aframevr/sample-assets@master/assets/images/painting.jpg; emissive: #777; emissiveIntensity: 0.3" 
+                shadow="cast: true; receive: true"></a-entity>
+                
+      <!-- Small shelf on the wall -->
+      <a-box position="-3.9 1.5 -3" width="0.05" depth="0.5" height="0.05" 
+             material="src: https://cdn.jsdelivr.net/gh/aframevr/sample-assets@master/assets/images/wood.jpg; emissive: #553311; emissiveIntensity: 0.2" 
+             shadow="cast: true; receive: true"></a-box>
+             
+      <!-- Small vase on the shelf -->
+      <a-cylinder position="-3.9 1.6 -3" radius="0.06" height="0.15" 
+                 material="color: #7B3F00; emissive: #4B2500; emissiveIntensity: 0.3"
+                 shadow="cast: true; receive: true"></a-cylinder>
+                 
+      <!-- ================ LIGHT FIXTURES ================ -->
+      <!-- Main ceiling light -->
+      <a-entity position="-2 3.9 -1">
+        <a-cylinder radius="0.2" height="0.05" material="color: #CCC; emissive: #AAA; emissiveIntensity: 0.3" position="0 0 0"></a-cylinder>
+        <a-light type="point" color="#FFF" intensity="1.5" position="0 -0.2 0" distance="6"></a-light>
+      </a-entity>
+      
+      <!-- Small wall sconce -->
+      <a-entity position="-3.9 2.5 -3">
+        <a-box width="0.1" height="0.2" depth="0.1" material="color: #999; emissive: #777; emissiveIntensity: 0.5"></a-box>
+        <a-light type="point" color="#FFD" intensity="0.7" position="0.1 0 0" distance="3"></a-light>
+      </a-entity>
+      
+      <!-- ================ ENVIRONMENT ================ -->
+      <!-- Dark night sky outside -->
+      <a-sky color="#111" src="https://cdn.jsdelivr.net/gh/aframevr/sample-assets@master/assets/images/nightsky.jpg"></a-sky>
 
     </a-scene>
   </body>
