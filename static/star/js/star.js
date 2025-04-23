@@ -168,9 +168,9 @@ class StarExperiment extends Experiment {
         this.dotMotion.start(); // Only once
         
         // Stop dot motion after 2 seconds
-        setTimeout(() => {
-            this.dotMotion.stop();
-        }, 2000); // Only once
+        // setTimeout(() => {
+        //     this.dotMotion.stop();
+        // }, 2000); // Only once
         
         
         this.trialStartTime = performance.now();
@@ -178,14 +178,29 @@ class StarExperiment extends Experiment {
 
         this.responseWindowOpen = true;
 
+        // this.responseTimeout = setTimeout(() => {
+        //     if (this.responseWindowOpen) {
+        //         console.log("Response window timed out. No response received.");
+        //         this.responseWindowOpen = false;
+        //         this.showTooSlowFeedback();
+        //         this.currentTrial++;
+        //         setTimeout(() => this.startTrial(), 1000);
+        //     }
+        // }, 2000);
+
+        // Stop dot motion after 2 seconds AND check for timeout
         this.responseTimeout = setTimeout(() => {
             if (this.responseWindowOpen) {
-                console.log("Response window timed out. No response received.");
                 this.responseWindowOpen = false;
+                console.log("Response window timed out. No response received.");
+                if (this.dotMotion) this.dotMotion.stop();
                 this.showTooSlowFeedback();
-                this.currentTrial++;
-                setTimeout(() => this.startTrial(), 1000);
             }
+        }, 2000);
+
+        // Stop dot motion after 2 seconds regardless of response
+        setTimeout(() => {
+            if (this.dotMotion) this.dotMotion.stop();
         }, 2000);
     }
 
@@ -251,14 +266,29 @@ class StarExperiment extends Experiment {
         this.canvas.classList.remove('active');
         this.feedbackText.textContent = "Too Slow!";
         this.feedback.classList.add('active');
-
         setTimeout(() => {
             this.feedback.classList.remove('active');
             this.canvas.classList.add('active');
-             // Clear the canvas after feedback to avoid ghosting
+
+            // Clear the canvas and stop dot motion after feedback to avoid ghosting
             this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+            if (this.dotMotion) {
+                this.dotMotion.stop();
+            }
+            // NOTE: In the original experiment, the SAME TRIAL CONFIGURATION
+            // was repeated if participant was too slow, we just randomly choose 
+            // each trial so there isn't a guarantee that the same configuration is chosen...
+            
+            // this.currentTrial++;
             this.startTrial();
         }, 1000);
+        // setTimeout(() => {
+        //     this.feedback.classList.remove('active');
+        //     this.canvas.classList.add('active');
+        //      // Clear the canvas after feedback to avoid ghosting
+        //     this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+        //     this.startTrial();
+        // }, 1000);
     }
     // ORIGINAL
     // showTooSlowFeedback() {
