@@ -1,4 +1,11 @@
 // randomDotMotion.js
+
+// Change dots to randomly go in and out
+// Add fixation point
+// Match trial number to paper
+
+console.log("randomDotMotion.js loaded successfully");
+
 class RandomDotMotion {
     constructor(ctx, canvasWidth, canvasHeight, direction) {
         this.ctx = ctx;
@@ -7,40 +14,58 @@ class RandomDotMotion {
         this.direction = direction; // 'left' or 'right'
         this.dots = [];
         this.numDots = 50 * 5 * 5; // 50 dots per square degree in a 5°x5° area
-        this.dotDensity = 50; // dots per square degree
         this.dotRadius = 0.05; // degrees
         this.dotSpeed = 2; // degrees per second
-        this.dotLifetime = 200; // ms
+        this.dotLifetime = 1000; // ms
         this.animationFrameId = null;
         this.lastUpdateTime = null;
+        this.pixelsPerDegree = this.canvasWidth / 14.7;
+
+        this.createDots();
     }
 
     createDots() {
-        const areaSize = 5; // degrees (5° x 5° area)
-        const pixelsPerDegree = this.canvasWidth / 14.7; // pixels per degree based on grating size
+        const areaSize = 5; // degrees
 
         for (let i = 0; i < this.numDots; i++) {
-            const x = (Math.random() - 0.5) * areaSize * pixelsPerDegree;
-            const y = (Math.random() - 0.5) * areaSize * pixelsPerDegree;
-            const direction = Math.random() < 0.6 ? 'random' : this.direction; // 60% random, 40% coherent
+            const x = (Math.random() - 0.5) * areaSize * this.pixelsPerDegree;
+            const y = (Math.random() - 0.5) * areaSize * this.pixelsPerDegree;
+            const isRandom = Math.random() < 0.6;
+            const direction = isRandom ? 'random' : this.direction;
+            const angle = isRandom
+                ? Math.random() * 2 * Math.PI
+                : (direction === 'left' ? Math.PI : 0);
+
             this.dots.push({
-                x: x,
-                y: y,
-                direction: direction,
-                lifetime: Math.random() * this.dotLifetime // Randomize initial lifetime
+                x,
+                y,
+                direction,
+                angle,
+                lifetime: Math.random() * this.dotLifetime
             });
         }
     }
 
-    resetDots(direction) {
-        this.dots = []; // Clear existing dots
-        this.direction = direction; // Update direction for the new trial
-        this.createDots(); // Recreate dots with new settings
+    // FIXED: Preserve dot directions across trials
+    resetDots(newDirection) {
+        this.direction = newDirection;
+        this.dots.forEach(dot => {
+            if (dot.direction !== 'random') {
+                dot.direction = newDirection;
+                dot.angle = newDirection === 'left' ? Math.PI : 0;
+            }
+        });
     }
 
     start() {
         this.lastUpdateTime = performance.now();
         this.animate();
+    }
+    stop() {
+        if (this.animationFrameId) {
+            cancelAnimationFrame(this.animationFrameId);
+            this.animationFrameId = null;
+        }
     }
 
     animate() {
@@ -48,7 +73,7 @@ class RandomDotMotion {
         const currentTime = performance.now();
         const deltaTime = currentTime - this.lastUpdateTime;
 
-        if (deltaTime >= 16) { // Approximately 60 FPS
+        if (deltaTime >= 16) {
             this.updateDots(deltaTime);
             this.drawDots();
             this.lastUpdateTime = currentTime;
@@ -56,40 +81,39 @@ class RandomDotMotion {
     }
 
     updateDots(deltaTime) {
-        const pixelsPerDegree = this.canvasWidth / 14.7; // pixels per degree based on grating size
-        const deltaDegrees = this.dotSpeed * (deltaTime / 1000); // degrees to move
-        const deltaPixels = deltaDegrees * pixelsPerDegree;
+        const deltaDegrees = this.dotSpeed * (deltaTime / 1000);
+        const deltaPixels = deltaDegrees * this.pixelsPerDegree;
 
         this.dots.forEach(dot => {
-            let moveX = 0;
-            let moveY = 0;
-
-            if (dot.direction === 'random') {
-                const angle = Math.random() * 2 * Math.PI;
-                moveX = deltaPixels * Math.cos(angle);
-                moveY = deltaPixels * Math.sin(angle);
-            } else {
-                const angle = dot.direction === 'left' ? Math.PI : 0;
-                moveX = deltaPixels * Math.cos(angle);
-                moveY = deltaPixels * Math.sin(angle);
-            }
+            const moveX = deltaPixels * Math.cos(dot.angle);
+            const moveY = deltaPixels * Math.sin(dot.angle);
 
             dot.x += moveX;
             dot.y += moveY;
 
-            const halfAreaPixels = (5 / 2) * pixelsPerDegree;
-            if (dot.x < -halfAreaPixels) dot.x += 5 * pixelsPerDegree;
-            if (dot.x > halfAreaPixels) dot.x -= 5 * pixelsPerDegree;
-            if (dot.y < -halfAreaPixels) dot.y += 5 * pixelsPerDegree;
-            if (dot.y > halfAreaPixels) dot.y -= 5 * pixelsPerDegree;
+            const halfAreaPixels = (5 / 2) * this.pixelsPerDegree;
+            if (dot.x < -halfAreaPixels) dot.x += 5 * this.pixelsPerDegree;
+            if (dot.x > halfAreaPixels) dot.x -= 5 * this.pixelsPerDegree;
+            if (dot.y < -halfAreaPixels) dot.y += 5 * this.pixelsPerDegree;
+            if (dot.y > halfAreaPixels) dot.y -= 5 * this.pixelsPerDegree;
 
             dot.lifetime += deltaTime;
             if (dot.lifetime > this.dotLifetime) {
-                dot.x = (Math.random() - 0.5) * 5 * pixelsPerDegree;
-                dot.y = (Math.random() - 0.5) * 5 * pixelsPerDegree;
-                dot.direction = Math.random() < 0.6 ? 'random' : this.direction;
+                const isRandom = Math.random() < 0.6;
+                dot.x = (Math.random() - 0.5) * 5 * this.pixelsPerDegree;
+                dot.y = (Math.random() - 0.5) * 5 * this.pixelsPerDegree;
+                dot.direction = isRandom ? 'random' : this.direction;
+                
+                // Assign fixed angle ONCE at dot reset
+                if (isRandom) {
+                    dot.angle = Math.random() * 2 * Math.PI;
+                } else {
+                    dot.angle = this.direction === 'left' ? Math.PI : 0;
+                }
+
                 dot.lifetime = 0;
             }
+
         });
     }
 
@@ -100,7 +124,7 @@ class RandomDotMotion {
 
         this.dots.forEach(dot => {
             this.ctx.beginPath();
-            this.ctx.arc(dot.x, dot.y, this.dotRadius * (this.canvasWidth / 14.7), 0, 2 * Math.PI);
+            this.ctx.arc(dot.x, dot.y, this.dotRadius * this.pixelsPerDegree, 0, 2 * Math.PI);
             this.ctx.fillStyle = '#000';
             this.ctx.fill();
         });

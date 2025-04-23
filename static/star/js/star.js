@@ -26,7 +26,7 @@ class StarExperiment extends Experiment {
         this.feedback = document.getElementById('feedback');
         this.endScreen = document.getElementById('end-screen');
         this.currentTrial = 0;
-        this.totalTrials = 60; // 60 trials as per methods
+        this.totalTrials = 20; // 20 trials as per methods: Subjects performed 60 trials in three blocks of 20 trials each, thus 30 trials per major condition.
         this.adaptDirection = null; // 'left' or 'right'
         this.testDirection = null; // 'left' or 'right'
         this.trialStartTime = 0;
@@ -94,10 +94,15 @@ class StarExperiment extends Experiment {
         this.canvas.classList.add('active');
         this.feedback.classList.remove('active');
         this.feedbackText.textContent = '';
-
+ 
+        if (this.dotMotion) {
+            this.dotMotion.stop(); // ⛔ stop any leftover motion
+        }
+        // await this.showFixation(1.5);  // Fixation before each grating
         await this.showAdaptingStimulus(trial.adaptDirection);
-        this.showTestStimulus(trial.testDirection);
+        await this.showTestStimulus(trial.testDirection);
     }
+
 
     
     // ORIGINAL
@@ -115,30 +120,59 @@ class StarExperiment extends Experiment {
     //     this.showTestStimulus(trial.testDirection);
     // }
 
+    async showFixation(duration = 1.5) {
+        console.log("Showing fixation point");
+        return new Promise((resolve) => {
+            this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+            this.ctx.save();
+
+            // Draw central fixation dot
+            this.ctx.beginPath();
+            this.ctx.arc(this.canvas.width / 2, this.canvas.height / 2, 5, 0, 2 * Math.PI);
+            this.ctx.fillStyle = "black";
+            this.ctx.fill();
+
+            this.ctx.restore();
+
+            setTimeout(() => {
+                resolve();
+            }, duration * 1000);
+        });
+    }
+
     async showAdaptingStimulus(direction) {
         console.log(`Showing adapting stimulus direction: ${direction}`);
+        await this.showFixation(1.5);
+
         return new Promise((resolve) => {
-            // Clear canvas
             this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
-            // Draw adapting stimulus (sinusoidal grating)
             const grating = new Grating(this.ctx, this.canvas.width, this.canvas.height, direction);
-            grating.start(1.5, () => { // 1.5 seconds duration
+            grating.start(1.5, () => {
                 console.log("Adapting stimulus completed");
                 resolve();
             });
         });
     }
     
-    showTestStimulus(direction) {
+   
+    // Update showTestStimulus to display dot motion without added fixation
+    async showTestStimulus(direction) {
         console.log(`Showing test stimulus direction: ${direction}`);
-        this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+            this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
 
         if (!this.dotMotion) {
             this.dotMotion = new RandomDotMotion(this.ctx, this.canvas.width, this.canvas.height, direction);
         }
-        this.dotMotion.resetDots(direction);
-        this.dotMotion.start();
 
+        this.dotMotion.resetDots(direction);
+        this.dotMotion.start(); // Only once
+        
+        // Stop dot motion after 2 seconds
+        setTimeout(() => {
+            this.dotMotion.stop();
+        }, 2000); // Only once
+        
+        
         this.trialStartTime = performance.now();
         console.log("Test stimulus displayed, waiting for response");
 
@@ -154,34 +188,6 @@ class StarExperiment extends Experiment {
             }
         }, 2000);
     }
-
-    
-    // ORIGINAL
-    // showTestStimulus(direction) {
-    //     console.log(`Showing test stimulus direction: ${direction}`);
-    //     // Draw test stimulus (random dot motion)
-    //     this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
-    //     const dotMotion = new RandomDotMotion(this.ctx, this.canvas.width, this.canvas.height, direction);
-    //     dotMotion.start();
-    //     // Record the time when test stimulus is shown
-    //     this.trialStartTime = performance.now();
-    //     console.log("Test stimulus displayed, waiting for response");
-
-    //     // Open response window
-    //     this.responseWindowOpen = true;
-
-    //     // Set timeout for 2 seconds to handle 'Too Slow!' scenario
-    //     this.responseTimeout = setTimeout(() => {
-    //         if (this.responseWindowOpen) {
-    //             console.log("Response window timed out. No response received.");
-    //             this.responseWindowOpen = false;
-    //             this.showTooSlowFeedback();
-    //             this.currentTrial++;
-    //             // Start next trial after short delay
-    //             setTimeout(() => this.startTrial(), 1000);
-    //         }
-    //     }, 2000); // 2000 ms = 2 seconds
-    // }
 
     handleResponse(e) {
         if (!this.responseWindowOpen) {
@@ -249,6 +255,8 @@ class StarExperiment extends Experiment {
         setTimeout(() => {
             this.feedback.classList.remove('active');
             this.canvas.classList.add('active');
+             // Clear the canvas after feedback to avoid ghosting
+            this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
             this.startTrial();
         }, 1000);
     }
