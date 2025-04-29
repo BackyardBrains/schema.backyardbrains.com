@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>Video with Timed Overlay Cue</title>
+  <style>
+    /* Layout */
+    .container {
+      position: relative;
+      width: 100%;
+      max-width: 800px;
+      margin: auto;
+    }
+    video {
+      width: 100%;
+      height: auto;
+      display: block;
+    }
+
+    /* Overlay that fills video frame */
+    .overlay {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      pointer-events: none;
+    }
+    .hidden { display: none; }
+
+    /* Orange triangle */
+    .triangle {
+      width: 0;
+      height: 0;
+      border-left: 60px solid transparent;
+      border-right: 60px solid transparent;
+      border-bottom: 100px solid #ff7a00;
+    }
+
+    /* Black square anchored at page bottom‑right, not over video */
+    #square {
+      position: fixed;
+      bottom: 1rem;
+      right: 1rem;
+      width: 80px;
+      height: 80px;
+      background: #000;
+      pointer-events: none;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <video id="vid" autoplay muted playsinline>
+      <source src="./squeexe.mp4" type="video/mp4" />
+      Your browser does not support the video tag.
+    </video>
+
+    <!-- orange triangle cue -->
+    <div id="triangle" class="overlay hidden">
+      <div class="triangle"></div>
+    </div>
+  </div>
+
+  <!-- black square off the video, fixed to lower right of the page -->
+  <div id="square" class="hidden"></div>
+
+  <script>
+    const cues = [
+      { id: "triangle", start: 3, end: 6 },
+      { id: "square",   start: 3, end: Infinity },
+    ];
+
+    const vid = document.getElementById("vid");
+
+    vid.addEventListener("timeupdate", () => {
+      const t = vid.currentTime;
+      cues.forEach(({ id, start, end }) => {
+        const el = document.getElementById(id);
+        if (t >= start && t <= end) {
+          el.classList.remove("hidden");
+        } else {
+          el.classList.add("hidden");
+        }
+      });
+    });
+  </script>
+</body>
+</html>
