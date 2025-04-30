@@ -11,6 +11,7 @@
 h1 {
     font-family: 'matteo-medium';
     font-size: 4em; 
+    text-transform: uppercase;
 }
 
 /* Adjust font-size for medium screens */

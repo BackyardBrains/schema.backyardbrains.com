@@ -6,6 +6,7 @@ class StarExperiment extends Experiment {
     constructor() {
         super();
         this.experimentName = "star";
+        this.UUID = '';
         console.log("StarExperiment class instantiated");
 
         this.canvas = document.getElementById('stimulus-canvas');
@@ -77,8 +78,20 @@ class StarExperiment extends Experiment {
         this.instructions.classList.remove('active');
         this.canvas.classList.add('active');
         this.generateTrials();
-        this.session = generateUUID();
-        console.log("Session UUID:", this.session);
+        
+        // Initialize session data similar to tubeExperiment.js
+        const sessionGroup = getQueryParam('SG');
+        this.session = {
+            session_group: sessionGroup,
+            experiment_version: "1.0",
+            file_version: "1.0",
+            browserData: getBrowserData(),
+            experiment_config: {
+                total_trials: this.totalTrials
+            }
+        };
+        this.UUID = generateUUID();
+        console.log("Session UUID:", this.UUID);
         await this.startTrial();
     }
         
@@ -194,6 +207,21 @@ class StarExperiment extends Experiment {
                 this.responseWindowOpen = false;
                 console.log("Response window timed out. No response received.");
                 if (this.dotMotion) this.dotMotion.stop();
+
+                // Save trial data with Completed = false
+                const trial = this.trials[this.currentTrial];
+                this.saveTrialData({
+                    trialNumber: trial.trialIndex,
+                    condition: trial.condition,
+                    delayTreatment: 'bars',
+                    delayDir: trial.adaptDirection,
+                    starDir: trial.testDirection,
+                    responseDir: null,
+                    responseRT: null,
+                    correct: false,
+                    Completed: false
+                });
+
                 this.showTooSlowFeedback();
             }
         }, 2000);
@@ -225,13 +253,15 @@ class StarExperiment extends Experiment {
             console.log(`Trial ${this.currentTrial}: Response - ${responseDirection}, Correct - ${correct}, RT - ${responseTime.toFixed(2)} ms`);
 
             this.saveTrialData({
-                trialIndex: trial.trialIndex,
+                trialNumber: trial.trialIndex,
                 condition: trial.condition,
-                adaptDirection: trial.adaptDirection,
-                testDirection: trial.testDirection,
-                response: responseDirection,
+                delayTreatment: 'bars',
+                delayDir: trial.adaptDirection,
+                starDir: trial.testDirection,
+                responseDir: responseDirection,
+                responseRT: responseTime,
                 correct: correct,
-                reactionTime: responseTime
+                Completed: true
             });
 
             // Provide feedback
@@ -308,6 +338,20 @@ class StarExperiment extends Experiment {
         this.canvas.classList.remove('active');
         this.endScreen.classList.add('active');
         this.saveData();
+    }
+
+    saveTrialData(trialData) {
+        // Add the trial data to our trials array
+        this.trials.push(trialData);
+
+        // If this is the last trial, send all data to server
+        if (this.currentTrial >= this.totalTrials) {
+            let data = {
+                session: this.session,
+                trials: this.trials
+            };
+            sendDataToServer(data, this.UUID, 'star');
+        }
     }
 }
 
