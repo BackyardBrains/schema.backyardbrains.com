@@ -12,14 +12,23 @@
     <div id="experiment-container">
         <!-- Instructions Screen -->
         <div id="instructions" class="screen active">
-            <h1>Starfield Experiment</h1>
-            <p>You will see a series of visual stimuli. Your task is to identify the direction of the moving dots as quickly and accurately as possible.</p>
-            <p>
+            <h1>Which way are the stars moving? </h1>
+            <p>Your task is to identify the direction of a small portion of moving dots in a sea of random dots.</p>
+                <p>In each trial, you will stare fixated at a small dot. <br/>
+                    <img src="./img/dot.png" alt="dot" width="150" height="150"> <br/>
+                    <strong>Keep your focus on the dot!</strong></p> 
+                <p>After a breif distration, you will see a sea of dots.  <br/>
+                    <img src="./img/stars.png" alt="stars" width="200" height="150"> <br/>
+                </p>
+                <p>As quickly as you can, indicate you can see the stars moving to the left or right.</p>
+       
                 <strong>
-                    Use <button class="arrow-btn left-arrow mx-2"></button> and <button class="arrow-btn right-arrow mx-2"></button> arrow keys on your keyboard.
+                    Use <button class="arrow-btn left-arrow mx-2"></button> 
+                    and <button class="arrow-btn right-arrow mx-2"></button> arrow keys on your keyboard.
                 </strong>
-            </p>
-            <button id="start-button" class="btn btn-primary mt-3">Start Experiment</button>
+
+                <p>to indicate starts moving "Towards Left" and "Towards Right" respectively.</p>
+                <button id="start-button" class="btn btn-primary mt-3">Start Experiment</button>
         </div>
 
         <!-- Stimulus Canvas -->

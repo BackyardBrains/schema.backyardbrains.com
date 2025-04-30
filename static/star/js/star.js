@@ -43,32 +43,51 @@ class StarExperiment extends Experiment {
     }
 
     generateTrials() {
-        console.log("Generating trials");
-        // Generate 60 trials: 30 congruent, 30 incongruent
-        const trialsPerCondition = this.totalTrials / 2;
-        for (let i = 0; i < trialsPerCondition; i++) {
-            // Congruent trials: Adapt and Test in same direction
-            let adaptDir = Math.random() < 0.5 ? 'left' : 'right';
-            let testDir = adaptDir;
+        // Ensure totalTrials is a multiple of 4 so that the 4 cases are sampled equally
+        if (this.totalTrials % 4 !== 0) {
+            console.warn(`totalTrials (${this.totalTrials}) is not a multiple of 4. Rounding down to nearest multiple.`);
+            this.totalTrials = Math.floor(this.totalTrials / 4) * 4;
+        }
+
+        const trialsPerCase = this.totalTrials / 4; // four cases: CL, CR, IL, IR
+        this.trials = []; // reset
+
+        let index = 0;
+        for (let i = 0; i < trialsPerCase; i++) {
+            // Congruent – start left
             this.trials.push({
-                trialIndex: this.trials.length,
+                trialIndex: index++,
                 condition: 'congruent',
-                adaptDirection: adaptDir,
-                testDirection: testDir
+                adaptDirection: 'left',
+                testDirection: 'left'
             });
 
-            // Incongruent trials: Adapt and Test in opposite directions
-            adaptDir = Math.random() < 0.5 ? 'left' : 'right';
-            testDir = adaptDir === 'left' ? 'right' : 'left';
+            // Congruent – start right
             this.trials.push({
-                trialIndex: this.trials.length,
+                trialIndex: index++,
+                condition: 'congruent',
+                adaptDirection: 'right',
+                testDirection: 'right'
+            });
+
+            // Incongruent – start left (adapt left, test right)
+            this.trials.push({
+                trialIndex: index++,
                 condition: 'incongruent',
-                adaptDirection: adaptDir,
-                testDirection: testDir
+                adaptDirection: 'left',
+                testDirection: 'right'
+            });
+
+            // Incongruent – start right (adapt right, test left)
+            this.trials.push({
+                trialIndex: index++,
+                condition: 'incongruent',
+                adaptDirection: 'right',
+                testDirection: 'left'
             });
         }
 
-        // Shuffle trials to randomize order
+        // Randomize order
         shuffle(this.trials);
         console.log("Trials generated and shuffled:", this.trials);
     }
