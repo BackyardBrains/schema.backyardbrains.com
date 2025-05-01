@@ -141,6 +141,7 @@ class StarExperiment extends Experiment {
             browserData: getBrowserData(),
             experiment_config: {
                 total_trials: this.totalTrials,
+                total_practice_trials: this.totalPracticeTrials,
                 sessionType: this.sessionType
             }
         };
