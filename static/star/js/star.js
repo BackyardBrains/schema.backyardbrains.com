@@ -7,6 +7,8 @@ class StarExperiment extends Experiment {
         super();
         this.experimentName = "star";
         this.UUID = '';
+        this.sessionType = 'bars';
+
         console.log("StarExperiment class instantiated");
 
         this.canvas = document.getElementById('stimulus-canvas');
@@ -66,12 +68,12 @@ class StarExperiment extends Experiment {
         }
 
         const trialsPerCase = this.totalTrials / 4; // four cases: CL, CR, IL, IR
-        this.trials = []; // reset
+        this.trialTypes = []; // reset
 
         let index = 0;
         for (let i = 0; i < trialsPerCase; i++) {
             // Congruent – start left
-            this.trials.push({
+            this.trialTypes.push({
                 trialIndex: index++,
                 condition: 'congruent',
                 adaptDirection: 'left',
@@ -79,7 +81,7 @@ class StarExperiment extends Experiment {
             });
 
             // Congruent – start right
-            this.trials.push({
+            this.trialTypes.push({
                 trialIndex: index++,
                 condition: 'congruent',
                 adaptDirection: 'right',
@@ -87,7 +89,7 @@ class StarExperiment extends Experiment {
             });
 
             // Incongruent – start left (adapt left, test right)
-            this.trials.push({
+            this.trialTypes.push({
                 trialIndex: index++,
                 condition: 'incongruent',
                 adaptDirection: 'left',
@@ -95,7 +97,7 @@ class StarExperiment extends Experiment {
             });
 
             // Incongruent – start right (adapt right, test left)
-            this.trials.push({
+            this.trialTypes.push({
                 trialIndex: index++,
                 condition: 'incongruent',
                 adaptDirection: 'right',
@@ -104,8 +106,8 @@ class StarExperiment extends Experiment {
         }
 
         // Randomize order
-        shuffle(this.trials);
-        console.log("Trials generated and shuffled:", this.trials);
+        shuffle(this.trialTypes);
+        console.log("Trials generated and shuffled:", this.trialTypes);
     }
 
     async start() {
@@ -122,7 +124,8 @@ class StarExperiment extends Experiment {
             file_version: "1.0",
             browserData: getBrowserData(),
             experiment_config: {
-                total_trials: this.totalTrials
+                total_trials: this.totalTrials,
+                sessionType: this.sessionType
             }
         };
         this.UUID = generateUUID();
@@ -136,7 +139,7 @@ class StarExperiment extends Experiment {
             return;
         }
 
-        let trial = this.trials[this.currentTrial];
+        let trial = this.trialTypes[this.currentTrial];
         console.log(`Starting Trial ${this.currentTrial}:`, trial);
 
         this.canvas.classList.add('active');
@@ -244,7 +247,7 @@ class StarExperiment extends Experiment {
                 if (this.dotMotion) this.dotMotion.stop();
 
                 // Save trial data with Completed = false
-                const trial = this.trials[this.currentTrial];
+                const trial = this.trialTypes[this.currentTrial];
                 this.saveTrialData({
                     trialNumber: trial.trialIndex,
                     condition: trial.condition,
@@ -276,7 +279,7 @@ class StarExperiment extends Experiment {
         if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
             const responseTime = performance.now() - this.trialStartTime;
             const responseDirection = e.key === 'ArrowLeft' ? 'left' : 'right';
-            const trial = this.trials[this.currentTrial];
+            const trial = this.trialTypes[this.currentTrial];
             const correct = responseDirection === trial.testDirection;
 
             // Optional: Ignore responses that are too fast (e.g., < 200 ms)

@@ -57,3 +57,8 @@ body {
 .instruction-page {
     text-align: center;
 }
+
+#instructions {
+    text-align: center;
+    width: 100%;
+}
