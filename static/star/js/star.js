@@ -29,7 +29,8 @@ class StarExperiment extends Experiment {
         this.feedback = document.getElementById('feedback');
         this.endScreen = document.getElementById('end-screen');
         this.currentTrial = 0;
-        this.totalTrials = 20; // 20 trials as per methods: Subjects performed 60 trials in three blocks of 20 trials each, thus 30 trials per major condition.
+        this.totalTrials = 28; // 20 trials as per methods: Subjects performed 60 trials in three blocks of 20 trials each, thus 30 trials per major condition.
+        this.totalPracticeTrials = 2; // 20 trials as per methods: Subjects performed 60 trials in three blocks of 20 trials each, thus 30 trials per major condition.
         this.adaptDirection = null; // 'left' or 'right'
         this.testDirection = null; // 'left' or 'right'
         this.trialStartTime = 0;
@@ -77,7 +78,8 @@ class StarExperiment extends Experiment {
                 trialIndex: index++,
                 condition: 'congruent',
                 adaptDirection: 'left',
-                testDirection: 'left'
+                testDirection: 'left',
+                practice: false
             });
 
             // Congruent – start right
@@ -85,7 +87,8 @@ class StarExperiment extends Experiment {
                 trialIndex: index++,
                 condition: 'congruent',
                 adaptDirection: 'right',
-                testDirection: 'right'
+                testDirection: 'right',
+                practice: false
             });
 
             // Incongruent – start left (adapt left, test right)
@@ -93,7 +96,8 @@ class StarExperiment extends Experiment {
                 trialIndex: index++,
                 condition: 'incongruent',
                 adaptDirection: 'left',
-                testDirection: 'right'
+                testDirection: 'right',
+                practice: false
             });
 
             // Incongruent – start right (adapt right, test left)
@@ -101,13 +105,25 @@ class StarExperiment extends Experiment {
                 trialIndex: index++,
                 condition: 'incongruent',
                 adaptDirection: 'right',
-                testDirection: 'left'
+                testDirection: 'left',
+                practice: false
             });
         }
 
         // Randomize order
         shuffle(this.trialTypes);
-        console.log("Trials generated and shuffled:", this.trialTypes);
+
+        if (this.totalPracticeTrials > 0) {
+            // Duplicate (not move) the last three trials as practice at the beginning
+            const numPractice = Math.min( this.totalPracticeTrials, this.trialTypes.length);
+            const practiceTrials = this.trialTypes.slice(-numPractice).map(t => ({ ...t, practice: true }));
+            this.trialTypes.unshift(...practiceTrials);
+        }
+
+        // Update totalTrials to reflect the extra practice trials
+        this.totalTrials = this.trialTypes.length;
+
+        console.log("Trials generated (including practice) and shuffled:", this.trialTypes);
     }
 
     async start() {
@@ -257,7 +273,8 @@ class StarExperiment extends Experiment {
                     responseDir: null,
                     responseRT: null,
                     correct: false,
-                    Completed: false
+                    practice: trial.practice,
+                    completed: false
                 });
 
                 this.showTooSlowFeedback();
@@ -299,7 +316,8 @@ class StarExperiment extends Experiment {
                 responseDir: responseDirection,
                 responseRT: responseTime,
                 correct: correct,
-                Completed: true
+                practice: trial.practice,
+                completed: true
             });
 
             // Provide feedback
