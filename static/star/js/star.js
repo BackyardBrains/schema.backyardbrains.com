@@ -40,6 +40,22 @@ class StarExperiment extends Experiment {
             this.start();
         });
         document.addEventListener('keydown', (e) => this.handleResponse(e));
+
+        // Handle instruction pages navigation
+        const pages = document.querySelectorAll('.instruction-page');
+        let currentPage = 0;
+        pages.forEach((p, idx) => {
+            const btn = p.querySelector('.next-button');
+            if (btn) {
+                btn.addEventListener('click', () => {
+                    pages[currentPage].classList.add('hidden');
+                    currentPage++;
+                    if (currentPage < pages.length) {
+                        pages[currentPage].classList.remove('hidden');
+                    }
+                });
+            }
+        });
     }
 
     generateTrials() {

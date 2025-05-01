@@ -49,3 +49,11 @@ body {
 .right-arrow::before {
     content: "\2192"; /* Unicode for right arrow */
 }
+
+.instruction-page.hidden {
+    display: none;
+}
+
+.instruction-page {
+    text-align: center;
+}
