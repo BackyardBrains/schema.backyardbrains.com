@@ -1,0 +1,17 @@
+# robots.txt  – schema.backyardbrains.com
+# Block legacy Engineering / Policies / Software directories
+
+User-agent: *
+Disallow: /Human/
+Disallow: /Invertebrate/
+Disallow: /Plant/
+Disallow: /Engineering/
+Disallow: /Policies/
+Disallow: /Software/
+Disallow: /Retired/
+
+# Everything else — including /attentionRT  /gazer  /tube — remains crawlable
+Allow: /
+
+# XML sitemap with the valid URLs
+Sitemap: https://schema.backyardbrains.com/sitemap.xml
