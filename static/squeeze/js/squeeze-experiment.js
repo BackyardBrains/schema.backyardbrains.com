@@ -71,20 +71,40 @@ class SqueezeExperiment extends Experiment {
         this.videoPlayer.addEventListener('ended', () => this.onVideoEnd());
         this.videoPlayer.addEventListener('loadeddata', () => this.onVideoLoaded());
         this.videoPlayer.addEventListener('error', (e) => {
-            const trial = this.allTrials[this.currentTrialIndex];
+            const trialForErrorReporting = this.allTrials[this.currentTrialIndex]; // Get trial context at time of error
             const videoError = this.videoPlayer.error;
+            const srcAtErrorTime = this.videoPlayer.getAttribute('src'); // What is src AT THIS MOMENT?
+            const currentSrcAtErrorTime = this.videoPlayer.currentSrc; // What is currentSrc AT THIS MOMENT?
+
             let errorMsg = "Video Error (event listener):";
             if (videoError) {
                 errorMsg += ` Code: ${videoError.code}, Message: ${videoError.message}`;
             }
             console.error(errorMsg, 
-                "Attempted relative src:", this.videoPlayer.getAttribute('src'), 
-                "Attempted absolute currentSrc:", this.videoPlayer.currentSrc, 
+                "src attribute at error time:", srcAtErrorTime,
+                "currentSrc at error time:", currentSrcAtErrorTime,
+                "Reported for trial ID (if available):", trialForErrorReporting?.trialId, 
+                "Expected videoFile for this trial (if available):", trialForErrorReporting?.videoFile,
                 "Full Error Object:", videoError, 
-                "Event:", e);
-            if (trial && trial.videoFile) {
-                 this.handleVideoLoadError(trial, 'load_event_error');
-            }
+                "Event Object:", e);
+
+            // Pass the specific trial context that was active when video load was INITIATED for this attempt.
+            // The `trial` argument in handleVideoLoadError will be the one from the attemptVideoLoad call.
+            // This is more reliable than this.allTrials[this.currentTrialIndex] if error is delayed.
+            // However, attemptVideoLoad already calls handleVideoLoadError for its own initiated loads.
+            // This event listener is more of a catch-all.
+            // We need to be careful not to double-handle. 
+            // For now, let handleVideoLoadError (called from attemptVideoLoad/onVideoLoaded) manage retries.
+            // This listener will just log verbosely.
+            // If a video load was initiated and then an error occurs outside of the retry loop of handleVideoLoadError,
+            // we might still want to trigger it. Let's use a flag or check state.
+
+            // Only call handleVideoLoadError if the error seems genuinely tied to an active loading process
+            // that isn't already being handled by retries within handleVideoLoadError itself.
+            // This is tricky. The original call to handleVideoLoadError from error event was:
+            // if (trial && trial.videoFile) { this.handleVideoLoadError(trial, 'load_event_error'); }
+            // Let's stick to logging from this event handler for now to avoid complex double-handling logic,
+            // since handleVideoLoadError is also called from play().catch and attemptVideoLoad's timeout.
         });
     }
 
@@ -134,8 +154,6 @@ class SqueezeExperiment extends Experiment {
                 });
             }
         });
-
-        shuffle(mainTrials);
 
         const practiceTrials = [];
         if (mainTrials.length >= this.PRACTICE_TRIAL_COUNT) {
@@ -219,18 +237,29 @@ class SqueezeExperiment extends Experiment {
         this.responseWindowOpen = false;
         this.participantResponded = false;
         this.currentVideoLoadAttempts = 0;
-        if (this.currentTrialIndex > 0) {
-            this.videoPlayer.pause();
-            this.videoPlayer.src = ''; // Clear src to ensure no stale errors from previous video
-            this.videoPlayer.load(); // Call load after clearing src to reset the media element properly
-            this.videoPlayer.classList.add('hidden');
-        }
+
+        // Unconditionally reset video player at the start of every trial preparation
+        console.log("[Debug] startNextTrial: Resetting video player. Old src:", this.videoPlayer.src);
+        this.videoPlayer.pause();
+        this.videoPlayer.src = ''; 
+        this.videoPlayer.removeAttribute('src'); // Explicitly remove the attribute
+        this.videoPlayer.load(); 
+        this.videoPlayer.classList.add('hidden');
+        console.log("[Debug] startNextTrial: Video player reset. Attribute src removed. Current effective src:", this.videoPlayer.src, "NetworkState:", this.videoPlayer.networkState);
+
         if (this.currentTrialIndex >= this.allTrials.length) {
             this.end();
             return;
         }
         const trial = this.allTrials[this.currentTrialIndex];
-        console.log(`Starting Trial ${this.currentTrialIndex} (ID: ${trial.trialId}, Practice: ${trial.isPractice}, VideoFile: ${trial.videoFile}):`, trial);
+        console.log(`[Debug] startNextTrial: Preparing Trial ${this.currentTrialIndex}, ID: ${trial?.trialId}, Practice: ${trial?.isPractice}`);
+        if (!trial) {
+            console.error("[Critical] startNextTrial: Trial object is undefined for index", this.currentTrialIndex, "Cannot proceed.");
+            this.end(); // Potentially end experiment if state is corrupt
+            return;
+        }
+        console.log(`[Debug] startNextTrial: VideoFile for current trial (ID: ${trial.trialId}): '${trial.videoFile}', ActualVideoName: '${trial.actualVideoName}'`);
+
         this.feedbackText.textContent = '';
         this.cueDisplay.classList.add('hidden');
         this.cueShape.className = 'cue-element';
@@ -250,14 +279,17 @@ class SqueezeExperiment extends Experiment {
     }
     
     attemptVideoLoad(trial) {
+        console.log("[Debug] attemptVideoLoad: Entered function for trial ID:", trial?.trialId, "VideoFile:", trial?.videoFile);
+
         if (!trial || !trial.videoFile) {
-            console.warn("attemptVideoLoad called with invalid trial or no videoFile:", trial);
+            console.warn("[Debug] attemptVideoLoad: Called with invalid trial or no videoFile. Trial:", trial);
             this.scheduleCue(trial); // Proceed without video
             return;
         }
 
         this.currentVideoLoadAttempts++;
-        console.log(`Attempt ${this.currentVideoLoadAttempts}/${this.MAX_VIDEO_LOAD_ATTEMPTS} to load video for trial ID ${trial.trialId}: ${trial.videoFile}`);
+        // Ensure this log appears
+        console.log(`[Debug] attemptVideoLoad: Attempt ${this.currentVideoLoadAttempts}/${this.MAX_VIDEO_LOAD_ATTEMPTS} to load video for trial ID ${trial.trialId}: '${trial.videoFile}' (Actual: '${trial.actualVideoName}')`);
 
         // Ensure VIDEO_PATH ends with a slash if it's a directory
         const basePath = this.VIDEO_PATH.endsWith('/') ? this.VIDEO_PATH : this.VIDEO_PATH + '/';
@@ -266,23 +298,37 @@ class SqueezeExperiment extends Experiment {
         // Construct the path relative to the HTML file's location.
         // index.html is in /static/squeeze/, so VIDEO_PATH = './img/' is correct.
         // videoFile is already VIDEO_PATH + actualVideoName
-        const relativeVideoPath = trial.videoFile; 
+        const relativeVideoPath = trial.videoFile;
 
         let resolvedVideoURL;
         try {
             // Create a URL object relative to the document's base URL
             // document.baseURI should be something like "http://localhost:xxxx/static/squeeze/"
             resolvedVideoURL = new URL(relativeVideoPath, document.baseURI).href;
-            console.log("Attempting to load video. Relative path:", relativeVideoPath, "Expected Document Base URI:", document.baseURI, "Resolved full URL:", resolvedVideoURL);
+            console.log("[Debug] attemptVideoLoad: Successfully created URL. Relative path:", relativeVideoPath, "Document Base URI:", document.baseURI, "Resolved full URL:", resolvedVideoURL);
         } catch (e) {
-            console.error("Error creating URL object for video:", relativeVideoPath, e);
+            console.error("[Critical] attemptVideoLoad: Error constructing URL object. Relative path was:", relativeVideoPath, "Base URI was:", document.baseURI, "Error:", e);
             this.handleVideoLoadError(trial, 'url_construction_error');
             return;
         }
 
+        console.log("[Debug] attemptVideoLoad: Preparing to set videoPlayer.src. Current src:", this.videoPlayer.src, "networkState:", this.videoPlayer.networkState);
+        // Force a reset of the media element before setting new src
+        this.videoPlayer.src = '';
+        this.videoPlayer.removeAttribute('src'); // Explicitly remove the attribute
+        this.videoPlayer.load(); // Call load to process the empty src and reset state
+        console.log("[Debug] attemptVideoLoad: src attribute removed and load() called. Current effective src:", this.videoPlayer.src, "networkState:", this.videoPlayer.networkState, "readyState:", this.videoPlayer.readyState);
+
+        console.log("[Debug] attemptVideoLoad: Setting videoPlayer.src to:", resolvedVideoURL);
         this.videoPlayer.src = resolvedVideoURL; // Use the resolved URL
-        this.videoPlayer.classList.remove('hidden');
+        // this.videoPlayer.classList.remove('hidden'); // Moved to onVideoLoaded
+
+        console.log(`[Debug] attemptVideoLoad: src is now set to ${this.videoPlayer.src}. Current networkState: ${this.videoPlayer.networkState}, readyState: ${this.videoPlayer.readyState}`);
+
         this.videoPlayer.load(); // Explicitly call load
+        console.log(`[Debug] attemptVideoLoad: videoPlayer.load() called. Current networkState: ${this.videoPlayer.networkState}, readyState: ${this.videoPlayer.readyState}`);
+
+        // Removing the 50ms timeout log for now to simplify, focus on immediate error
     }
 
     onVideoLoaded() {
@@ -290,9 +336,10 @@ class SqueezeExperiment extends Experiment {
         if (!trial) return;
         this.currentVideoLoadAttempts = 0;
         console.log("Video loaded successfully:", trial.videoFile, "(resolved: ", this.videoPlayer.currentSrc, ")");
+        this.videoPlayer.classList.remove('hidden'); // Ensure video is visible before playing
         this.videoPlayer.play().then(() => {
             console.log("Video playing for trial:", trial.trialId);
-            this.videoPlayer.classList.remove('hidden');
+            // this.videoPlayer.classList.remove('hidden'); // Already called above
             this.scheduleCue(trial);
         }).catch(err => {
             console.error("Error during video.play() for", trial.videoFile, "(resolved: ", this.videoPlayer.currentSrc, "):", err);
@@ -331,6 +378,15 @@ class SqueezeExperiment extends Experiment {
             this.feedbackText.textContent = `Error: Could not load video. Skipping trial.`;
             this.clearTimeoutsForTrialEnd(); // Clear any cue/response timeouts
             this.responseWindowOpen = false;
+            
+            // Aggressively reset video player on final failure before concluding trial
+            this.videoPlayer.pause();
+            this.videoPlayer.src = '';
+            this.videoPlayer.removeAttribute('src'); // Explicitly remove the attribute
+            this.videoPlayer.load(); // Ensure it processes the empty src
+            this.videoPlayer.classList.add('hidden');
+            console.warn(`[Debug] handleVideoLoadError: Aggressively reset video player for ${currentActiveTrial.videoFile} on final failure.`);
+
             this.concludeTrial(null, null, false, true, `video_failed_all_retries_(${errorType})`);
         }
     }
