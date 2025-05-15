@@ -2,14 +2,26 @@
 <html>
 <head>
   <meta charset="utf-8" />
-  <title>Video with Timed Overlay Cue</title>
+  <title>Squeeze Flank Experiment</title>
   <style>
-    /* Layout */
+    body {
+      font-family: sans-serif;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      margin: 0;
+      background-color: #f0f0f0;
+    }
     .container {
       position: relative;
       width: 100%;
-      max-width: 800px;
-      margin: auto;
+      max-width: 800px; /* Max video width */
+      margin: 1rem auto;
+      background: white;
+      padding: 1rem;
+      box-shadow: 0 0 10px rgba(0,0,0,0.1);
     }
     video {
       width: 100%;
@@ -17,73 +29,90 @@
       display: block;
     }
 
-    /* Overlay that fills video frame */
-    .overlay {
+    /* Overlay for cues */
+    .cue-overlay {
       position: absolute;
-      inset: 0;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%; /* Covers the video element */
       display: flex;
       align-items: center;
       justify-content: center;
-      pointer-events: none;
+      pointer-events: none; /* Clicks go through to video if needed */
     }
-    .hidden { display: none; }
-
-    /* Orange triangle */
-    .triangle {
-      width: 0;
-      height: 0;
-      border-left: 60px solid transparent;
-      border-right: 60px solid transparent;
-      border-bottom: 100px solid #ff7a00;
-    }
-
-    /* Black square anchored at page bottom‑right, not over video */
-    #square {
-      position: fixed;
-      bottom: 1rem;
-      right: 1rem;
+    .cue-element {
       width: 80px;
       height: 80px;
-      background: #000;
-      pointer-events: none;
+      background-color: transparent; /* Default, specific cues will set color */
+      border-radius: 0%; /* Default square, dot will override */
+    }
+    .cue-dot {
+      border-radius: 50%;
+    }
+    .cue-orange { background-color: #ff7a00; }
+    .cue-green { background-color: #32cd32; } /* LimeGreen */
+    .cue-blue { background-color: #0000ff; } /* Blue (used as a square/polygon) */
+
+    .hidden { display: none !important; } /* Ensure hidden class works */
+
+    #ui-area {
+      text-align: center;
+      margin-top: 1rem;
+    }
+    button {
+      padding: 10px 20px;
+      font-size: 16px;
+      cursor: pointer;
+    }
+    .screen {
+      width: 100%;
+      max-width: 800px;
+      padding: 20px;
+      text-align: center;
+    }
+    #feedback-area {
+        margin-top: 10px;
+        font-size: 1.2em;
+        min-height: 2em; /* Reserve space for feedback text */
     }
   </style>
 </head>
 <body>
-  <div class="container">
-    <video id="vid" autoplay muted playsinline>
-      <source src="./squeexe.mp4" type="video/mp4" />
-      Your browser does not support the video tag.
-    </video>
-
-    <!-- orange triangle cue -->
-    <div id="triangle" class="overlay hidden">
-      <div class="triangle"></div>
-    </div>
+  <div id="instructions-screen" class="screen">
+    <h1>Welcome to the Squeeze Experiment</h1>
+    <p>Instructions will go here...</p>
+    <p>Press 'H' for a hard squeeze, 'S' for a soft squeeze when instructed by the cue.</p>
+    <button id="start-button">Start Practice</button>
   </div>
 
-  <!-- black square off the video, fixed to lower right of the page -->
-  <div id="square" class="hidden"></div>
+  <div id="experiment-area" class="container hidden">
+    <video id="stimulus-video" muted playsinline>
+      <!-- Source will be set by JavaScript -->
+      Your browser does not support the video tag.
+    </video>
+    <div id="cue-display" class="cue-overlay hidden">
+      <div id="cue-shape" class="cue-element"></div>
+    </div>
+  </div>
+  
+  <div id="trial-info" class="screen">
+    <p>Trial: <span id="trial-counter">0</span>/<span id="total-trials-display">0</span></p>
+  </div>
 
-  <script>
-    const cues = [
-      { id: "triangle", start: 3, end: 6 },
-      { id: "square",   start: 3, end: Infinity },
-    ];
+  <div id="feedback-area" class="screen">
+    <p id="feedback-text"></p>
+  </div>
 
-    const vid = document.getElementById("vid");
+  <div id="end-screen" class="screen hidden">
+    <h1>Experiment Finished!</h1>
+    <p>Thank you for your participation.</p>
+    <p>Data is being saved.</p>
+  </div>
 
-    vid.addEventListener("timeupdate", () => {
-      const t = vid.currentTime;
-      cues.forEach(({ id, start, end }) => {
-        const el = document.getElementById(id);
-        if (t >= start && t <= end) {
-          el.classList.remove("hidden");
-        } else {
-          el.classList.add("hidden");
-        }
-      });
-    });
-  </script>
+  <!-- Placeholder for scripts that might be needed by squeeze-experiment.js, e.g., baseExperiment -->
+  <script src="../js/utils.js"></script>
+  <script src="../js/baseExperiment.js"></script>
+  <script src="./js/squeeze-experiment.js"></script>
 </body>
 </html>
