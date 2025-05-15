@@ -112,13 +112,14 @@ document.addEventListener('DOMContentLoaded', () => {
         const containerWidth = playerContainerDiv.clientWidth > 0 ? playerContainerDiv.clientWidth : (experimentArea.clientWidth > 0 ? experimentArea.clientWidth : 640);
         const playerHeight = (containerWidth / 16) * 9;
 
-        player = new YT.Player(YOUTUBE_PLAYER_DIV_ID, { // Target the new container ID
+        player = new YT.Player(YOUTUBE_PLAYER_DIV_ID, {
             height: String(Math.round(playerHeight)),
             width: String(containerWidth),
             videoId: videoId,
             playerVars: {
-                'playsinline': 1, 'autoplay': 1, 'controls': 1, 
-                'rel': 0, 'modestbranding': 1, 'iv_load_policy': 3
+                'playsinline': 1, 'autoplay': 1, 'controls': 0, 
+                'rel': 0, 'modestbranding': 1, 'iv_load_policy': 3,
+                'end': 3 // Changed from 5 to 3: Stop the first video after 3 seconds
             },
             events: {
                 'onReady': onPlayerReady,
@@ -133,8 +134,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function onPlayerStateChange(event) {
         if (event.data === YT.PlayerState.PLAYING && !hasDotBeenScheduledForCurrentVideo) {
-            hasRespondedThisVideo = false;
-            console.log("[onPlayerStateChange PLAYING] New video playing. Setting hasRespondedThisVideo = false.");
+            hasRespondedThisVideo = false; // Should be redundant if playNextVideoInSequence did it, but safe.
+            console.log("[onPlayerStateChange PLAYING] New video now playing. Confirming hasRespondedThisVideo = false.");
             dotAppearanceTime = null; 
             clearFeedback();
             manageDotDisplay();
@@ -144,40 +145,52 @@ document.addEventListener('DOMContentLoaded', () => {
             clearTimeout(dotTimer);
             if (cueDisplayElement) cueDisplayElement.classList.add('hidden');
             
-            if (dotAppearanceTime !== null && !hasRespondedThisVideo) {
-                showFeedbackMessage("Too Slow!");
-                console.log("[onPlayerStateChange ENDED] Response: Too Slow! (hasRespondedThisVideo was false)");
-            } else if (dotAppearanceTime === null && !hasRespondedThisVideo) {
+            // Removed "Too Slow!" message logic
+            // if (dotAppearanceTime !== null && !hasRespondedThisVideo) { ... }
+            // Also, if dot never appeared and no response, just clear feedback.
+            if (dotAppearanceTime === null && !hasRespondedThisVideo) {
                  clearFeedback(); 
             }
 
             dotAppearanceTime = null;
             if (!hasRespondedThisVideo) {
-                 // If no response was logged during the video (e.g. Too Quick, RT, Invalid Key, Too Slow)
-                 // we mark it as responded here to finalize the trial before the next one.
                  hasRespondedThisVideo = true;
-                 console.log("[onPlayerStateChange ENDED] No prior response, setting hasRespondedThisVideo = true.");
+                 console.log("[onPlayerStateChange ENDED] No prior response for this trial, setting hasRespondedThisVideo = true now.");
             } else {
-                 console.log("[onPlayerStateChange ENDED] hasRespondedThisVideo was already true.");
+                 console.log("[onPlayerStateChange ENDED] hasRespondedThisVideo was already true from earlier interaction.");
             }
 
             currentVideoIndex++;
             hasDotBeenScheduledForCurrentVideo = false;
             
-            setTimeout(() => {
-                playNextVideoInSequence();
-            }, 250);
+            playNextVideoInSequence(); // Call directly, removing the 250ms delay
+
+        } else if (event.data === YT.PlayerState.PAUSED) {
+            console.log("[onPlayerStateChange PAUSED] Video paused.");
         }
     }
 
     function manageDotDisplay() {
         clearTimeout(dotTimer);
         if (cueDisplayElement) cueDisplayElement.classList.add('hidden');
-        // dotAppearanceTime is reset when video starts PLAYING, before manageDotDisplay is called
-        // hasRespondedThisVideo is also reset at that point
+
+        // Video plays for 3000ms. Dot should appear before that.
+        const minDotTime = 500;  // 0.5 seconds after video starts
+        const maxDotTime = 2500; // 2.5 seconds after video starts, allowing 0.5s before video ends
+        const randomDelay = Math.floor(Math.random() * (maxDotTime - minDotTime + 1)) + minDotTime;
+
+        console.log(`[manageDotDisplay] Dot will appear after ${randomDelay}ms.`);
 
         dotTimer = setTimeout(() => {
             if (cueShapeElement && cueDisplayElement) {
+                // Check if video is still playing, otherwise, don't show the dot if timeout fires too late
+                // This is a safeguard, though with 3s video and max 2.5s dot, it should be fine.
+                if (player && player.getPlayerState && player.getPlayerState() !== YT.PlayerState.PLAYING) {
+                    console.log("[manageDotDisplay] Video no longer playing when dot was scheduled. Not showing dot.");
+                    dotAppearanceTime = null; // Ensure it remains null
+                    return;
+                }
+
                 cueShapeElement.classList.remove('cue-orange', 'cue-green');
                 if (isNextDotOrange) {
                     cueShapeElement.classList.add('cue-orange');
@@ -186,11 +199,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
                 cueDisplayElement.classList.remove('hidden');
                 isNextDotOrange = !isNextDotOrange;
-                dotAppearanceTime = performance.now(); // Dot is now visible
-                // hasRespondedThisVideo is already false, allowing a response now.
-                console.log(`Dot displayed. Next color: ${isNextDotOrange ? 'orange' : 'green'}. Response window open.`);
+                dotAppearanceTime = performance.now();
+                console.log(`[manageDotDisplay] Dot displayed (randomly at ${randomDelay}ms). Next color: ${isNextDotOrange ? 'orange' : 'green'}. Response window open.`);
             }
-        }, 4000);
+        }, randomDelay); // Use the random delay
     }
 
     function updateTrialDisplay() {
@@ -205,15 +217,16 @@ document.addEventListener('DOMContentLoaded', () => {
     function playNextVideoInSequence() {
         if (currentVideoIndex < shuffledVideoIds.length) {
             updateTrialDisplay();
-            // Reset for the upcoming video
             dotAppearanceTime = null;
-            hasRespondedThisVideo = false;
-            clearFeedback(); // Clear feedback before new video loads
+            hasRespondedThisVideo = false; 
 
             const nextVideoId = shuffledVideoIds[currentVideoIndex];
             if (player && typeof player.loadVideoById === 'function') {
-                console.log(`Loading video ${currentVideoIndex + 1} of ${shuffledVideoIds.length}: ${nextVideoId}`);
-                player.loadVideoById(nextVideoId);
+                console.log(`Loading video ${currentVideoIndex + 1} of ${shuffledVideoIds.length}: ${nextVideoId}, to play for 3 seconds.`);
+                player.loadVideoById({ 
+                    'videoId': nextVideoId, 
+                    'endSeconds': 3 // Changed from 5 to 3
+                });
             } else {
                 console.error("Player not available or not fully initialized to load next video.");
             }
