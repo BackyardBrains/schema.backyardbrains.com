@@ -1,0 +1,64 @@
+/* star/css/style.css */
+
+body {
+    font-family: Arial, sans-serif;
+    text-align: center;
+    background-color: #f0f0f0;
+}
+
+#experiment-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    margin: 50px auto;
+    width: 800px;
+}
+
+.screen {
+    display: none; /* Hide all screens by default */
+}
+
+.screen.active {
+    display: block; /* Show active screen */
+}
+
+.hidden {
+    display: none; /* Additional class to hide elements */
+}
+
+#stimulus-canvas {
+    border: 1px solid #000;
+    background-color: #fff;
+}
+
+/* Styled arrow key buttons */
+.arrow-btn {
+    font-size: 24px;
+    border: 1px solid black;
+    padding: 10px 20px;
+    background-color: #e0e0e0;
+    transition: background-color 0.3s;
+    border-radius: 25px;
+}
+
+.left-arrow::before {
+    content: "\2190"; /* Unicode for left arrow */
+}
+
+.right-arrow::before {
+    content: "\2192"; /* Unicode for right arrow */
+}
+
+.instruction-page.hidden {
+    display: none;
+}
+
+.instruction-page {
+    text-align: center;
+}
+
+#instructions {
+    text-align: center;
+    width: 100%;
+}
