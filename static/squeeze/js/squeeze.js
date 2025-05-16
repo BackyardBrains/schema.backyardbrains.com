@@ -1,6 +1,7 @@
 document.addEventListener('DOMContentLoaded', () => {
     const hardVideoURLs = [
-        'https://youtu.be/EKlJn3o2YHM', 'https://youtu.be/LS_6wuTNTqM', 'https://youtu.be/LcLo5QlDby8',
+        // 'https://youtu.be/EKlJn3o2YHM' Ignored hard1 because it's too short (only 4 seconds)
+        'https://youtu.be/LS_6wuTNTqM', 'https://youtu.be/LcLo5QlDby8',
         'https://youtu.be/r2FdMMp8ZIE'
     ];
     const softVideoURLs = [
@@ -166,8 +167,8 @@ document.addEventListener('DOMContentLoaded', () => {
         if (cueDisplayElement) cueDisplayElement.classList.add('hidden');
         if (cornerSquareElement) cornerSquareElement.style.visibility = 'hidden'; // Hide corner square initially
 
-        const minDotTime = 500;  
-        const maxDotTime = 2500; 
+        const minDotTime = 1000;  
+        const maxDotTime = 3500; 
         const randomDelay = Math.floor(Math.random() * (maxDotTime - minDotTime + 1)) + minDotTime;
 
         // console.log(`[manageDotDisplay] Dot will appear after ${randomDelay}ms.`); // Keep for debugging if needed
@@ -240,7 +241,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 console.log(`Loading video ${currentVideoIndex + 1} of ${playlist.length}: ${nextVideoObject.id} (Type: ${nextVideoObject.type}), to play for 3 seconds.`);
                 player.loadVideoById({ 
                     'videoId': nextVideoObject.id, // Use id from object
-                    'endSeconds': 4
+                    'endSeconds': 5
                 });
             } else {
                 console.error("Player not available or not fully initialized to load next video.");
