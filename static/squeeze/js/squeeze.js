@@ -263,6 +263,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 trial_data: allTrialsData
             };
             sendDataToServer(finalDataPayload, experimentUUID, 'squeeze'); // from utils.js
+            console.log("Final data payload for debugging:", finalDataPayload);
             console.log("Data sending process initiated.");
         }
     }
