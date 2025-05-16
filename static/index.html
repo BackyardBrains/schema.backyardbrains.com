@@ -2,82 +2,71 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Experiments Index</title>
-    <link href="https://maxcdn.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css" rel="stylesheet">
-    <link href="/css/experiments.css" rel="stylesheet">
-    <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
-    <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png">
-    <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png">
-    <link rel="manifest" href="/site.webmanifest">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Video.js Test - Landing</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            margin: 0;
+            background-color: #f4f6f8;
+            color: #333;
+            text-align: center;
+            padding: 20px;
+            box-sizing: border-box;
+        }
+        .content-wrapper {
+            background-color: #ffffff;
+            padding: 30px 40px;
+            border-radius: 10px;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+            max-width: 700px;
+            width: 100%;
+        }
+        h1 {
+            color: #2c3e50;
+            margin-bottom: 20px;
+        }
+        p {
+            line-height: 1.6;
+            margin-bottom: 15px;
+            text-align: left;
+        }
+        .start-button {
+            background-color: #27ae60; /* Green for testing */
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            text-align: center;
+            text-decoration: none;
+            display: inline-block;
+            font-size: 18px;
+            margin-top: 20px;
+            cursor: pointer;
+            border-radius: 5px;
+            transition: background-color 0.3s ease;
+        }
+        .start-button:hover {
+            background-color: #229954;
+        }
+    </style>
 </head>
 <body>
-    <div class="container mt-5">
-        <h1 class="text-center" id="pageTitle">Experiments</h1>
-        <div class="list-group mt-4" id="experimentList"></div>
+    <div class="content-wrapper">
+        <h1>Video.js Simple Test</h1>
+        <p>This page serves as a simple launcher for testing basic Video.js functionality. It will load a single, predefined video from a CDN.</p>
+        <p>Click the button below to navigate to the test page where a video player will attempt to load and play a sample MP4 video file. Check the browser console for detailed logs regarding player initialization and video events.</p>
+        <button id="startTestButton" class="start-button">Start Test</button>
     </div>
 
     <script>
-        const translations = {
-            en: {
-                pageTitle: "Experiments",
-                experiments: {
-                    attentionRT: "Attention Reaction Time Experiment",
-                    gazer: "Eye Tracking Experiment",
-                    fear: "VR Tube Experiment",
-                    tube: "Tube Tipping Point Experiment",
-                    star: "Starfield Experiment"
-                }
-            },
-            rs: {
-                pageTitle: "Eksperimenti",
-                experiments: {
-                    attentionRT: "Vreme reakcije vezane za pažnju",
-                    gazer: "Eksperiment praćenja očiju",
-                    fear: "Eksperiment zvukova",
-                    tube: "Eksperiment tačke prevrtanja",
-                    star: "Eksperiment zvezdanog polja"
-                }
-            }
-        };
-
-        function getLanguage() {
-            const urlSearchParams = new URLSearchParams(window.location.search);
-            return urlSearchParams.get('lang') || 'en'; // Default to English if no parameter found
-          
-        }
-
-        function getGroup() {
-            const urlSearchParams = new URLSearchParams(window.location.search);
-            return urlSearchParams.get('SG') || ''; // Default to English if no parameter found
-        }
-
-
-        function updatePageContent() {
-            const lang = getLanguage();
-            const group= getGroup();
-
-            const experimentList = document.getElementById('experimentList');
-
-            document.getElementById('pageTitle').innerText = translations[lang].pageTitle;
-
-            // Clear the experiment list
-            experimentList.innerHTML = '';
-
-            // Generate experiment links based on the selected language
-            for (const [id, title] of Object.entries(translations[lang].experiments)) {
-                const link = document.createElement('a');
-                link.href = `./${id}/index.html?lang=${lang}&SG=${group}`;
-                link.className = 'list-group-item list-group-item-action';
-                link.innerText = title;
-                experimentList.appendChild(link);
-            }
-        }
-
-        document.addEventListener('DOMContentLoaded', updatePageContent);
+        document.getElementById('startTestButton').addEventListener('click', () => {
+            window.location.href = './testing_squeeze/index.html'; // Navigate to the testing_squeeze experiment page
+        });
     </script>
-
-    <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.9.3/dist/umd/popper.min.js"></script>
-    <script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
 </body>
 </html>
