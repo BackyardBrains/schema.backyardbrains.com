@@ -27,6 +27,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const cueDisplayElement = document.getElementById('cue-display');
     const cueShapeElement = document.getElementById('cue-shape');
     const feedbackTextElement = document.getElementById('feedback-text');
+    let cornerSquareElement = null; // Added for the corner square
     
     let dotTimer = null;
     let hasDotBeenScheduledForCurrentVideo = false;
@@ -100,6 +101,7 @@ document.addEventListener('DOMContentLoaded', () => {
         // Create a container for the YouTube player
         const playerContainerDiv = document.createElement('div');
         playerContainerDiv.id = YOUTUBE_PLAYER_DIV_ID;
+        playerContainerDiv.style.visibility = 'hidden'; // Initially hide the player
 
         // Clear existing content from experimentArea
         experimentArea.innerHTML = ''; 
@@ -139,17 +141,25 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function onPlayerStateChange(event) {
-        if (event.data === YT.PlayerState.PLAYING && !hasDotBeenScheduledForCurrentVideo) {
-            hasRespondedThisVideo = false; // Should be redundant if playNextVideoInSequence did it, but safe.
-            console.log("[onPlayerStateChange PLAYING] New video now playing. Confirming hasRespondedThisVideo = false.");
-            dotAppearanceTime = null; 
-            clearFeedback();
-            manageDotDisplay();
-            hasDotBeenScheduledForCurrentVideo = true;
+        if (event.data === YT.PlayerState.PLAYING) {
+            const playerContainer = document.getElementById(YOUTUBE_PLAYER_DIV_ID);
+            if (playerContainer) {
+                playerContainer.style.visibility = 'visible'; // Make player visible
+            }
+
+            if (!hasDotBeenScheduledForCurrentVideo) {
+                hasRespondedThisVideo = false; // Should be redundant if playNextVideoInSequence did it, but safe.
+                console.log("[onPlayerStateChange PLAYING] New video now playing. Confirming hasRespondedThisVideo = false.");
+                dotAppearanceTime = null; 
+                clearFeedback();
+                manageDotDisplay();
+                hasDotBeenScheduledForCurrentVideo = true;
+            }
         } else if (event.data === YT.PlayerState.ENDED) {
             console.log("[onPlayerStateChange ENDED] Video ended.");
             clearTimeout(dotTimer);
             if (cueDisplayElement) cueDisplayElement.classList.add('hidden');
+            if (cornerSquareElement) cornerSquareElement.style.visibility = 'hidden'; // Hide corner square
             
             // Removed "Too Slow!" message logic
             // if (dotAppearanceTime !== null && !hasRespondedThisVideo) { ... }
@@ -170,7 +180,6 @@ document.addEventListener('DOMContentLoaded', () => {
             hasDotBeenScheduledForCurrentVideo = false;
             
             playNextVideoInSequence(); // Call directly, removing the 250ms delay
-
         } else if (event.data === YT.PlayerState.PAUSED) {
             console.log("[onPlayerStateChange PAUSED] Video paused.");
         }
@@ -179,6 +188,7 @@ document.addEventListener('DOMContentLoaded', () => {
     function manageDotDisplay() {
         clearTimeout(dotTimer);
         if (cueDisplayElement) cueDisplayElement.classList.add('hidden');
+        if (cornerSquareElement) cornerSquareElement.style.visibility = 'hidden'; // Hide corner square initially
 
         const minDotTime = 500;  
         const maxDotTime = 2500; 
@@ -210,6 +220,21 @@ document.addEventListener('DOMContentLoaded', () => {
                 cueDisplayElement.classList.remove('hidden');
                 dotAppearanceTime = performance.now();
                 console.log(`[manageDotDisplay] Dot displayed (Color: ${requiredDotColor} at ${randomDelay}ms). Response window open.`);
+
+                // Show and color the corner square
+                if (cornerSquareElement) {
+                    cornerSquareElement.style.visibility = 'visible';
+                    if (currentTrial.type === 'hard') {
+                        cornerSquareElement.style.backgroundColor = 'gray';
+                    } else if (currentTrial.type === 'soft') {
+                        cornerSquareElement.style.backgroundColor = 'black';
+                    } else {
+                        console.warn(`[manageDotDisplay] Unknown video type '${currentTrial.type}' for corner square. Defaulting to transparent.`);
+                        cornerSquareElement.style.backgroundColor = 'transparent'; // Fallback
+                    }
+                    console.log(`[manageDotDisplay] Corner square shown (Type: ${currentTrial.type}, Color: ${cornerSquareElement.style.backgroundColor}).`);
+                }
+
             } else {
                 // console.log("[manageDotDisplay] Conditions not met to show dot (e.g. no player, or playlist item missing).");
             }
@@ -233,6 +258,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
             const nextVideoObject = playlist[currentVideoIndex]; // Changed from shuffledVideoIds
             if (player && typeof player.loadVideoById === 'function') {
+                const playerContainer = document.getElementById(YOUTUBE_PLAYER_DIV_ID);
+                if (playerContainer) {
+                    playerContainer.style.visibility = 'hidden'; // Hide player before loading next video
+                }
                 console.log(`Loading video ${currentVideoIndex + 1} of ${playlist.length}: ${nextVideoObject.id} (Type: ${nextVideoObject.type}), to play for 3 seconds.`);
                 player.loadVideoById({ 
                     'videoId': nextVideoObject.id, // Use id from object
@@ -251,6 +280,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if(endScreen) endScreen.classList.remove('hidden');
             clearTimeout(dotTimer);
             if (cueDisplayElement) cueDisplayElement.classList.add('hidden');
+            if (cornerSquareElement) cornerSquareElement.style.visibility = 'hidden'; // Hide corner square
             clearFeedback();
         }
     }
@@ -348,9 +378,26 @@ document.addEventListener('DOMContentLoaded', () => {
         updateTrialDisplay(); 
     }
 
+    function initializeCornerSquare() {
+        cornerSquareElement = document.createElement('div');
+        cornerSquareElement.style.position = 'fixed';
+        cornerSquareElement.style.bottom = '20px';
+        cornerSquareElement.style.right = '20px';
+        cornerSquareElement.style.width = '50px';
+        cornerSquareElement.style.height = '50px';
+        cornerSquareElement.style.backgroundColor = 'transparent'; // Initially transparent or a default non-distracting color
+        cornerSquareElement.style.visibility = 'hidden'; // Initially hidden
+        cornerSquareElement.style.zIndex = '2000'; // Ensure it's above most other elements
+        document.body.appendChild(cornerSquareElement);
+        console.log("Corner square initialized.");
+    }
+    
+    initializeCornerSquare(); // Call to create the square when the script loads
+
     function clearFeedback() {
         if (feedbackTextElement) feedbackTextElement.textContent = '';
         clearTimeout(feedbackTimeout);
+        // Intentionally not hiding corner square here, it should only hide with the dot or trial end
     }
 
     function showFeedbackMessage(message, duration = null) { // Default duration null for persistence
@@ -432,6 +479,7 @@ document.addEventListener('DOMContentLoaded', () => {
             console.log(`[handleUserResponse] Key '${key}', VidType: ${currentVideoType}, DotColor: ${currentDotColor}, BaseCorrect: ${baseCorrect}, IsActuallyCorrect: ${isActuallyCorrect}, RT: ${reactionTime.toFixed(0)}ms. Feedback: "${message}"`);
             
             if (cueDisplayElement) cueDisplayElement.classList.add('hidden');
+            if (cornerSquareElement) cornerSquareElement.style.visibility = 'hidden'; // Hide corner square
             clearTimeout(dotTimer); // Stop dot timer as a response has been made
         } else {
             // Invalid key pressed AFTER dot has appeared
@@ -450,6 +498,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if(experimentArea) experimentArea.classList.remove('hidden');
         if(endScreen) endScreen.classList.add('hidden');
         if (cueDisplayElement) cueDisplayElement.classList.add('hidden');
+        if (cornerSquareElement) cornerSquareElement.style.visibility = 'hidden'; // Hide corner square
         clearFeedback();
 
         hasDotBeenScheduledForCurrentVideo = false;
