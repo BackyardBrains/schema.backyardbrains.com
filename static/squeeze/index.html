@@ -2,7 +2,9 @@
 <html>
 <head>
   <meta charset="utf-8" />
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://cdn.jsdelivr.net; style-src 'self' https://cdn.jsdelivr.net 'unsafe-inline'; media-src https://cdn.jsdelivr.net; img-src 'self' data: https://cdn.jsdelivr.net; connect-src https://cdn.jsdelivr.net;">
   <title>Squeeze Flank Experiment</title>
+  <link href="https://cdn.jsdelivr.net/npm/video.js@8.22.0/dist/video-js.min.css" rel="stylesheet" />
   <style>
     body {
       font-family: sans-serif;
@@ -87,9 +89,13 @@
   </div>
 
   <div id="experiment-area" class="container hidden">
-    <video id="stimulus-video" muted playsinline>
+    <video id="my-video-player" class="video-js vjs-default-skin vjs-big-play-centered" playsinline preload="auto" width="640" height="360" crossorigin="anonymous">
       <!-- Source will be set by JavaScript -->
-      Your browser does not support the video tag.
+      <p class="vjs-no-js">
+        To view this video please enable JavaScript, and consider upgrading to a
+        web browser that
+        <a href="https://videojs.com/html5-video-support/" target="_blank">supports HTML5 video</a>.
+      </p>
     </video>
     <div id="cue-display" class="cue-overlay hidden">
       <div id="cue-shape" class="cue-element"></div>
@@ -109,7 +115,7 @@
     <p>Thank you for your participation.</p>
   </div>
 
-  <script src="https://www.youtube.com/iframe_api"></script>
+  <script src="https://cdn.jsdelivr.net/npm/video.js@8.22.0/dist/video.min.js"></script>
   <script src="../js/utils.js"></script>
   <script src="../js/baseExperiment.js"></script>
   <script src="./js/squeeze.js"></script>
