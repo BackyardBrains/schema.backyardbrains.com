@@ -1,72 +1,117 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Squeeze Experiment</title>
-    <style>
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            min-height: 100vh;
-            margin: 0;
-            background-color: #f4f6f8;
-            color: #333;
-            text-align: center;
-            padding: 20px;
-            box-sizing: border-box;
-        }
-        .content-wrapper {
-            background-color: #ffffff;
-            padding: 30px 40px;
-            border-radius: 10px;
-            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
-            max-width: 700px;
-            width: 100%;
-        }
-        h1 {
-            color: #2c3e50;
-            margin-bottom: 20px;
-        }
-        p {
-            line-height: 1.6;
-            margin-bottom: 15px;
-            text-align: left;
-        }
-        .start-button {
-            background-color: #3498db; /* Blue for main experiment */
-            color: white;
-            border: none;
-            padding: 15px 30px;
-            text-align: center;
-            text-decoration: none;
-            display: inline-block;
-            font-size: 18px;
-            margin-top: 20px;
-            cursor: pointer;
-            border-radius: 5px;
-            transition: background-color 0.3s ease;
-        }
-        .start-button:hover {
-            background-color: #2980b9;
-        }
-    </style>
+  <meta charset="utf-8" />
+  <title>Squeeze Flank Experiment</title>
+  <style>
+    body {
+      font-family: sans-serif;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      margin: 0;
+      background-color: #f0f0f0;
+    }
+    .container {
+      position: relative;
+      width: 100%;
+      max-width: 800px; /* Max video width */
+      margin: 1rem auto;
+      background: white;
+      padding: 1rem;
+      box-shadow: 0 0 10px rgba(0,0,0,0.1);
+    }
+    video {
+      width: 100%;
+      height: auto;
+      display: block;
+    }
+
+    /* Overlay for cues */
+    .cue-overlay {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%; /* Covers the video element */
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      pointer-events: none; /* Clicks go through to video if needed */
+    }
+    .cue-element {
+      width: 80px;
+      height: 80px;
+      background-color: transparent; /* Default, specific cues will set color */
+      border-radius: 0%; /* Default square, dot will override */
+    }
+    .cue-dot {
+      border-radius: 50%;
+    }
+    .cue-orange { background-color: #ff7a00; }
+    .cue-green { background-color: #32cd32; } /* LimeGreen */
+    .cue-blue { background-color: #0000ff; } /* Blue (used as a square/polygon) */
+
+    .hidden { display: none !important; } /* Ensure hidden class works */
+
+    #ui-area {
+      text-align: center;
+      margin-top: 1rem;
+    }
+    button {
+      padding: 10px 20px;
+      font-size: 16px;
+      cursor: pointer;
+    }
+    .screen {
+      width: 100%;
+      max-width: 800px;
+      padding: 20px;
+      text-align: center;
+    }
+    #feedback-area {
+        margin-top: 10px;
+        font-size: 1.2em;
+        min-height: 2em; /* Reserve space for feedback text */
+    }
+  </style>
 </head>
 <body>
-    <div class="content-wrapper">
-        <h1>Squeeze Experiment</h1>
-        <p>Lorem ipsum dolor sit amet, consectetur adipiscing elit. Integer nec odio. Praesent libero. Sed cursus ante dapibus diam. Sed nisi. Nulla quis sem at nibh elementum imperdiet. Duis sagittis ipsum. Praesent mauris. Fusce nec tellus sed augue semper porta. Mauris massa. Vestibulum lacinia arcu eget nulla.</p>
-        <p>Class aptent taciti sociosqu ad litora torquent per conubia nostra, per inceptos himenaeos. Curabitur sodales ligula in libero. Sed dignissim lacinia nunc. Curabitur tortor. Pellentesque nibh. Aenean quam. In scelerisque sem at dolor. Maecenas mattis. Sed convallis tristique sem. Proin ut ligula vel nunc egestas porttitor.</p>
-        <button id="startExperimentButton" class="start-button">Start</button>
-    </div>
+  <div id="instructions-screen" class="screen">
+    <h1>Welcome to the Squeeze Experiment</h1>
+    <p>Instructions will go here...</p>
+    <p>Press 'H' for a hard squeeze, 'S' for a soft squeeze when instructed by the cue.</p>
+    <button id="start-button">Start Practice</button>
+  </div>
 
-    <script>
-        document.getElementById('startExperimentButton').addEventListener('click', () => {
-            window.location.href = './experiment.html'; // Navigate to the Squeeze Experiment page
-        });
-    </script>
+  <div id="experiment-area" class="container hidden">
+    <video id="stimulus-video" muted playsinline>
+      <!-- Source will be set by JavaScript -->
+      Your browser does not support the video tag.
+    </video>
+    <div id="cue-display" class="cue-overlay hidden">
+      <div id="cue-shape" class="cue-element"></div>
+    </div>
+  </div>
+  
+  <div id="trial-info" class="screen">
+    <p>Trial: <span id="trial-counter">0</span>/<span id="total-trials-display">0</span></p>
+  </div>
+
+  <div id="feedback-area" class="screen">
+    <p id="feedback-text"></p>
+  </div>
+
+  <div id="end-screen" class="screen hidden">
+    <h1>Experiment Finished!</h1>
+    <p>Thank you for your participation.</p>
+  </div>
+
+  <script src="https://www.youtube.com/iframe_api"></script>
+  <script src="../js/utils.js"></script>
+  <script src="../js/baseExperiment.js"></script>
+  <script src="./js/squeeze.js"></script>
 </body>
 </html>
