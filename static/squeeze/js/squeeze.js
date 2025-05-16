@@ -26,15 +26,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const cueDisplayElement = document.getElementById('cue-display');
     const cueShapeElement = document.getElementById('cue-shape');
-    const feedbackTextElement = document.getElementById('feedback-text');
     let cornerSquareElement = null; // Added for the corner square
     
     let dotTimer = null;
     let hasDotBeenScheduledForCurrentVideo = false;
 
     let dotAppearanceTime = null;
-    let hasRespondedThisVideo = false;
-    let feedbackTimeout = null;
 
     // Moved getVideoId here, before initializeVideoPlayback
     function getVideoId(url) {
@@ -61,9 +58,6 @@ document.addEventListener('DOMContentLoaded', () => {
     if (cueDisplayElement) {
         cueDisplayElement.classList.add('hidden'); // Ensure it starts hidden
     }
-    if (feedbackTextElement) {
-        feedbackTextElement.textContent = '';
-    }
 
     if (!startButton) {
         console.error("Start button (id: start-button) not found in HTML.");
@@ -72,9 +66,6 @@ document.addEventListener('DOMContentLoaded', () => {
     if (!instructionsScreen || !experimentArea || !endScreen) {
         console.error("Required screen DIVs (instructions-screen, experiment-area, end-screen) not found.");
         return;
-    }
-    if (!feedbackTextElement) {
-        console.warn("feedback-text element not found. Feedback messages will not be shown.");
     }
 
     function shuffleArray(array) {
@@ -148,10 +139,8 @@ document.addEventListener('DOMContentLoaded', () => {
             }
 
             if (!hasDotBeenScheduledForCurrentVideo) {
-                hasRespondedThisVideo = false; // Should be redundant if playNextVideoInSequence did it, but safe.
                 console.log("[onPlayerStateChange PLAYING] New video now playing. Confirming hasRespondedThisVideo = false.");
                 dotAppearanceTime = null; 
-                clearFeedback();
                 manageDotDisplay();
                 hasDotBeenScheduledForCurrentVideo = true;
             }
@@ -161,20 +150,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if (cueDisplayElement) cueDisplayElement.classList.add('hidden');
             if (cornerSquareElement) cornerSquareElement.style.visibility = 'hidden'; // Hide corner square
             
-            // Removed "Too Slow!" message logic
-            // if (dotAppearanceTime !== null && !hasRespondedThisVideo) { ... }
-            // Also, if dot never appeared and no response, just clear feedback.
-            if (dotAppearanceTime === null && !hasRespondedThisVideo) {
-                 clearFeedback(); 
-            }
-
             dotAppearanceTime = null;
-            if (!hasRespondedThisVideo) {
-                 hasRespondedThisVideo = true;
-                 console.log("[onPlayerStateChange ENDED] No prior response for this trial, setting hasRespondedThisVideo = true now.");
-            } else {
-                 console.log("[onPlayerStateChange ENDED] hasRespondedThisVideo was already true from earlier interaction.");
-            }
 
             currentVideoIndex++;
             hasDotBeenScheduledForCurrentVideo = false;
@@ -254,7 +230,6 @@ document.addEventListener('DOMContentLoaded', () => {
         if (currentVideoIndex < playlist.length) { // Changed from shuffledVideoIds
             updateTrialDisplay();
             dotAppearanceTime = null;
-            hasRespondedThisVideo = false; 
 
             const nextVideoObject = playlist[currentVideoIndex]; // Changed from shuffledVideoIds
             if (player && typeof player.loadVideoById === 'function') {
@@ -281,7 +256,6 @@ document.addEventListener('DOMContentLoaded', () => {
             clearTimeout(dotTimer);
             if (cueDisplayElement) cueDisplayElement.classList.add('hidden');
             if (cornerSquareElement) cornerSquareElement.style.visibility = 'hidden'; // Hide corner square
-            clearFeedback();
         }
     }
 
@@ -394,103 +368,6 @@ document.addEventListener('DOMContentLoaded', () => {
     
     initializeCornerSquare(); // Call to create the square when the script loads
 
-    function clearFeedback() {
-        if (feedbackTextElement) feedbackTextElement.textContent = '';
-        clearTimeout(feedbackTimeout);
-        // Intentionally not hiding corner square here, it should only hide with the dot or trial end
-    }
-
-    function showFeedbackMessage(message, duration = null) { // Default duration null for persistence
-        clearFeedback(); // Clear any existing message and its timeout
-        if (feedbackTextElement) {
-            feedbackTextElement.textContent = message;
-            if (duration) { // Only set a timeout to clear if a duration is provided
-                feedbackTimeout = setTimeout(() => {
-                    if (feedbackTextElement.textContent === message) { 
-                        feedbackTextElement.textContent = '';
-                    }
-                }, duration);
-            }
-        }
-    }
-
-    function handleUserResponse(event) {
-        // console.log(`[handleUserResponse] Entry - Key: '${event.key}', Player State: ${player ? player.getPlayerState() : 'N/A'}, Responded: ${hasRespondedThisVideo}, Dot Time: ${dotAppearanceTime}`);
-
-        if (hasRespondedThisVideo) {
-            // console.log("[handleUserResponse] Already responded for this trial.");
-            return;
-        }
-
-        if (!player || typeof player.getPlayerState !== 'function' || player.getPlayerState() !== YT.PlayerState.PLAYING) {
-            // console.log("[handleUserResponse] Player not ready or not playing.");
-            return;
-        }
-
-        const key = event.key.toLowerCase();
-
-        if (dotAppearanceTime === null) { // Dot has NOT appeared yet
-            if (key === 's' || key === 'h') {
-                hasRespondedThisVideo = true;
-                showFeedbackMessage("Too quick!");
-                console.log(`[handleUserResponse] Key '${key}' pressed: Too quick!`);
-            }
-            // For any other key, or if no S/H, do nothing until dot appears
-            return;
-        }
-
-        // Dot HAS appeared (dotAppearanceTime is not null)
-        if (key === 's' || key === 'h') {
-            hasRespondedThisVideo = true;
-            const reactionTime = performance.now() - dotAppearanceTime;
-            const currentTrial = playlist[currentVideoIndex];
-            
-            if (!currentTrial) {
-                console.error("[handleUserResponse] Critical error: currentTrial is undefined. Index:", currentVideoIndex, "Playlist:", playlist);
-                showFeedbackMessage("Error: Could not determine video type/color.");
-                return;
-            }
-            const currentVideoType = currentTrial.type;
-            const currentDotColor = currentTrial.dotColor;
-            let isActuallyCorrect = false; 
-            let message = '';
-
-            // Determine base correctness (before considering inversion)
-            let baseCorrect = false;
-            if (key === 's' && currentVideoType === 'soft') {
-                baseCorrect = true;
-            } else if (key === 'h' && currentVideoType === 'hard') {
-                baseCorrect = true;
-            }
-
-            // Apply inversion if the dot was orange
-            if (currentDotColor === 'orange') {
-                isActuallyCorrect = !baseCorrect; // Invert the correctness
-            } else {
-                isActuallyCorrect = baseCorrect; // No inversion for green dot
-            }
-
-            if (isActuallyCorrect) {
-                message = `Correct! (Vid: ${currentVideoType}, Dot: ${currentDotColor}). RT: ${reactionTime.toFixed(0)} ms`;
-            } else {
-                message = `Incorrect. (Vid: ${currentVideoType}, Dot: ${currentDotColor}). RT: ${reactionTime.toFixed(0)} ms`;
-            }
-            showFeedbackMessage(message);
-            console.log(`[handleUserResponse] Key '${key}', VidType: ${currentVideoType}, DotColor: ${currentDotColor}, BaseCorrect: ${baseCorrect}, IsActuallyCorrect: ${isActuallyCorrect}, RT: ${reactionTime.toFixed(0)}ms. Feedback: "${message}"`);
-            
-            if (cueDisplayElement) cueDisplayElement.classList.add('hidden');
-            if (cornerSquareElement) cornerSquareElement.style.visibility = 'hidden'; // Hide corner square
-            clearTimeout(dotTimer); // Stop dot timer as a response has been made
-        } else {
-            // Invalid key pressed AFTER dot has appeared
-            hasRespondedThisVideo = true; 
-            showFeedbackMessage("Invalid Key (Press S or H)");
-            console.log(`[handleUserResponse] Invalid key '${key}' pressed after dot.`);
-        }
-    }
-
-    document.addEventListener('keydown', handleUserResponse);
-
     startButton.addEventListener('click', () => {
         console.log("Start button clicked. Transitioning to video playback.");
 
@@ -499,11 +376,9 @@ document.addEventListener('DOMContentLoaded', () => {
         if(endScreen) endScreen.classList.add('hidden');
         if (cueDisplayElement) cueDisplayElement.classList.add('hidden');
         if (cornerSquareElement) cornerSquareElement.style.visibility = 'hidden'; // Hide corner square
-        clearFeedback();
 
         hasDotBeenScheduledForCurrentVideo = false;
         dotAppearanceTime = null;
-        hasRespondedThisVideo = false;
 
         if (totalTrialsDisplayElement) {
             totalTrialsDisplayElement.textContent = String(TOTAL_VIDEOS_TO_PLAY);
