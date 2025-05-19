@@ -1,7 +1,6 @@
 document.addEventListener('DOMContentLoaded', () => {
     const hardVideoURLs = [
-        // 'https://youtu.be/EKlJn3o2YHM' Ignored hard1 because it's too short (only 4 seconds)
-        'https://youtu.be/LS_6wuTNTqM', 'https://youtu.be/LcLo5QlDby8',
+        'https://youtu.be/EKlJn3o2YHM', 'https://youtu.be/LS_6wuTNTqM', 'https://youtu.be/LcLo5QlDby8',
         'https://youtu.be/r2FdMMp8ZIE'
     ];
     const softVideoURLs = [
@@ -9,13 +8,19 @@ document.addEventListener('DOMContentLoaded', () => {
         'https://youtu.be/OFXJm1_v0qs', 'https://youtu.be/VK0wbMWlq0s',
         'https://youtu.be/VTP2CuLw9F4', 'https://youtu.be/qX1dzS9c6Zs'
     ];
-    const youtubeVideoURLs = hardVideoURLs.concat(softVideoURLs); // Combine for ID extraction
+    // const youtubeVideoURLs = hardVideoURLs.concat(softVideoURLs); // No longer directly used for ID extraction for playlist
 
     const TOTAL_VIDEOS_TO_PLAY = 40;
 
     let player;
-    let playlist = []; // Renamed from shuffledVideoIds for clarity, will store {id, type}
+    let playlist = [];
     let currentVideoIndex = 0;
+    let isTransitioning = false; // Flag to manage video transitions
+
+    // Data saving variables
+    let sessionData = {};
+    let allTrialsData = [];
+    let experimentUUID = '';
 
     const instructionsScreen = document.getElementById('instructions-screen');
     const startButton = document.getElementById('start-button');
@@ -27,14 +32,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const cueDisplayElement = document.getElementById('cue-display');
     const cueShapeElement = document.getElementById('cue-shape');
-    let cornerSquareElement = null; // Added for the corner square
-    
+    let cornerSquareElement = null;
+
     let dotTimer = null;
     let hasDotBeenScheduledForCurrentVideo = false;
-
     let dotAppearanceTime = null;
 
-    // Moved getVideoId here, before initializeVideoPlayback
     function getVideoId(url) {
         let videoId = '';
         const patterns = [
@@ -54,10 +57,10 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     if (cueShapeElement) {
-        cueShapeElement.classList.add('cue-dot'); // Make it a circle
+        cueShapeElement.classList.add('cue-dot');
     }
     if (cueDisplayElement) {
-        cueDisplayElement.classList.add('hidden'); // Ensure it starts hidden
+        cueDisplayElement.classList.add('hidden');
     }
 
     if (!startButton) {
@@ -69,7 +72,7 @@ document.addEventListener('DOMContentLoaded', () => {
         return;
     }
 
-    function shuffleArray(array) {
+    function shuffleArray(array) { // shuffle is also in utils.js, but keep local for now if it was already here
         for (let i = array.length - 1; i > 0; i--) {
             const j = Math.floor(Math.random() * (i + 1));
             [array[i], array[j]] = [array[j], array[i]];
@@ -80,32 +83,25 @@ document.addEventListener('DOMContentLoaded', () => {
         console.log("YouTube Iframe API is ready.");
         if (window.youTubePlayerReadyCallback) {
             window.youTubePlayerReadyCallback();
-            window.youTubePlayerReadyCallback = null; // Clear callback after use
+            window.youTubePlayerReadyCallback = null;
         }
     };
 
-    function createYouTubePlayer(videoId) {
+    function createYouTubePlayer() {
         if (!experimentArea) {
             console.error("Experiment area not found for YouTube player.");
             return;
         }
 
-        // Create a container for the YouTube player
         const playerContainerDiv = document.createElement('div');
         playerContainerDiv.id = YOUTUBE_PLAYER_DIV_ID;
-        playerContainerDiv.style.visibility = 'hidden'; // Initially hide the player
+        playerContainerDiv.style.visibility = 'hidden'; 
 
-        // Clear existing content from experimentArea
         experimentArea.innerHTML = ''; 
-
-        // Add the player container
         experimentArea.appendChild(playerContainerDiv);
 
-        // Re-append the cue display element if it exists
-        // This makes it a sibling to the player container, allowing overlay
         if (cueDisplayElement) {
             experimentArea.appendChild(cueDisplayElement);
-            // Ensure it's hidden initially when (re)added, manageDotDisplay will show it
             cueDisplayElement.classList.add('hidden'); 
         }
         
@@ -115,48 +111,62 @@ document.addEventListener('DOMContentLoaded', () => {
         player = new YT.Player(YOUTUBE_PLAYER_DIV_ID, {
             height: String(Math.round(playerHeight)),
             width: String(containerWidth),
-            videoId: videoId,
             playerVars: {
-                'playsinline': 1, 'autoplay': 1, 'controls': 0, 
-                'rel': 0, 'modestbranding': 1, 'iv_load_policy': 3,
-                'end': 3 // Changed from 5 to 3: Stop the first video after 3 seconds
+                'playsinline': 1, 
+                'controls': 0, 
+                'rel': 0, 'modestbranding': 1, 'iv_load_policy': 3
             },
             events: {
-                'onReady': onPlayerReady,
+                'onReady': onPlayerInstanceReady,
                 'onStateChange': onPlayerStateChange
             }
         });
     }
 
-    function onPlayerReady(event) {
-        console.log("YouTube Player ready. Video ID:", event.target.getVideoData().video_id);
+    function onPlayerInstanceReady(event) {
+        console.log("YouTube Player instance ready. Loading initial video.");
+        if (player && playlist && playlist.length > 0 && currentVideoIndex < playlist.length) {
+            const firstVideoObject = playlist[currentVideoIndex];
+            console.log(`Player ready. Loading initial video via loadVideoById: ${firstVideoObject.id}`);
+            player.loadVideoById({
+                'videoId': firstVideoObject.id,
+                'endSeconds': 5
+            });
+        } else {
+            console.error("Player, playlist, or currentVideoIndex not properly set for loading initial video.", playlist, currentVideoIndex);
+        }
     }
 
     function onPlayerStateChange(event) {
         if (event.data === YT.PlayerState.PLAYING) {
             const playerContainer = document.getElementById(YOUTUBE_PLAYER_DIV_ID);
             if (playerContainer) {
-                playerContainer.style.visibility = 'visible'; // Make player visible
+                playerContainer.style.visibility = 'visible';
             }
 
             if (!hasDotBeenScheduledForCurrentVideo) {
-                console.log("[onPlayerStateChange PLAYING] New video now playing. Confirming hasRespondedThisVideo = false.");
+                console.log("[onPlayerStateChange PLAYING] New video now playing. Resetting transition lock.");
+                isTransitioning = false; // Transition to new video is complete
                 dotAppearanceTime = null; 
                 manageDotDisplay();
                 hasDotBeenScheduledForCurrentVideo = true;
             }
         } else if (event.data === YT.PlayerState.ENDED) {
-            console.log("[onPlayerStateChange ENDED] Video ended.");
+            if (isTransitioning) {
+                console.warn("[onPlayerStateChange ENDED] Transition already in progress. Ignoring this ENDED event.");
+                return;
+            }
+            console.log("[onPlayerStateChange ENDED] Video ended. Attempting to start transition.");
+            isTransitioning = true; // Lock to prevent re-entry while transitioning
+
             clearTimeout(dotTimer);
             if (cueDisplayElement) cueDisplayElement.classList.add('hidden');
-            if (cornerSquareElement) cornerSquareElement.style.visibility = 'hidden'; // Hide corner square
-            
-            dotAppearanceTime = null;
+            if (cornerSquareElement) cornerSquareElement.style.visibility = 'hidden';
 
+            dotAppearanceTime = null;
             currentVideoIndex++;
             hasDotBeenScheduledForCurrentVideo = false;
-            
-            playNextVideoInSequence(); // Call directly, removing the 250ms delay
+            playNextVideoInSequence();
         } else if (event.data === YT.PlayerState.PAUSED) {
             console.log("[onPlayerStateChange PAUSED] Video paused.");
         }
@@ -165,40 +175,36 @@ document.addEventListener('DOMContentLoaded', () => {
     function manageDotDisplay() {
         clearTimeout(dotTimer);
         if (cueDisplayElement) cueDisplayElement.classList.add('hidden');
-        if (cornerSquareElement) cornerSquareElement.style.visibility = 'hidden'; // Hide corner square initially
+        if (cornerSquareElement) cornerSquareElement.style.visibility = 'hidden';
 
         const minDotTime = 1000;  
-        const maxDotTime = 3500; 
+        const maxDotTime = 3000; 
         const randomDelay = Math.floor(Math.random() * (maxDotTime - minDotTime + 1)) + minDotTime;
-
-        // console.log(`[manageDotDisplay] Dot will appear after ${randomDelay}ms.`); // Keep for debugging if needed
 
         dotTimer = setTimeout(() => {
             if (cueShapeElement && cueDisplayElement && player && player.getPlayerState && playlist[currentVideoIndex]) {
                 if (player.getPlayerState() !== YT.PlayerState.PLAYING) {
-                    // console.log("[manageDotDisplay] Video no longer playing when dot was scheduled. Not showing dot.");
                     dotAppearanceTime = null; 
                     return;
                 }
 
                 const currentTrial = playlist[currentVideoIndex];
-                const requiredDotColor = currentTrial.dotColor; // Get color from playlist object
+                const requiredDotColor = currentTrial.dotColor;
 
-                cueShapeElement.classList.remove('cue-orange', 'cue-green'); // Clear previous colors
+                cueShapeElement.classList.remove('cue-orange', 'cue-green');
                 if (requiredDotColor === 'orange') {
                     cueShapeElement.classList.add('cue-orange');
                 } else if (requiredDotColor === 'green') {
                     cueShapeElement.classList.add('cue-green');
                 } else {
                     console.warn(`[manageDotDisplay] Unknown dotColor '${requiredDotColor}' defined for trial. Defaulting to green.`);
-                    cueShapeElement.classList.add('cue-green'); // Default fallback
+                    cueShapeElement.classList.add('cue-green');
                 }
                 
                 cueDisplayElement.classList.remove('hidden');
                 dotAppearanceTime = performance.now();
-                console.log(`[manageDotDisplay] Dot displayed (Color: ${requiredDotColor} at ${randomDelay}ms). Response window open.`);
+                console.log(`[manageDotDisplay] Dot displayed (Color: ${requiredDotColor} at ${randomDelay}ms).`);
 
-                // Show and color the corner square
                 if (cornerSquareElement) {
                     cornerSquareElement.style.visibility = 'visible';
                     if (currentTrial.type === 'hard') {
@@ -206,14 +212,24 @@ document.addEventListener('DOMContentLoaded', () => {
                     } else if (currentTrial.type === 'soft') {
                         cornerSquareElement.style.backgroundColor = 'black';
                     } else {
-                        console.warn(`[manageDotDisplay] Unknown video type '${currentTrial.type}' for corner square. Defaulting to transparent.`);
-                        cornerSquareElement.style.backgroundColor = 'transparent'; // Fallback
+                        cornerSquareElement.style.backgroundColor = 'transparent';
                     }
                     console.log(`[manageDotDisplay] Corner square shown (Type: ${currentTrial.type}, Color: ${cornerSquareElement.style.backgroundColor}).`);
                 }
 
-            } else {
-                // console.log("[manageDotDisplay] Conditions not met to show dot (e.g. no player, or playlist item missing).");
+                // Record trial data
+                const trialData = {
+                    trial_number: currentVideoIndex,
+                    video_id: currentTrial.id,
+                    video_type: currentTrial.type,
+                    dot_color_on_video: currentTrial.dotColor,
+                    dot_scheduled_delay_ms: randomDelay,
+                    dot_appearance_timestamp: dotAppearanceTime,
+                    corner_square_color_shown: (currentTrial.type === 'hard' ? 'gray' : 'black')
+                };
+                allTrialsData.push(trialData);
+                console.log("Trial data recorded:", trialData);
+
             }
         }, randomDelay); 
     }
@@ -228,26 +244,26 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function playNextVideoInSequence() {
-        if (currentVideoIndex < playlist.length) { // Changed from shuffledVideoIds
+        if (currentVideoIndex < playlist.length) {
             updateTrialDisplay();
             dotAppearanceTime = null;
 
-            const nextVideoObject = playlist[currentVideoIndex]; // Changed from shuffledVideoIds
+            const nextVideoObject = playlist[currentVideoIndex];
             if (player && typeof player.loadVideoById === 'function') {
                 const playerContainer = document.getElementById(YOUTUBE_PLAYER_DIV_ID);
                 if (playerContainer) {
-                    playerContainer.style.visibility = 'hidden'; // Hide player before loading next video
+                    playerContainer.style.visibility = 'hidden';
                 }
-                console.log(`Loading video ${currentVideoIndex + 1} of ${playlist.length}: ${nextVideoObject.id} (Type: ${nextVideoObject.type}), to play for 3 seconds.`);
+                console.log(`Loading video ${currentVideoIndex + 1} of ${playlist.length}: ${nextVideoObject.id} (Type: ${nextVideoObject.type}), to play for 5 seconds.`);
                 player.loadVideoById({ 
-                    'videoId': nextVideoObject.id, // Use id from object
-                    'endSeconds': 5
+                    'videoId': nextVideoObject.id,
+                    'endSeconds': 5 // Changed to 5
                 });
             } else {
                 console.error("Player not available or not fully initialized to load next video.");
             }
         } else {
-            console.log(`All ${TOTAL_VIDEOS_TO_PLAY} videos played.`);
+            console.log(`All ${TOTAL_VIDEOS_TO_PLAY} videos played. Preparing to send data.`);
             if(experimentArea) experimentArea.classList.add('hidden');
             if(player && typeof player.destroy === 'function') {
                 try { player.destroy(); } catch(e) { console.error("Error destroying player", e); }
@@ -256,7 +272,16 @@ document.addEventListener('DOMContentLoaded', () => {
             if(endScreen) endScreen.classList.remove('hidden');
             clearTimeout(dotTimer);
             if (cueDisplayElement) cueDisplayElement.classList.add('hidden');
-            if (cornerSquareElement) cornerSquareElement.style.visibility = 'hidden'; // Hide corner square
+            if (cornerSquareElement) cornerSquareElement.style.visibility = 'hidden';
+            
+            // Send data to server
+            const finalDataPayload = {
+                session_info: sessionData,
+                trial_data: allTrialsData
+            };
+            sendDataToServer(finalDataPayload, experimentUUID, 'squeeze'); // from utils.js
+            console.log("Final data payload for debugging:", finalDataPayload);
+            console.log("Data sending process initiated.");
         }
     }
 
@@ -264,7 +289,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const hardVideoIds = hardVideoURLs.map(url => getVideoId(url)).filter(id => id);
         const softVideoIds = softVideoURLs.map(url => getVideoId(url)).filter(id => id);
 
-        if (hardVideoIds.length === 0 || softVideoIds.length === 0) { // Ensure we have at least one of each type for the new logic
+        if (hardVideoIds.length === 0 || softVideoIds.length === 0) {
             console.error("Cannot proceed: Need at least one hard and one soft video defined.");
             if (instructionsScreen) instructionsScreen.textContent = "Error: Define at least one hard and one soft video.";
             if (startButton) startButton.disabled = true;
@@ -274,54 +299,34 @@ document.addEventListener('DOMContentLoaded', () => {
         console.log("Available Hard video IDs:", hardVideoIds);
         console.log("Available Soft video IDs:", softVideoIds);
 
-        playlist = []; // Clear previous playlist
+        playlist = [];
 
         const numHardOrange = 10;
         const numHardGreen = 10;
         const numSoftOrange = 10;
         const numSoftGreen = 10;
 
-        // Create hard trials
         for (let i = 0; i < numHardOrange; i++) {
-            playlist.push({ 
-                id: hardVideoIds[i % hardVideoIds.length], 
-                type: 'hard', 
-                dotColor: 'orange' 
-            });
+            playlist.push({ id: hardVideoIds[i % hardVideoIds.length], type: 'hard', dotColor: 'orange' });
         }
         for (let i = 0; i < numHardGreen; i++) {
-            playlist.push({ 
-                id: hardVideoIds[(i + numHardOrange) % hardVideoIds.length], // Continue cycling through hardVideoIds
-                type: 'hard', 
-                dotColor: 'green' 
-            });
+            playlist.push({ id: hardVideoIds[(i + numHardOrange) % hardVideoIds.length], type: 'hard', dotColor: 'green' });
         }
-
-        // Create soft trials
         for (let i = 0; i < numSoftOrange; i++) {
-            playlist.push({ 
-                id: softVideoIds[i % softVideoIds.length], 
-                type: 'soft', 
-                dotColor: 'orange' 
-            });
+            playlist.push({ id: softVideoIds[i % softVideoIds.length], type: 'soft', dotColor: 'orange' });
         }
         for (let i = 0; i < numSoftGreen; i++) {
-            playlist.push({ 
-                id: softVideoIds[(i + numSoftOrange) % softVideoIds.length], // Continue cycling through softVideoIds
-                type: 'soft', 
-                dotColor: 'green' 
-            });
+            playlist.push({ id: softVideoIds[(i + numSoftOrange) % softVideoIds.length], type: 'soft', dotColor: 'green' });
         }
 
         if (playlist.length !== TOTAL_VIDEOS_TO_PLAY) {
-            console.warn(`Playlist length (${playlist.length}) does not match TOTAL_VIDEOS_TO_PLAY (${TOTAL_VIDEOS_TO_PLAY}). This might be due to rounding or logic error in trial generation.`);
-            // This is a sanity check. Given the fixed numbers (10+10+10+10=40), it should match if TOTAL_VIDEOS_TO_PLAY is 40.
+            console.warn(`Playlist length (${playlist.length}) does not match TOTAL_VIDEOS_TO_PLAY (${TOTAL_VIDEOS_TO_PLAY}).`);
         }
 
-        shuffleArray(playlist); 
+        shuffleArray(playlist); // Uses local shuffle or utils.js if that's preferred
 
         if (playlist.length === 0) {
-            console.error("Playlist is empty after attempting to populate and shuffle.");
+            console.error("Playlist is empty.");
             if (instructionsScreen) instructionsScreen.textContent = "Error: Could not create video playlist.";
             if (startButton) startButton.disabled = true;
             return;
@@ -329,8 +334,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
         console.log(`Initialized playlist with ${playlist.length} videos.`);
         console.log("Current playlist (first 5 items):", playlist.slice(0,5));
-        // Example log to check distribution (optional)
-        // console.log("Full playlist for debugging:", JSON.stringify(playlist, null, 2));
 
         if (typeof YT === 'undefined' || typeof YT.Player === 'undefined') {
             console.log("YouTube API not loaded. Loading now...");
@@ -344,11 +347,11 @@ document.addEventListener('DOMContentLoaded', () => {
             }
             window.youTubePlayerReadyCallback = () => {
                 console.log("YouTube API ready via global callback. Creating player for first video:", playlist[0].id);
-                createYouTubePlayer(playlist[0].id); 
+                createYouTubePlayer();
             };
         } else {
             console.log("YouTube API already loaded. Creating player for first video:", playlist[0].id);
-            createYouTubePlayer(playlist[0].id);
+            createYouTubePlayer();
         }
         updateTrialDisplay(); 
     }
@@ -360,23 +363,44 @@ document.addEventListener('DOMContentLoaded', () => {
         cornerSquareElement.style.right = '20px';
         cornerSquareElement.style.width = '50px';
         cornerSquareElement.style.height = '50px';
-        cornerSquareElement.style.backgroundColor = 'transparent'; // Initially transparent or a default non-distracting color
-        cornerSquareElement.style.visibility = 'hidden'; // Initially hidden
-        cornerSquareElement.style.zIndex = '2000'; // Ensure it's above most other elements
+        cornerSquareElement.style.backgroundColor = 'transparent';
+        cornerSquareElement.style.visibility = 'hidden';
+        cornerSquareElement.style.zIndex = '2000';
         document.body.appendChild(cornerSquareElement);
         console.log("Corner square initialized.");
     }
     
-    initializeCornerSquare(); // Call to create the square when the script loads
+    initializeCornerSquare();
+
+    function initializeExperimentSession() {
+        experimentUUID = generateUUID(); // From utils.js
+        const sessionGroup = getQueryParam('SG'); // From utils.js
+        sessionData = {
+            session_uuid: experimentUUID,
+            session_group: sessionGroup || 'N/A',
+            experiment_name: "squeeze",
+            experiment_version: "1.0",
+            browser_data: getBrowserData(), // From utils.js
+            experiment_config: {
+                total_videos_configured: TOTAL_VIDEOS_TO_PLAY,
+                hard_video_urls: hardVideoURLs, 
+                soft_video_urls: softVideoURLs  
+            }
+        };
+        allTrialsData = []; // Initialize/reset trials data array
+        console.log("Experiment session initialized:", sessionData);
+    }
 
     startButton.addEventListener('click', () => {
         console.log("Start button clicked. Transitioning to video playback.");
+        
+        initializeExperimentSession(); // Initialize session and data collection arrays
 
         if(instructionsScreen) instructionsScreen.classList.add('hidden');
         if(experimentArea) experimentArea.classList.remove('hidden');
         if(endScreen) endScreen.classList.add('hidden');
         if (cueDisplayElement) cueDisplayElement.classList.add('hidden');
-        if (cornerSquareElement) cornerSquareElement.style.visibility = 'hidden'; // Hide corner square
+        if (cornerSquareElement) cornerSquareElement.style.visibility = 'hidden';
 
         hasDotBeenScheduledForCurrentVideo = false;
         dotAppearanceTime = null;
@@ -394,12 +418,11 @@ document.addEventListener('DOMContentLoaded', () => {
             console.log("YouTube API not fully ready yet. Setting callback for when it is.");
             window.youTubePlayerReadyCallback = initializeVideoPlayback;
             if (typeof YT === "undefined") {
-                console.warn("YT object not found. YouTube API script might not have loaded. Ensure index.html includes it.");
+                console.warn("YT object not found. YouTube API script might not have loaded.");
             }
         }
     });
 
-    // Ensure onYouTubeIframeAPIReady is globally accessible if not already
     if (typeof window.onYouTubeIframeAPIReady === 'undefined') {
         window.onYouTubeIframeAPIReady = function() {
             console.log("YouTube Iframe API is ready (fallback registration).");
