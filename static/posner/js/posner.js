@@ -2,6 +2,12 @@ document.addEventListener('DOMContentLoaded', () => {
     
     const TOTAL_TRIALS = 167;
 
+    // 3FFFF - two common
+    // 6FFFF - left uncommon
+    // CFFFF - right uncommon
+    // FFFFF - two uncommon
+
+    const color_codes = ['#333333', '#666666', '#CCCCCC', '#FFFFFF'];
     const instructionsScreen = document.getElementById('instructions-screen');
     const startButton = document.getElementById('start-button');
     const experimentArea = document.getElementById('experiment-area');
@@ -36,22 +42,18 @@ document.addEventListener('DOMContentLoaded', () => {
     rightDotElement.style.transform = 'translateY(-50%)';
     rightDotElement.style.display = 'none'; // Hidden initially
     cueDisplayElement.appendChild(rightDotElement);
-    //  const orangeDotElement = document.createElement('div');
-    //      orangeDotElement.className = 'cue-element orange-dot';
-    //      orangeDotElement.style.width = '10px';
-    //      orangeDotElement.style.height = '10px';
-    //      orangeDotElement.style.backgroundColor = 'orange';
-    //      orangeDotElement.style.borderRadius = '50%';
-    //      orangeDotElement.style.position = 'absolute';
-    //      orangeDotElement.style.top = '50%';
-    //      orangeDotElement.style.transform = 'translateY(-50%)';
-    //      orangeDotElement.style.display = 'none'; // Hidden initially
 
-    function updateTrialDisplay(count) {
-        if (trialCounterElement) {
-            trialCounterElement.textContent = String(count);
-        }
-    }
+    cornerSquareElement = document.createElement('div');
+    cornerSquareElement.style.position = 'fixed';
+    cornerSquareElement.style.bottom = '30px';
+    cornerSquareElement.style.right = '30px';
+    cornerSquareElement.style.width = '100px';
+    cornerSquareElement.style.height = '100px';
+    cornerSquareElement.style.backgroundColor = 'black';
+    cornerSquareElement.style.visibility = 'hidden';
+    cornerSquareElement.style.zIndex = '2000';
+    document.body.appendChild(cornerSquareElement);
+    console.log("Corner square initialized.");
 
     function generateTrialOrder() {
         let trials = [];
@@ -69,35 +71,51 @@ document.addEventListener('DOMContentLoaded', () => {
 
         trials_copy = JSON.parse(JSON.stringify(trials));
         shuffle(trials_copy);
-        finalTrials.push(trials_copy);
+        finalTrials.push(trials_copy);  
         return finalTrials;
     }
 
     function trialSequence() {
         let count = 0;
-      
+        let color_code = 0;
+
+        // Initialize trials
         const trialOrder = generateTrialOrder();
 
+        // Recursive function to run the trial sequence
         function runNext() {
+          // Base case
           if (count >= TOTAL_TRIALS) {
             endScreen.classList.remove('hidden');
             experimentArea.classList.add('hidden');
             return;          // stop after 25 runs
           }
           
-          count++;
-        
-          updateTrialDisplay(count);
+          color_code = 0;
 
+          count++;
+          trialCounterElement.textContent = String(count);
+
+          // If left is uncommon, set color code to 1
           if (trialOrder[0][count-1] === 1) {
             leftDotElement.style.backgroundColor = 'orange';
+            color_code = 1;
           }
           else {
             leftDotElement.style.backgroundColor = 'blue';
           }
 
+          // Check if right is uncommon
           if (trialOrder[1][count-1] === 1) {
             rightDotElement.style.backgroundColor = 'orange';
+            // If both are uncommon, set color code to 3
+            if (color_code === 1) {
+              color_code = 3;
+            }
+            // If only right is uncommon, set color code to 2
+            else {
+              color_code = 2;
+            }
           }
           else {
             rightDotElement.style.backgroundColor = 'blue';
@@ -105,11 +123,14 @@ document.addEventListener('DOMContentLoaded', () => {
 
           setTimeout(() => {
             cueDisplayElement.classList.remove('hidden');      // show fixation cross
+            cornerSquareElement.style.visibility = 'hidden';    // hide corner square
       
             const dotDelay = Math.random() * 500 + 500;        // 500–1000 ms
             setTimeout(() => {
               leftDotElement.style.display = 'block';          // show dot
               rightDotElement.style.display = 'block';          // show dot
+              cornerSquareElement.style.visibility = 'visible';
+              cornerSquareElement.style.backgroundColor = color_codes[color_code];
       
               setTimeout(() => {
                 leftDotElement.style.display = 'none';          // hide dot
@@ -117,6 +138,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
                 setTimeout(() => {
                   cueDisplayElement.classList.add('hidden');   // hide cross
+                  
                   runNext();                                   // start next trial
                 }, 250);   // 0.25 s after dot disappears
               }, 250);     // blue dot visible for 0.25 s
@@ -129,6 +151,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function runFixationCrossSequence() {
         
+        cornerSquareElement.style.visibility = 'visible';
+
         // Make sure experiment area is visible and cue display is ready
         if (experimentArea && cueDisplayElement && cueShapeElement) {
             experimentArea.classList.remove('hidden');
