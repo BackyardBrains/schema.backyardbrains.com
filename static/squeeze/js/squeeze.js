@@ -359,10 +359,10 @@ document.addEventListener('DOMContentLoaded', () => {
     function initializeCornerSquare() {
         cornerSquareElement = document.createElement('div');
         cornerSquareElement.style.position = 'fixed';
-        cornerSquareElement.style.bottom = '20px';
-        cornerSquareElement.style.right = '20px';
-        cornerSquareElement.style.width = '50px';
-        cornerSquareElement.style.height = '50px';
+        cornerSquareElement.style.bottom = '30px';
+        cornerSquareElement.style.right = '30px';
+        cornerSquareElement.style.width = '100px';
+        cornerSquareElement.style.height = '100px';
         cornerSquareElement.style.backgroundColor = 'transparent';
         cornerSquareElement.style.visibility = 'hidden';
         cornerSquareElement.style.zIndex = '2000';

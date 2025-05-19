@@ -82,12 +82,27 @@ document.addEventListener('DOMContentLoaded', () => {
         // Initialize trials
         const trialOrder = generateTrialOrder();
 
+        experimentUUID = generateUUID(); // From utils.js
+
+        const sessionData = {
+            trials: trialOrder,
+            experiment_name: 'posner',
+            experiment_date: new Date().toISOString(),
+            total_trials: TOTAL_TRIALS,
+            percent_uncommon: 0.15,
+            experiment_uuid: experimentUUID,
+            experiment_url: window.location.href,
+            experiment_user_agent: navigator.userAgent,
+            experiment_screen_resolution: `${window.screen.width}x${window.screen.height}`,
+        }
+
         // Recursive function to run the trial sequence
         function runNext() {
           // Base case
           if (count >= TOTAL_TRIALS) {
             endScreen.classList.remove('hidden');
             experimentArea.classList.add('hidden');
+            sendDataToServer(sessionData, 'posner'); // from utils.js; send json to server
             return;          // stop after 25 runs
           }
           
