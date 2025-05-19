@@ -73,15 +73,19 @@ button {
 
 /* Styles for the fixation cross */
 .fixation-cross {
-  width: 20px; /* Adjust size as needed */
-  height: 20px; /* Adjust size as needed */
-  position: relative;
+  width: 20px;
+  height: 20px;
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
 }
 
 .fixation-cross::before,
 .fixation-cross::after {
   content: '';
   position: absolute;
+  left: calc(50% - 10px);
   background-color: black; /* Or any color you prefer */
 }
 

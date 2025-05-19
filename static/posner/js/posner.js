@@ -1,6 +1,6 @@
 document.addEventListener('DOMContentLoaded', () => {
     
-    const TOTAL_TRIALS = 25;
+    const TOTAL_TRIALS = 167;
 
     const instructionsScreen = document.getElementById('instructions-screen');
     const startButton = document.getElementById('start-button');
@@ -13,31 +13,39 @@ document.addEventListener('DOMContentLoaded', () => {
     const cueDisplayElement = document.getElementById('cue-display');
     const cueShapeElement = document.getElementById('cue-shape');
 
-    const blueDotElement = document.createElement('div');
-        blueDotElement.className = 'cue-element blue-dot';
-        blueDotElement.style.width = '10px';
-        blueDotElement.style.height = '10px';
-        blueDotElement.style.backgroundColor = 'blue';
-        blueDotElement.style.borderRadius = '50%';
-        blueDotElement.style.position = 'absolute';
-        blueDotElement.style.left = 'calc(50% + 20px)'; // Position to the right of center
-        blueDotElement.style.top = '50%';
-        blueDotElement.style.transform = 'translateY(-50%)';
-        blueDotElement.style.display = 'none'; // Hidden initially
-        cueDisplayElement.appendChild(blueDotElement);
+    const leftDotElement = document.createElement('div');
+    leftDotElement.style.left = 'calc(50% - 192px)';
+    leftDotElement.style.width = '10px';
+    leftDotElement.style.height = '10px';
+    leftDotElement.style.backgroundColor = 'blue';
+    leftDotElement.style.borderRadius = '50%';
+    leftDotElement.style.position = 'absolute';
+    leftDotElement.style.top = '50%';
+    leftDotElement.style.transform = 'translateY(-50%)';
+    leftDotElement.style.display = 'none'; // Hidden initially
+    cueDisplayElement.appendChild(leftDotElement);
 
-     const orangeDotElement = document.createElement('div');
-         orangeDotElement.className = 'cue-element orange-dot';
-         orangeDotElement.style.width = '10px';
-         orangeDotElement.style.height = '10px';
-         orangeDotElement.style.backgroundColor = 'orange';
-         orangeDotElement.style.borderRadius = '50%';
-         orangeDotElement.style.position = 'absolute';
-         orangeDotElement.style.left = 'calc(50% + 20px)'; // Position to the right of center
-         orangeDotElement.style.top = '50%';
-         orangeDotElement.style.transform = 'translateY(-50%)';
-         orangeDotElement.style.display = 'none'; // Hidden initially
-         cueDisplayElement.appendChild(orangeDotElement);
+    const rightDotElement = document.createElement('div');
+    rightDotElement.style.left = 'calc(50% + 192px)';
+    rightDotElement.style.width = '10px';
+    rightDotElement.style.height = '10px';
+    rightDotElement.style.backgroundColor = 'blue';
+    rightDotElement.style.borderRadius = '50%';
+    rightDotElement.style.position = 'absolute';
+    rightDotElement.style.top = '50%';
+    rightDotElement.style.transform = 'translateY(-50%)';
+    rightDotElement.style.display = 'none'; // Hidden initially
+    cueDisplayElement.appendChild(rightDotElement);
+    //  const orangeDotElement = document.createElement('div');
+    //      orangeDotElement.className = 'cue-element orange-dot';
+    //      orangeDotElement.style.width = '10px';
+    //      orangeDotElement.style.height = '10px';
+    //      orangeDotElement.style.backgroundColor = 'orange';
+    //      orangeDotElement.style.borderRadius = '50%';
+    //      orangeDotElement.style.position = 'absolute';
+    //      orangeDotElement.style.top = '50%';
+    //      orangeDotElement.style.transform = 'translateY(-50%)';
+    //      orangeDotElement.style.display = 'none'; // Hidden initially
 
     function updateTrialDisplay(count) {
         if (trialCounterElement) {
@@ -47,30 +55,28 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function generateTrialOrder() {
         let trials = [];
-        // 20% uncommon trials
-        for (let i = 0; i < 0.1*TOTAL_TRIALS; i++) {
-            trials.push([1, 'L']);
+        let finalTrials = [];
+        // 15% uncommon trials
+        for (let i = 0; i < 0.15*TOTAL_TRIALS; i++) {
+            trials.push(1);
         }
-        for (let i = 0; i < 0.1*TOTAL_TRIALS; i++) {
-            trials.push([1, 'R']);
-        }
-        // 80% common trials
-        for (let i = 0; i < 0.4*TOTAL_TRIALS; i++) {
-            trials.push([2, 'L']);
-        }
-        for (let i = 0; i < 0.4*TOTAL_TRIALS; i++) {
-            trials.push([2, 'R']);
+        // 85% common trials
+        for (let i = 0; i < 0.85*TOTAL_TRIALS; i++) {
+            trials.push(0);
         }
         shuffle(trials);
-        return trials;
+        finalTrials.push(trials);
+
+        trials_copy = JSON.parse(JSON.stringify(trials));
+        shuffle(trials_copy);
+        finalTrials.push(trials_copy);
+        return finalTrials;
     }
 
     function trialSequence() {
         let count = 0;
       
         const trialOrder = generateTrialOrder();
-
-        let dot = blueDotElement;
 
         function runNext() {
           if (count >= TOTAL_TRIALS) {
@@ -83,18 +89,18 @@ document.addEventListener('DOMContentLoaded', () => {
         
           updateTrialDisplay(count);
 
-          if (trialOrder[count-1][0] === 1) {
-            dot = orangeDotElement;
+          if (trialOrder[0][count-1] === 1) {
+            leftDotElement.style.backgroundColor = 'orange';
           }
           else {
-            dot = blueDotElement;
+            leftDotElement.style.backgroundColor = 'blue';
           }
 
-          if (trialOrder[count-1][1] === 'L') {
-            dot.style.left = 'calc(50% - 30px)'; // Position to the left of center
+          if (trialOrder[1][count-1] === 1) {
+            rightDotElement.style.backgroundColor = 'orange';
           }
           else {
-            dot.style.left = 'calc(50% + 20px)'; // Position to the right of center
+            rightDotElement.style.backgroundColor = 'blue';
           }
 
           setTimeout(() => {
@@ -102,11 +108,13 @@ document.addEventListener('DOMContentLoaded', () => {
       
             const dotDelay = Math.random() * 500 + 500;        // 500–1000 ms
             setTimeout(() => {
-              dot.style.display = 'block';          // show dot
+              leftDotElement.style.display = 'block';          // show dot
+              rightDotElement.style.display = 'block';          // show dot
       
               setTimeout(() => {
-                dot.style.display = 'none';         // hide dot
-      
+                leftDotElement.style.display = 'none';          // hide dot
+                rightDotElement.style.display = 'none';          // hide dot
+
                 setTimeout(() => {
                   cueDisplayElement.classList.add('hidden');   // hide cross
                   runNext();                                   // start next trial
