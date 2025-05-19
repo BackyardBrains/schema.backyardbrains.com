@@ -202,6 +202,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
                 
                 cueDisplayElement.classList.remove('hidden');
+                setTimeout(() => {
+                    cueDisplayElement.classList.add('hidden');
+                }, 300);
                 dotAppearanceTime = performance.now();
                 console.log(`[manageDotDisplay] Dot displayed (Color: ${requiredDotColor} at ${randomDelay}ms).`);
 
@@ -216,6 +219,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     }
                     console.log(`[manageDotDisplay] Corner square shown (Type: ${currentTrial.type}, Color: ${cornerSquareElement.style.backgroundColor}).`);
                 }
+
 
                 // Record trial data
                 const trialData = {
@@ -359,10 +363,10 @@ document.addEventListener('DOMContentLoaded', () => {
     function initializeCornerSquare() {
         cornerSquareElement = document.createElement('div');
         cornerSquareElement.style.position = 'fixed';
-        cornerSquareElement.style.bottom = '20px';
-        cornerSquareElement.style.right = '20px';
-        cornerSquareElement.style.width = '50px';
-        cornerSquareElement.style.height = '50px';
+        cornerSquareElement.style.bottom = '30px';
+        cornerSquareElement.style.right = '30px';
+        cornerSquareElement.style.width = '100px';
+        cornerSquareElement.style.height = '100px';
         cornerSquareElement.style.backgroundColor = 'transparent';
         cornerSquareElement.style.visibility = 'hidden';
         cornerSquareElement.style.zIndex = '2000';
