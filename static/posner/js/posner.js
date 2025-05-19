@@ -73,7 +73,12 @@ document.addEventListener('DOMContentLoaded', () => {
         let dot = blueDotElement;
 
         function runNext() {
-          if (count >= TOTAL_TRIALS) return;          // stop after 25 runs
+          if (count >= TOTAL_TRIALS) {
+            endScreen.classList.remove('hidden');
+            experimentArea.classList.add('hidden');
+            return;          // stop after 25 runs
+          }
+          
           count++;
         
           updateTrialDisplay(count);
