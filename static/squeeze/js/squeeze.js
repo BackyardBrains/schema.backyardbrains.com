@@ -15,6 +15,7 @@ document.addEventListener('DOMContentLoaded', () => {
     let player;
     let playlist = [];
     let currentVideoIndex = 0;
+    let isTransitioning = false; // Flag to manage video transitions
 
     // Data saving variables
     let sessionData = {};
@@ -86,7 +87,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     };
 
-    function createYouTubePlayer(videoId) {
+    function createYouTubePlayer() {
         if (!experimentArea) {
             console.error("Experiment area not found for YouTube player.");
             return;
@@ -110,21 +111,30 @@ document.addEventListener('DOMContentLoaded', () => {
         player = new YT.Player(YOUTUBE_PLAYER_DIV_ID, {
             height: String(Math.round(playerHeight)),
             width: String(containerWidth),
-            videoId: videoId,
             playerVars: {
-                'playsinline': 1, 'autoplay': 1, 'controls': 0, 
-                'rel': 0, 'modestbranding': 1, 'iv_load_policy': 3,
-                'end': 3 
+                'playsinline': 1, 
+                'controls': 0, 
+                'rel': 0, 'modestbranding': 1, 'iv_load_policy': 3
             },
             events: {
-                'onReady': onPlayerReady,
+                'onReady': onPlayerInstanceReady,
                 'onStateChange': onPlayerStateChange
             }
         });
     }
 
-    function onPlayerReady(event) {
-        console.log("YouTube Player ready. Video ID:", event.target.getVideoData().video_id);
+    function onPlayerInstanceReady(event) {
+        console.log("YouTube Player instance ready. Loading initial video.");
+        if (player && playlist && playlist.length > 0 && currentVideoIndex < playlist.length) {
+            const firstVideoObject = playlist[currentVideoIndex];
+            console.log(`Player ready. Loading initial video via loadVideoById: ${firstVideoObject.id}`);
+            player.loadVideoById({
+                'videoId': firstVideoObject.id,
+                'endSeconds': 5
+            });
+        } else {
+            console.error("Player, playlist, or currentVideoIndex not properly set for loading initial video.", playlist, currentVideoIndex);
+        }
     }
 
     function onPlayerStateChange(event) {
@@ -135,13 +145,20 @@ document.addEventListener('DOMContentLoaded', () => {
             }
 
             if (!hasDotBeenScheduledForCurrentVideo) {
-                console.log("[onPlayerStateChange PLAYING] New video now playing.");
+                console.log("[onPlayerStateChange PLAYING] New video now playing. Resetting transition lock.");
+                isTransitioning = false; // Transition to new video is complete
                 dotAppearanceTime = null; 
                 manageDotDisplay();
                 hasDotBeenScheduledForCurrentVideo = true;
             }
         } else if (event.data === YT.PlayerState.ENDED) {
-            console.log("[onPlayerStateChange ENDED] Video ended.");
+            if (isTransitioning) {
+                console.warn("[onPlayerStateChange ENDED] Transition already in progress. Ignoring this ENDED event.");
+                return;
+            }
+            console.log("[onPlayerStateChange ENDED] Video ended. Attempting to start transition.");
+            isTransitioning = true; // Lock to prevent re-entry while transitioning
+
             clearTimeout(dotTimer);
             if (cueDisplayElement) cueDisplayElement.classList.add('hidden');
             if (cornerSquareElement) cornerSquareElement.style.visibility = 'hidden';
@@ -160,8 +177,8 @@ document.addEventListener('DOMContentLoaded', () => {
         if (cueDisplayElement) cueDisplayElement.classList.add('hidden');
         if (cornerSquareElement) cornerSquareElement.style.visibility = 'hidden';
 
-        const minDotTime = 500;  
-        const maxDotTime = 2500; 
+        const minDotTime = 1000;  
+        const maxDotTime = 3000; 
         const randomDelay = Math.floor(Math.random() * (maxDotTime - minDotTime + 1)) + minDotTime;
 
         dotTimer = setTimeout(() => {
@@ -330,11 +347,11 @@ document.addEventListener('DOMContentLoaded', () => {
             }
             window.youTubePlayerReadyCallback = () => {
                 console.log("YouTube API ready via global callback. Creating player for first video:", playlist[0].id);
-                createYouTubePlayer(playlist[0].id); 
+                createYouTubePlayer();
             };
         } else {
             console.log("YouTube API already loaded. Creating player for first video:", playlist[0].id);
-            createYouTubePlayer(playlist[0].id);
+            createYouTubePlayer();
         }
         updateTrialDisplay(); 
     }
