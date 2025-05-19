@@ -7,7 +7,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // CFFFF - right uncommon
     // FFFFF - two uncommon
 
-    const color_codes = ['#333333', '#666666', '#CCCCCC', '#FFFFFF'];
+    const color_codes = ['#333333', '#555555', '#888888', '#CCCCCC'];
     const instructionsScreen = document.getElementById('instructions-screen');
     const startButton = document.getElementById('start-button');
     const experimentArea = document.getElementById('experiment-area');
