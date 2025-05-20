@@ -39,11 +39,13 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   // Start button event listeners
   startButton1.addEventListener('click', async () => {
+    cornerSquareElement.style.backgroundColor = 'black';
     instructionsScreen.classList.add('hidden');
     await startSession();
   });
 
   startButton2.addEventListener('click', async () => {
+    cornerSquareElement.style.backgroundColor = 'black';
     instructionsScreen.classList.add('hidden');
     pauseScreen.classList.add('hidden');
     await startSession();
@@ -122,12 +124,12 @@ document.addEventListener('DOMContentLoaded', async () => {
         rightDotElement.style.backgroundColor = 'blue';
       }
   
-      cueDisplayElement.classList.remove('hidden');        // show fixation cross
-      cornerSquareElement.classList.add('hidden');      // hide corner square
-  
       // Wait 500ms (fixation)
       await new Promise(r => setTimeout(r, 500));
   
+      cueDisplayElement.classList.remove('hidden');        // show fixation cross
+      cornerSquareElement.classList.add('hidden');      // hide corner square
+
       // Wait random dot delay (500-1000ms)
       const dotDelay = Math.random() * 500 + 500;
       await new Promise(r => setTimeout(r, dotDelay));
