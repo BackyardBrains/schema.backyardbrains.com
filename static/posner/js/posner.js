@@ -1,6 +1,6 @@
 document.addEventListener('DOMContentLoaded', async () => {
     
-  const TOTAL_TRIALS = 10;
+  const TOTAL_TRIALS = 167;
 
   // 3FFFF - two common
   // 6FFFF - left uncommon
@@ -32,7 +32,6 @@ document.addEventListener('DOMContentLoaded', async () => {
   cueDisplayElement.appendChild(rightDotElement);
 
   const cornerSquareElement = document.getElementById('corner-square');
-  cornerSquareElement.style.backgroundColor = 'white';
 
   console.log("Page elements initialized.");
 
@@ -40,12 +39,14 @@ document.addEventListener('DOMContentLoaded', async () => {
   // Start button event listeners
   startButton1.addEventListener('click', async () => {
     cornerSquareElement.style.backgroundColor = 'black';
+    cornerSquareElement.classList.remove('hidden');
     instructionsScreen.classList.add('hidden');
     await startSession();
   });
 
   startButton2.addEventListener('click', async () => {
     cornerSquareElement.style.backgroundColor = 'black';
+    cornerSquareElement.classList.remove('hidden');
     instructionsScreen.classList.add('hidden');
     pauseScreen.classList.add('hidden');
     await startSession();

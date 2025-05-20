@@ -55,7 +55,7 @@ video {
   right:30px;
   width:100px;
   height:100px;
-  background:#000;
+  color: black;
   z-index:2000;
 }
 
