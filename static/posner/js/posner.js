@@ -68,18 +68,30 @@ document.addEventListener('DOMContentLoaded', async () => {
         
         const trialOrder = generateTrialOrder();
 
+        let trial_colors = []
+
         experimentUUID = generateUUID(); // From utils.js
-        const sessionData = {
-          trials: trialOrder,
-          experiment_name: 'posner',
-          experiment_date: new Date().toISOString(),
-          total_trials: trials,
-          percent_uncommon: 0.15,
-          experiment_uuid: experimentUUID,
-          experiment_url: window.location.href,
-          experiment_user_agent: navigator.userAgent,
-          experiment_screen_resolution: `${window.screen.width}x${window.screen.height}`,
+        for (let i = 0; i < TOTAL_TRIALS; i++) {
+          trial_colors.push([trialOrder[0][i] ? 'orange' : 'blue',
+                             trialOrder[1][i] ? 'orange' : 'blue']);
         }
+
+        const sessionGroup = getQueryParam('SG');
+
+        sessionData = {
+          session_uuid: experimentUUID,
+          session_group: sessionGroup || 'N/A',
+          experiment_name: "posner",
+          experiment_version: "1.0",
+          browser_data: getBrowserData(), // From utils.js
+          experiment_config: {
+              session_trials: TOTAL_TRIALS,
+              percent_uncommon: 0.15,
+              trial_colors: trial_colors,
+              experiment_url: window.location.href,
+              experiment_user_agent: navigator.userAgent,
+              experiment_screen_resolution: `${window.screen.width}x${window.screen.height}`
+        }};
 
         // Run trials
         await runTrials(trialOrder);
@@ -87,7 +99,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         cornerSquareElement.classList.add('hidden');
 
         // Send session data to server
-        await sendDataToServer(sessionData, 'posner');
+        await sendDataToServer(sessionData, experimentUUID, "posner");
         
     } else {
         console.error("Required elements for fixation cross not found.");
