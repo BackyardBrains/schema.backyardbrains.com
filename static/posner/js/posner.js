@@ -68,12 +68,18 @@ document.addEventListener('DOMContentLoaded', async () => {
         
         const trialOrder = generateTrialOrder();
 
+        let trial_colors = []
+
         experimentUUID = generateUUID(); // From utils.js
+        for (let i = 0; i < TOTAL_TRIALS; i++) {
+          trial_colors.push([trialOrder[0][i] ? 'orange' : 'blue',
+                             trialOrder[1][i] ? 'orange' : 'blue']);
+        }
         const sessionData = {
-          trials: trialOrder,
+          trials: trial_colors,
           experiment_name: 'posner',
           experiment_date: new Date().toISOString(),
-          total_trials: trials,
+          trials_per_session: TOTAL_TRIALS,
           percent_uncommon: 0.15,
           experiment_uuid: experimentUUID,
           experiment_url: window.location.href,
@@ -87,7 +93,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         cornerSquareElement.classList.add('hidden');
 
         // Send session data to server
-        await sendDataToServer(sessionData, 'posner');
+        await sendDataToServer(sessionData, experimentUUID);
         
     } else {
         console.error("Required elements for fixation cross not found.");
