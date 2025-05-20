@@ -32,6 +32,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   cueDisplayElement.appendChild(rightDotElement);
 
   const cornerSquareElement = document.getElementById('corner-square');
+  cornerSquareElement.style.backgroundColor = 'white';
 
   console.log("Page elements initialized.");
 
