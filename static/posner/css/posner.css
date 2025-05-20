@@ -116,4 +116,24 @@ button {
   /* width: 100%; (already in .cue-overlay) */
   /* height: 100%; (already in .cue-overlay) */
   /* position: absolute; (already in .cue-overlay) */
-} 
+
+  .dot{
+    position: absolute;
+    top: 50%;
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    transform: translateY(-50%);
+    display: none; /* Hidden initially */
+    background-color: blue;
+  }
+
+  .left-dot {
+    left: calc(50% - 192px);
+  }
+
+  .right-dot {
+    left: calc(50% + 192px);
+  }
+
+}

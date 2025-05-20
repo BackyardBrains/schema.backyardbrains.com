@@ -24,28 +24,10 @@ document.addEventListener('DOMContentLoaded', () => {
   const cueDisplayElement = document.getElementById('cue-display');
   const cueShapeElement = document.getElementById('cue-shape');
 
-  const leftDotElement = document.createElement('div');
-  leftDotElement.style.left = 'calc(50% - 192px)';
-  leftDotElement.style.width = '10px';
-  leftDotElement.style.height = '10px';
-  leftDotElement.style.backgroundColor = 'blue';
-  leftDotElement.style.borderRadius = '50%';
-  leftDotElement.style.position = 'absolute';
-  leftDotElement.style.top = '50%';
-  leftDotElement.style.transform = 'translateY(-50%)';
-  leftDotElement.style.display = 'none'; // Hidden initially
+  const leftDotElement = document.getElementById('left-dot');
   cueDisplayElement.appendChild(leftDotElement);
 
-  const rightDotElement = document.createElement('div');
-  rightDotElement.style.left = 'calc(50% + 192px)';
-  rightDotElement.style.width = '10px';
-  rightDotElement.style.height = '10px';
-  rightDotElement.style.backgroundColor = 'blue';
-  rightDotElement.style.borderRadius = '50%';
-  rightDotElement.style.position = 'absolute';
-  rightDotElement.style.top = '50%';
-  rightDotElement.style.transform = 'translateY(-50%)';
-  rightDotElement.style.display = 'none'; // Hidden initially
+  const rightDotElement = document.getElementById('right-dot');
   cueDisplayElement.appendChild(rightDotElement);
 
   const cornerSquareElement = document.createElement('div');
