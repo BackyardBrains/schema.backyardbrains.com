@@ -1,12 +1,12 @@
 document.addEventListener('DOMContentLoaded', async () => {
     
-  const TOTAL_TRIALS = 167;
+  const TOTAL_TRIALS = 10;
 
   // 3FFFF - two common
   // 6FFFF - left uncommon
   // CFFFF - right uncommon
   // FFFFF - two uncommon
-  const color_codes = ['#333333', '#555555', '#888888', '#CCCCCC'];
+  const color_codes = ['#333333', '#666666', '#999999', '#CCCCCC'];
   
 
   // Load page elements
