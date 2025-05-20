@@ -136,4 +136,15 @@ button {
     left: calc(50% + 192px);
   }
 
+  .corner-square {
+    position: fixed;
+    bottom: 30px;
+    right: 30px;
+    width: 100px;
+    height: 100px;
+    background-color: black;
+    visibility: hidden;
+    z-index: 2000;
+  }
+  
 }
