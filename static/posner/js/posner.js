@@ -1,6 +1,6 @@
 document.addEventListener('DOMContentLoaded', async () => {
     
-  const TOTAL_TRIALS = 10;
+  const TOTAL_TRIALS = 167;
 
   // 3FFFF - two common
   // 6FFFF - left uncommon
