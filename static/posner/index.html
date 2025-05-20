@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>Posner Experiment</title>
+  <link rel="stylesheet" href="css/posner.css">
+</head>
+<body>
+  <div id="instructions-screen" class="screen">
+    <h1>Posner Experiment</h1>
+    <p>Please keep your vision fixed on the cross in the center of the screen and count the number of orange dots that appear on the right side of the screen.</p>
+    <button id="start-button1">Start</button>
+  </div>
+
+  <div id="experiment-area" class="container hidden">
+    <video id="stimulus-video" muted playsinline>
+      <!-- Source will be set by JavaScript -->
+      Your browser does not support the video tag.
+    </video>
+    <div id="cue-display" class="cue-overlay hidden">
+      <div id="cue-shape" class="cue-element"></div>
+    </div>
+  </div>
+  
+  <div id="trial-info" class="screen">
+    <p>Trial: <span id="trial-counter">0</span>/<span id="total-trials-display">0</span></p>
+  </div>
+
+  <div id="pause-screen" class="screen hidden">
+    <p> Now focus count the number of orange dots on the left side of the screen while keeping your focus on the cross in the center.</p>
+    <button id="start-button2">Start</button>
+  </div>
+
+  <div id="feedback-area" class="screen">
+    <p id="feedback-text"></p>
+  </div>
+  
+  <div id="end-screen" class="screen hidden">
+    <h1>Experiment Finished!</h1>
+    <p>Thank you for your participation.</p>
+  </div>
+
+  <div id="left-dot" class="dot left-dot"></div>
+  <div id="right-dot" class="dot right-dot"></div>
+  
+  <div id="corner-square" class="corner-square hidden"></div>
+  
+  <script src="https://www.youtube.com/iframe_api"></script>
+  <script src="../js/utils.js"></script>
+  <script src="../js/baseExperiment.js"></script>
+  <script src="./js/posner.js"></script>
+</body>
+</html>
