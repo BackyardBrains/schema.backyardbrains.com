@@ -42,6 +42,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     cornerSquareElement.classList.remove('hidden');
     instructionsScreen.classList.add('hidden');
     await startSession();
+    pauseScreen.classList.remove('hidden');
   });
 
   startButton2.addEventListener('click', async () => {
@@ -50,6 +51,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     instructionsScreen.classList.add('hidden');
     pauseScreen.classList.add('hidden');
     await startSession();
+    pauseScreen.classList.add('hidden');
     endScreen.classList.remove('hidden');
     cornerSquareElement.classList.add('hidden');
   });
@@ -82,7 +84,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         // Run trials
         await runTrials(trialOrder);
 
-        pauseScreen.classList.remove('hidden');
         cornerSquareElement.classList.add('hidden');
 
         // Send session data to server
