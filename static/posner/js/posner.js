@@ -99,7 +99,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         cornerSquareElement.classList.add('hidden');
 
         // Send session data to server
-        await sendDataToServer(sessionData, experimentUUID);
+        await sendDataToServer(sessionData, experimentUUID, "posner");
         
     } else {
         console.error("Required elements for fixation cross not found.");
