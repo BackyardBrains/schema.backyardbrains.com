@@ -10,7 +10,7 @@ document.addEventListener('DOMContentLoaded', () => {
     ];
     // const youtubeVideoURLs = hardVideoURLs.concat(softVideoURLs); // No longer directly used for ID extraction for playlist
 
-    const TOTAL_VIDEOS_TO_PLAY = 40;
+    const TOTAL_VIDEOS_TO_PLAY = 120;
 
     let player;
     let playlist = [];
@@ -305,10 +305,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
         playlist = [];
 
-        const numHardOrange = 10;
-        const numHardGreen = 10;
-        const numSoftOrange = 10;
-        const numSoftGreen = 10;
+        const numHardOrange = TOTAL_VIDEOS_TO_PLAY / 4;
+        const numHardGreen = TOTAL_VIDEOS_TO_PLAY / 4;
+        const numSoftOrange = TOTAL_VIDEOS_TO_PLAY / 4;
+        const numSoftGreen = TOTAL_VIDEOS_TO_PLAY / 4;
 
         for (let i = 0; i < numHardOrange; i++) {
             playlist.push({ id: hardVideoIds[i % hardVideoIds.length], type: 'hard', dotColor: 'orange' });
