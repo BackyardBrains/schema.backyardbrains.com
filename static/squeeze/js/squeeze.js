@@ -211,9 +211,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (cornerSquareElement) {
                     cornerSquareElement.style.visibility = 'visible';
                     if (currentTrial.type === 'hard') {
-                        cornerSquareElement.style.backgroundColor = 'gray';
+                        cornerSquareElement.style.backgroundColor = '#D8D8D8';
                     } else if (currentTrial.type === 'soft') {
-                        cornerSquareElement.style.backgroundColor = 'black';
+                        cornerSquareElement.style.backgroundColor = '#000000';
                     } else {
                         cornerSquareElement.style.backgroundColor = 'transparent';
                     }
@@ -229,7 +229,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     dot_color_on_video: currentTrial.dotColor,
                     dot_scheduled_delay_ms: randomDelay,
                     dot_appearance_timestamp: dotAppearanceTime,
-                    corner_square_color_shown: (currentTrial.type === 'hard' ? 'gray' : 'black')
+                    corner_square_color_shown: (currentTrial.type === 'hard' ? '#D8D8D8' : '#000000')
                 };
                 allTrialsData.push(trialData);
                 console.log("Trial data recorded:", trialData);
@@ -388,7 +388,8 @@ document.addEventListener('DOMContentLoaded', () => {
             experiment_config: {
                 total_videos_configured: TOTAL_VIDEOS_TO_PLAY,
                 hard_video_urls: hardVideoURLs, 
-                soft_video_urls: softVideoURLs  
+                soft_video_urls: softVideoURLs
+
             }
         };
         allTrialsData = []; // Initialize/reset trials data array
