@@ -211,9 +211,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (cornerSquareElement) {
                     cornerSquareElement.style.visibility = 'visible';
                     if (currentTrial.type === 'hard') {
-                        cornerSquareElement.style.backgroundColor = '#C8C8C8';
+                        cornerSquareElement.style.backgroundColor = '#CBCBCB';
                     } else if (currentTrial.type === 'soft') {
-                        cornerSquareElement.style.backgroundColor = '#000000';
+                        cornerSquareElement.style.backgroundColor = '#7D7D7D';
                     } else {
                         cornerSquareElement.style.backgroundColor = 'transparent';
                     }
@@ -229,7 +229,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     dot_color_on_video: currentTrial.dotColor,
                     dot_scheduled_delay_ms: randomDelay,
                     dot_appearance_timestamp: dotAppearanceTime,
-                    corner_square_color_shown: (currentTrial.type === 'hard' ? '#C8C8C8' : '#000000')
+                    corner_square_color_shown: (currentTrial.type === 'hard' ? '#CBCBCB' : '#7D7D7D')
                 };
                 allTrialsData.push(trialData);
                 console.log("Trial data recorded:", trialData);
