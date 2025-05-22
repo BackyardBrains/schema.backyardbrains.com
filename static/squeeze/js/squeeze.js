@@ -194,32 +194,50 @@ document.addEventListener('DOMContentLoaded', () => {
                 cueShapeElement.classList.remove('cue-orange', 'cue-green');
                 if (requiredDotColor === 'orange') {
                     cueShapeElement.classList.add('cue-orange');
+                    if (cornerSquareElement) {
+                        if (currentTrial.type === 'hard') {
+                            cornerSquareElement.style.backgroundColor = '#CBCBCB';   // Hard + orange
+                        } else if (currentTrial.type === 'soft') {
+                            cornerSquareElement.style.backgroundColor = '#7D7D7D';   // Soft + orange
+                        } else {
+                            cornerSquareElement.style.backgroundColor = 'transparent';
+                        }
+                    }
                 } else if (requiredDotColor === 'green') {
                     cueShapeElement.classList.add('cue-green');
-                } else {
-                    console.warn(`[manageDotDisplay] Unknown dotColor '${requiredDotColor}' defined for trial. Defaulting to green.`);
-                    cueShapeElement.classList.add('cue-green');
-                }
-                
-                cueDisplayElement.classList.remove('hidden');
-                setTimeout(() => {
-                    cueDisplayElement.classList.add('hidden');
-                }, 300);
-                dotAppearanceTime = performance.now();
-                console.log(`[manageDotDisplay] Dot displayed (Color: ${requiredDotColor} at ${randomDelay}ms).`);
-
-                if (cornerSquareElement) {
-                    cornerSquareElement.style.visibility = 'visible';
-                    if (currentTrial.type === 'hard') {
-                        cornerSquareElement.style.backgroundColor = '#CBCBCB';
-                    } else if (currentTrial.type === 'soft') {
-                        cornerSquareElement.style.backgroundColor = '#7D7D7D';
-                    } else {
-                        cornerSquareElement.style.backgroundColor = 'transparent';
+                    if (cornerSquareElement) {
+                        if (currentTrial.type === 'hard') {
+                            cornerSquareElement.style.backgroundColor = '#EEEEEE';   // Hard + green
+                        } else if (currentTrial.type === 'soft') {
+                            cornerSquareElement.style.backgroundColor = '#9F9F9F';   // Soft + green
+                        } else {
+                            cornerSquareElement.style.backgroundColor = 'transparent';
+                        }
                     }
+                } else {
+                    console.warn(`[manageDotDisplay] Unknown dotColor '${requiredDotColor}' for trial. Defaulting to green.`);
+                    cueShapeElement.classList.add('cue-green');
+                    if (cornerSquareElement) {
+                        if (currentTrial.type === 'hard') {
+                            cornerSquareElement.style.backgroundColor = '#EEEEEE';   // Hard + (defaulted) green
+                        } else if (currentTrial.type === 'soft') {
+                            cornerSquareElement.style.backgroundColor = '#9F9F9F';   // Soft + (defaulted) green
+                        } else {
+                            cornerSquareElement.style.backgroundColor = 'transparent';
+                        }
+                    }
+                }
+
+                cueDisplayElement.classList.remove('hidden');
+                if (cornerSquareElement) {
+                    cornerSquareElement.style.visibility = 'visible';  // show the square along with the dot
                     console.log(`[manageDotDisplay] Corner square shown (Type: ${currentTrial.type}, Color: ${cornerSquareElement.style.backgroundColor}).`);
                 }
-
+                setTimeout(() => {
+                    cueDisplayElement.classList.add('hidden');
+                    // (Square can remain visible until hidden at video end or next trial)
+                }, 300);
+                dotAppearanceTime = performance.now();
 
                 // Record trial data
                 const trialData = {
