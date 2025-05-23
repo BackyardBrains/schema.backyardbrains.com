@@ -8,8 +8,18 @@ document.addEventListener('DOMContentLoaded', async () => {
   // 7D7D7D - two uncommon
   const color_codes = ['#EEEEEE', '#CBCBCB', '#9F9F9F', '#7D7D7D'];
   
+  const lr = ["left", "right"];
 
   // Load page elements
+  const side = document.getElementById('side');
+  const otherSide = document.getElementById('other-side');
+  const randomIndex = Math.floor(Math.random() * lr.length);
+  const sideWord = lr[randomIndex];
+  const otherSideWord = lr[(randomIndex + 1) % lr.length];
+
+  side.textContent = sideWord;
+  otherSide.textContent = otherSideWord;
+
   const instructionsScreen = document.getElementById('instructions-screen');
   const startButton1 = document.getElementById('start-button1');
   const startButton2 = document.getElementById('start-button2');
@@ -75,7 +85,8 @@ document.addEventListener('DOMContentLoaded', async () => {
         trialDataArray = [];
 
         experimentUUID = generateUUID(); // From utils.js
-        for (let i = 0; i < TOTAL_TRIALS; i++) {
+
+        for (let i = 0; i < trials; i++) {
           const leftColor = trialOrder[0][i] ? 'orange' : 'blue';
           const rightColor = trialOrder[1][i] ? 'orange' : 'blue';
           trial_colors.push([leftColor, rightColor]);
@@ -96,7 +107,7 @@ document.addEventListener('DOMContentLoaded', async () => {
           experiment_version: "1.0",
           browser_data: getBrowserData(), // From utils.js
           experiment_config: {
-              session_trials: TOTAL_TRIALS,
+              session_trials: trials,
               percent_uncommon: 0.15,
               trial_colors: trial_colors,
               experiment_url: window.location.href,
