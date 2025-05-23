@@ -43,6 +43,9 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   const cornerSquareElement = document.getElementById('corner-square');
 
+  // Collected trial data will be stored here to send to the server
+  let trialDataArray = [];
+
   console.log("Page elements initialized.");
 
 
@@ -78,12 +81,21 @@ document.addEventListener('DOMContentLoaded', async () => {
         
         const trialOrder = generateTrialOrder();
 
-        let trial_colors = []
+        let trial_colors = [];
+        trialDataArray = [];
 
         experimentUUID = generateUUID(); // From utils.js
+
         for (let i = 0; i < trials; i++) {
-          trial_colors.push([trialOrder[0][i] ? 'orange' : 'blue',
-                             trialOrder[1][i] ? 'orange' : 'blue']);
+          const leftColor = trialOrder[0][i] ? 'orange' : 'blue';
+          const rightColor = trialOrder[1][i] ? 'orange' : 'blue';
+          trial_colors.push([leftColor, rightColor]);
+          trialDataArray.push({
+            trial_number: i + 1,
+            left_dot_color: leftColor,
+            right_dot_color: rightColor,
+            dot_delay_ms: null
+          });
         }
 
         const sessionGroup = getQueryParam('SG');
@@ -108,8 +120,12 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         cornerSquareElement.classList.add('hidden');
 
-        // Send session data to server
-        await sendDataToServer(sessionData, experimentUUID, "posner");
+        // Send data to server in a consistent format
+        const dataToSend = {
+          session: sessionData,
+          trials: trialDataArray
+        };
+        await sendDataToServer(dataToSend, experimentUUID, "posner");
         
     } else {
         console.error("Required elements for fixation cross not found.");
@@ -156,6 +172,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
       // Wait random dot delay (500-1000ms)
       const dotDelay = Math.random() * 500 + 500;
+      trialDataArray[count].dot_delay_ms = Math.round(dotDelay);
       await new Promise(r => setTimeout(r, dotDelay));
   
       // Show dots and corner square

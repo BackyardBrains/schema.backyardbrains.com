@@ -297,12 +297,12 @@ document.addEventListener('DOMContentLoaded', () => {
             if (cornerSquareElement) cornerSquareElement.style.visibility = 'hidden';
             
             // Send data to server
-            const finalDataPayload = {
-                session_info: sessionData,
-                trial_data: allTrialsData
+            const finalData = {
+                session: sessionData,
+                trials: allTrialsData
             };
-            sendDataToServer(finalDataPayload, experimentUUID, 'squeeze'); // from utils.js
-            console.log("Final data payload for debugging:", finalDataPayload);
+            sendDataToServer(finalData, experimentUUID, 'squeeze'); // from utils.js
+            console.log("Final data payload for debugging:", finalData);
             console.log("Data sending process initiated.");
         }
     }
