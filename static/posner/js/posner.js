@@ -79,6 +79,8 @@ document.addEventListener('DOMContentLoaded', async () => {
         experimentArea.classList.remove('hidden');
         cueDisplayElement.classList.add('hidden'); // Ensure it's hidden initially
         
+        // trial order is a 2xTOTAL_TRIALS array of 0 and 1, indicating boolean value if dot is orange
+        // First row is left dot, second row is right
         const trialOrder = generateTrialOrder();
 
         let trial_colors = [];
@@ -182,7 +184,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       cornerSquareElement.style.backgroundColor = color_codes[color_code];
   
       // Dots visible for 250ms
-      await new Promise(r => setTimeout(r, 250));
+      await new Promise(r => setTimeout(r, 32));
   
       // Hide dots
       leftDotElement.style.display = 'none';
