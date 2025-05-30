@@ -170,7 +170,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                   (trialOrder[2][count] ? ' short' : '');
 
       // Wait 500ms (fixation)
-      await new Promise(r => setTimeout(r, 500));
+      //await new Promise(r => setTimeout(r, 500));
   
       cornerSquareElement.classList.add('hidden');      // hide corner square
       cueDisplayElement.classList.remove('hidden');        // show fixation cross
