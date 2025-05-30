@@ -55,7 +55,7 @@ video {
   right:30px;
   width:100px;
   height:100px;
-  color: black;
+  background-color: black;
   z-index:2000;
 }
 
@@ -127,23 +127,26 @@ button {
   /* height: 100%; (already in .cue-overlay) */
   /* position: absolute; (already in .cue-overlay) */
 
-  .dot{
-    position: absolute;
-    top: 50%;
-    width: 10px;
-    height: 10px;
-    border-radius: 50%;
-    transform: translateY(-50%);
-    display: none; /* Hidden initially */
-    background-color: blue;
-  }
-
-  .left-dot {
-    left: calc(50% - 192px);
-  }
-
-  .right-dot {
-    left: calc(50% + 192px);
-  }
-  
+  /* ─── Bars (replace former dots) ─────────────────────────────── */
 }
+
+.bar{
+  position:absolute;
+  top:50%;
+  transform:translateY(-50%);
+  width:5px;          /* bar thickness  */
+  height:42px;        /* default “long” */
+  border-radius:4px;
+  display:none;        /* shown by JS    */
+}
+
+/* left/right position matches the old dot offsets               */
+.left-bar { left:calc(50% - 192px); }
+.right-bar{ left:calc(50% + 192px); }
+
+/* colours                                                       */
+.bar.blue{ background:#0066ff; }
+.bar.red { background:#ff2525; }
+
+/* 20 % of trials – shorter bar                                  */
+.bar.short{ height:35px; }   /* tweak to taste                  */
