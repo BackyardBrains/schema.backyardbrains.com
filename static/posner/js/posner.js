@@ -1,6 +1,6 @@
 document.addEventListener('DOMContentLoaded', async () => {
     
-  const TOTAL_TRIALS = 5;
+  const TOTAL_TRIALS = 250;
   const PERCENT_UNCOMMON = 0.2;
   
   const lr = ["left", "right"];
