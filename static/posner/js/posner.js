@@ -218,6 +218,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   
       // Wait 250ms after bars disappear
       await new Promise(r => setTimeout(r, 250));
+      cornerSquareElement.style.backgroundColor = '#CBCBCB';
     }
   
     // After all trials
