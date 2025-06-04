@@ -1,6 +1,6 @@
 document.addEventListener('DOMContentLoaded', async () => {
     
-  const TOTAL_TRIALS = 250;
+  const TOTAL_TRIALS = 5;
   const PERCENT_UNCOMMON = 0.2;
   
   const lr = ["left", "right"];
@@ -59,6 +59,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   cueDisplayElement.appendChild(rightBarElement);
 
   const cornerSquareElement = document.getElementById('corner-square');
+  cornerSquareElement.classList.remove('hidden');
 
   console.log("Page elements initialized.");
 
@@ -68,7 +69,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     instructionsScreen.classList.add('hidden');
     experimentArea.classList.remove('hidden');
     //pauseScreen.classList.add('hidden');
-    await startSession();
+    await startSession(combos[session-1][0], combos[session-1][1][0]);
     experimentArea.classList.add('hidden');
   
     if (session === 4) {
@@ -92,9 +93,9 @@ document.addEventListener('DOMContentLoaded', async () => {
   // });
 
 
-  async function startSession(trials = TOTAL_TRIALS) {
+  async function startSession(attend_side, attend_color, trials = TOTAL_TRIALS) {
       
-    cornerSquareElement.classList.remove('hidden');
+    //cornerSquareElement.classList.remove('hidden');
   
     // Make sure experiment area is visible and cue display is ready
     if (experimentArea && cueDisplayElement && cueShapeElement) { // Ensure it's hidden initially
@@ -111,12 +112,37 @@ document.addEventListener('DOMContentLoaded', async () => {
           const color = trialOrder[1][i] ? 'red' : 'blue';
           const short = trialOrder[2][i] ? 'short' : 'tall';
           
+          let code = 'C';
+          if(attend_color === color) {
+            code = code + '+';
+          }
+          else {
+            code = code + '-';
+          }
+          code = code + 'L';
+          if(attend_side === side) {
+            code = code + '+';
+          }
+          else {
+            code = code + '-';
+          }
+
+          attending = attend_side + " " + attend_color;
+
+          console.log(attending);
+          console.log(side, color);
+          console.log(attend_color === color);
+          console.log(code);
+          
           trialDataArray.push({
             trial_number: i + 1,
             side: side,
             color: color,
             height: short,
             event: find_color_code(trialOrder[0][i], trialOrder[1][i]),
+            square_color: find_color(find_color_code(trialOrder[0][i], trialOrder[1][i])),
+            attending: attending,
+            code: code,
             bar_delay_ms: trialOrder[3][i]
           });
         }
@@ -140,8 +166,9 @@ document.addEventListener('DOMContentLoaded', async () => {
         // Run trials
         await runTrials(trialOrder);
 
-        cornerSquareElement.classList.add('hidden');
-
+        //cornerSquareElement.classList.add('hidden');
+        cornerSquareElement.style.backgroundColor = '#CBCBCB';
+        
         // Send data to server in a consistent format
         const dataToSend = {
           session: sessionData,
@@ -172,7 +199,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       // Wait 500ms (fixation)
       //await new Promise(r => setTimeout(r, 500));
   
-      cornerSquareElement.classList.add('hidden');      // hide corner square
+      //cornerSquareElement.classList.add('hidden');      // hide corner square
       cueDisplayElement.classList.remove('hidden');        // show fixation cross
 
       // Wait random bar delay
@@ -182,7 +209,6 @@ document.addEventListener('DOMContentLoaded', async () => {
       bar.style.display = 'block';
       color_code = find_color_code(trialOrder[0][count], trialOrder[1][count])
       cornerSquareElement.style.backgroundColor = find_color(color_code)
-      cornerSquareElement.classList.remove('hidden');
 
       // Bars visible for period of time
       setTimeout(()=> bar.style.display = 'none', 32); 
@@ -203,7 +229,9 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   // Randomize color appearance on left and right sides
   function generateTrialOrder() {
+    // Color an location
     let cl_trials = [];
+    // Target (short) or not
     let t_trials = [];
     let delays = [];
     let finalTrials = [];
@@ -270,7 +298,7 @@ function find_color_code(right, red) {
 }
 
 function find_color(color_code) {
-  const COLOR_CODES = ['#EEEEEE', '#CBCBCB', '#9F9F9F', '#7D7D7D'];
+  const COLOR_CODES = ['#FFFFFF','#EEEEEE', '#9F9F9F', '#7D7D7D'];
 
   return COLOR_CODES[color_code-2]
 }
