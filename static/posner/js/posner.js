@@ -206,15 +206,14 @@ document.addEventListener('DOMContentLoaded', async () => {
       cornerSquareElement.style.backgroundColor = find_color(color_code)
 
       // Bars visible for period of time
-      setTimeout(()=> {
-        bar.style.display = 'none';
-        cornerSquareElement.style.backgroundColor = '#CBCBCB';}, 32); 
+      setTimeout(()=>bar.style.display = 'none', 32); 
   
       // Hide bars
       bar.style.display = 'hidden';
   
       // Wait 250ms after bars disappear
-      //await new Promise(r => setTimeout(r, 250));
+      await new Promise(r => setTimeout(r, 250));
+      cornerSquareElement.style.backgroundColor = '#CBCBCB';
     }
   
     // After all trials
