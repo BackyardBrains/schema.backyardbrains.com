@@ -5,7 +5,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   console.log("Page elements initialized.");
 
-  const delays = [500, 250, 100, 50]
+  const delays = [250, 100, 50]
 
   session = 0;
 
