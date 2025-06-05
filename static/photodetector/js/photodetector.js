@@ -24,6 +24,7 @@ async function startSession(element) {
   let colors = ["one", "two", "three", "four", "five"]
 
   for(let trial = 0; trial < 100; ++trial)
+
     for(let i = 0; i < 4; ++i) {
 
       // Starting color
@@ -34,18 +35,20 @@ async function startSession(element) {
 
         // Wait for photodetector to detect
         await new Promise(r => setTimeout(r, detection_period));
-        // Transition to next color
+        // Transition to next color by turning on color j
         element.classList.toggle(colors[j])
         console.log(colors[j]);
         // Wait for detection
         await new Promise(r => setTimeout(r, detection_period));
-        // Turn off new color
+        // Turn off color j to reveal color i
         element.classList.toggle(colors[j]);
         console.log(colors[i]);
       }
 
       await new Promise(r => setTimeout(r, detection_period));
+      element.classList.toggle(colors[i]);
     }
+
 }
 
 function find_color(color_code) {
