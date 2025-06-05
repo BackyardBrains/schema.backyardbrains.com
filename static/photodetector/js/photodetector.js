@@ -36,12 +36,12 @@ async function startSession(element, delay) {
 
         // Starting color
         element.style.backgroundColor = find_color(color_idx[i]);
-        eventOrder.push(color_idx[i]+1);
+        eventOrder.push(find_color(color_idx[i])+1);
         // Wait to transition
         await new Promise(r => setTimeout(r, delay));
         // Transition to next color
         element.style.backgroundColor = find_color(color_idx[j]);
-        eventOrder.push(color_idx[j]+1);
+        eventOrder.push(find_color(color_idx[i])+1);
         // Wait for detection
         await new Promise(r => setTimeout(r, delay));
         // Return to original color at beginning of next loop
