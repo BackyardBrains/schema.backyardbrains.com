@@ -136,7 +136,6 @@ document.addEventListener('DOMContentLoaded', async () => {
             height: short,
             event: find_color_code(trialOrder[0][i], trialOrder[1][i]),
             square_color: find_color(find_color_code(trialOrder[0][i], trialOrder[1][i])),
-            attending: attending,
             code: code,
             bar_delay_ms: trialOrder[3][i]
           });
@@ -152,6 +151,8 @@ document.addEventListener('DOMContentLoaded', async () => {
           browser_data: getBrowserData(), // From utils.js
           experiment_config: {
               session_trials: trials,
+              attending: attending,
+              session: session,
               percent_uncommon: PERCENT_UNCOMMON,
               experiment_url: window.location.href,
               experiment_user_agent: navigator.userAgent,
@@ -275,11 +276,11 @@ function find_color_code(right, red) {
   
   // Left blue bar
   if (right === 0 && red === 0) {
-    color_code = 2;
+    color_code = 1;
   }
   // Left red bar
   else if (right === 0 && red === 1) {
-    color_code = 3;
+    color_code = 2;
   }
   // Right blue bar
   else if (right === 1 && red === 0) {
