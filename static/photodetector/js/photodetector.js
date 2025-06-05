@@ -5,36 +5,43 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   console.log("Page elements initialized.");
 
-  const delays = [250, 500, 1000]
-
   session = 0;
 
   // Start button event listeners
   startButton1.addEventListener('click', async () => {
     if(session < 3)
     {
-      await startSession(body, delays[session]);
-    ++session;
-    console.log(`Session ${session} 1 Complete`);
+      await startSession(body);
+      ++session;
+    console.log(`Session ${session} Complete`);
     }
   })
 });
 
-async function startSession(element, delay) {
+async function startSession(element) {
+
+  detection_period = 1000
+  let colors = ["one", "two", "three", "four", "five"]
 
   for(let trial = 0; trial < 100; ++trial)
     for(let i = 0; i < 5; ++i) {
+
+      // Starting color
+      element.classList.toggle(colors[i]);
+      console.log(colors[i]);
+
       for(let j = i; j < 5; ++j) {
 
-        // Starting color
-        element.style.backgroundColor = find_color(i);
-        // Wait to transition
-        await new Promise(r => setTimeout(r, delay));
+        // Wait for photodetector to detect
+        await new Promise(r => setTimeout(r, detection_period));
         // Transition to next color
-        element.style.backgroundColor = find_color(j);
+        element.classList.toggle(colors[j])
+        console.log(colors[j]);
         // Wait for detection
-        await new Promise(r => setTimeout(r, delay));
-        // Return to original color at beginning of next loop
+        await new Promise(r => setTimeout(r, detection_period));
+        // Turn off new color
+        element.classList.toggle(colors[j]);
+        console.log(colors[i]);
       }
     }
 }

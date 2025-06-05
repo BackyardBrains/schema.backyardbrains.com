@@ -1,3 +1,7 @@
+:root {
+  --duration: 0.25s;
+}
+
 body {
   font-family: sans-serif;
   display: flex;
@@ -7,4 +11,34 @@ body {
   min-height: 100vh;
   margin: 0;
   background-color: white;
+}
+
+.one {
+  background-color: #FFFFFF;
+  transition-property: background-color;
+  transition-duration: var(--duration);
+}
+
+.two {
+  background-color: #EEEEEE;
+  transition-property: background-color;
+  transition-duration: var(--duration);
+}
+
+.three {
+  background-color: #CBCBCB;
+  transition-property: background-color;
+  transition-duration: var(--duration);
+}
+
+.four {
+  background-color: #9F9F9F;
+  transition-property: background-color;
+  transition-duration: var(--duration);
+}
+
+.five {
+  background-color: #7D7D7D;
+  transition-property: background-color;
+  transition-duration: var(--duration);
 }
