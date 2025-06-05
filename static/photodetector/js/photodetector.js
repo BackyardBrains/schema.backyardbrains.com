@@ -20,10 +20,12 @@ document.addEventListener('DOMContentLoaded', async () => {
 
 async function startSession(element) {
 
-  detection_period = 1000
+  detection_period = 500
   let colors = ["one", "two", "three", "four", "five"]
 
   for(let trial = 0; trial < 100; ++trial)
+
+    colors.sort()
 
     for(let i = 0; i < 4; ++i) {
 
