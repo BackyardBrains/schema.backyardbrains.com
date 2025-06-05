@@ -69,7 +69,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     instructionsScreen.classList.add('hidden');
     experimentArea.classList.remove('hidden');
     //pauseScreen.classList.add('hidden');
-    await startSession(combos[session-1][0], combos[session-1][1][0]);
+    await startSession(session,combos[session-1][0], combos[session-1][1][0]);
     experimentArea.classList.add('hidden');
   
     if (session === 4) {
@@ -93,7 +93,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   // });
 
 
-  async function startSession(attend_side, attend_color, trials = TOTAL_TRIALS) {
+  async function startSession(session, attend_side, attend_color, trials = TOTAL_TRIALS) {
       
     //cornerSquareElement.classList.remove('hidden');
   
