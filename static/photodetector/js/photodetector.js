@@ -18,8 +18,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     console.log(`Session ${session} 1 Complete`);
     }
   })
-  });
-})
+});
 
 async function startSession(element, delay) {
 
