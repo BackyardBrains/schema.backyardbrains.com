@@ -24,13 +24,13 @@ async function startSession(element) {
   let colors = ["one", "two", "three", "four", "five"]
 
   for(let trial = 0; trial < 100; ++trial)
-    for(let i = 0; i < 5; ++i) {
+    for(let i = 0; i < 4; ++i) {
 
       // Starting color
       element.classList.toggle(colors[i]);
       console.log(colors[i]);
 
-      for(let j = i; j < 5; ++j) {
+      for(let j = i+1; j < 5; ++j) {
 
         // Wait for photodetector to detect
         await new Promise(r => setTimeout(r, detection_period));
@@ -43,6 +43,8 @@ async function startSession(element) {
         element.classList.toggle(colors[j]);
         console.log(colors[i]);
       }
+
+      await new Promise(r => setTimeout(r, detection_period));
     }
 }
 
