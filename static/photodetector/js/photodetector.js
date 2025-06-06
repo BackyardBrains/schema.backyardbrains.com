@@ -43,6 +43,12 @@ async function startSession(element, hightime) {
         element.style.backgroundColor = find_color(color_idx[i]);
         console.log(color_idx[i]+1);
         eventOrder.push(color_idx[i]+1);
+        if (eventOrder.length > 1) {
+          if(eventOrder[eventOrder.length-2]===eventOrder[eventOrder.length-1]){
+            throw "Happened";
+          }        
+        }
+        
         // Wait to transition
         await new Promise(r => setTimeout(r, hightime));
         // Transition to next color
