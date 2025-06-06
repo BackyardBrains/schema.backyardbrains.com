@@ -23,7 +23,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
 async function startSession(element, delay) {
 
-  let trial_n = 100;
+  let trial_n = 1;
   eventOrder = []
   
   console.log(`Delay: ${delay} ms`)
