@@ -5,8 +5,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   console.log("Page elements initialized.");
 
-  //const delays = [1000, 250, 100, 50]
-  const delays = [1000];
+  const delays = [250, 100, 50]
 
   session = 0;
 
@@ -23,7 +22,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
 async function startSession(element, delay) {
 
-  let trial_n = 1;
+  let trial_n = 100;
   eventOrder = []
   
   console.log(`Delay: ${delay} ms`)
