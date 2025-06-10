@@ -5,7 +5,7 @@ class AttentionEyeExperiment extends Experiment {
         this.UUID = '';
         this.currentPhase = 1;
         this.currentTrial = 0;
-        this.trialsPerPhase = 10;
+        this.trialsPerPhase = 64; // <- change to 70 for final experiment; make sure to change index.html as well
         this.player = null;
         this.isTransitioning = false;
         this.currentVideoIndex = 0;
@@ -233,6 +233,7 @@ class AttentionEyeExperiment extends Experiment {
         this.downloadPhase1Button = document.getElementById('download-phase1-results');
         this.downloadPhase2Button = document.getElementById('download-phase2-results');
         this.submitParticipantInfoButton = document.getElementById('submit-participant-info');
+        this.videoLabel = document.getElementById('video-label');
 
         // Update total trials display
         if (this.totalTrialsDisplay) {
@@ -323,12 +324,31 @@ class AttentionEyeExperiment extends Experiment {
             if (this.currentVideoIndex === 0) {
                 // First video ended, play second video
                 this.currentVideoIndex = 1;
-                const secondVideoId = this.getVideoId(this.videoPairs[this.currentTrial].video2);
+                const currentPair = this.videoPairs[0];
+                if (!currentPair) {
+                    console.error('No current video pair available');
+                    return;
+                }
+                const secondVideoId = this.getVideoId(currentPair.video2);
                 console.log('Loading second video with ID:', secondVideoId);
-                this.player.loadVideoById(secondVideoId);
+                if (this.player && this.player.loadVideoById) {
+                    this.player.loadVideoById(secondVideoId);
+                    if (this.videoLabel) {
+                        this.videoLabel.textContent = 'Video 2';
+                    }
+                } else {
+                    console.error('Player not properly initialized');
+                    // Attempt to recover by reinitializing
+                    this.initializeYouTubePlayer();
+                }
             } else {
                 // Second video ended, show questionnaire
                 this.showQuestionnaire();
+            }
+        } else if (event.data === YT.PlayerState.PLAYING) {
+            // Update video label when video starts playing
+            if (this.videoLabel) {
+                this.videoLabel.textContent = this.currentVideoIndex === 0 ? 'Video 1' : 'Video 2';
             }
         }
     }
@@ -379,6 +399,12 @@ class AttentionEyeExperiment extends Experiment {
     }
 
     handleConfidenceClick(event) {
+        // Check if a video has been selected
+        if (this.currentTrialData.selected_video === undefined) {
+            alert('Please select which video you think is correct before rating your confidence.');
+            return;
+        }
+
         // Remove selected class from all confidence buttons
         document.querySelectorAll('.confidence-btn').forEach(button => {
             button.classList.remove('selected');
@@ -429,6 +455,9 @@ class AttentionEyeExperiment extends Experiment {
         
         // Initialize YouTube player for phase 2
         this.initializeYouTubePlayer();
+        if (this.videoLabel) {
+            this.videoLabel.textContent = 'Video 1';
+        }
     }
 
     initializeYouTubePlayer() {
@@ -460,6 +489,9 @@ class AttentionEyeExperiment extends Experiment {
                 'onReady': () => {
                     console.log('Player ready with video ID:', firstVideoId);
                     this.player.loadVideoById(firstVideoId);
+                    if (this.videoLabel) {
+                        this.videoLabel.textContent = 'Video 1';
+                    }
                 },
                 'onStateChange': (event) => this.onPlayerStateChange(event),
                 'onError': (event) => {
@@ -467,28 +499,6 @@ class AttentionEyeExperiment extends Experiment {
                 }
             }
         });
-    }
-
-    onPlayerStateChange(event) {
-        console.log('Player state changed:', event.data);
-        if (event.data === YT.PlayerState.ENDED) {
-            if (this.currentVideoIndex === 0) {
-                // First video ended, play second video
-                this.currentVideoIndex = 1;
-                const secondVideoId = this.getVideoId(this.videoPairs[0].video2);
-                console.log('Loading second video with ID:', secondVideoId);
-                if (this.player && this.player.loadVideoById) {
-                    this.player.loadVideoById(secondVideoId);
-                } else {
-                    console.error('Player not properly initialized');
-                    // Attempt to recover by reinitializing
-                    this.initializeYouTubePlayer();
-                }
-            } else {
-                // Second video ended, show questionnaire
-                this.showQuestionnaire();
-            }
-        }
     }
 
     nextTrial() {
@@ -513,7 +523,20 @@ class AttentionEyeExperiment extends Experiment {
         
         // Set next pair and load first video
         this.setCurrentPair();
-        this.player.loadVideoById(this.getVideoId(this.videoPairs[0].video1));
+        const currentPair = this.videoPairs[0];
+        if (currentPair && this.player && this.player.loadVideoById) {
+            const firstVideoId = this.getVideoId(currentPair.video1);
+            if (firstVideoId) {
+                this.player.loadVideoById(firstVideoId);
+                if (this.videoLabel) {
+                    this.videoLabel.textContent = 'Video 1';
+                }
+            }
+        } else {
+            console.error('Error loading next trial video');
+            // Attempt to recover by reinitializing
+            this.initializeYouTubePlayer();
+        }
     }
 
     end() {

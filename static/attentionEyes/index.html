@@ -49,7 +49,7 @@
     <p>In this experiment, you will watch pairs of videos and answer questions about them.</p>
     <p>The videos show the attention path of a person using a white spotlight overlayed on an image.</p>
     <p>One video is modeled from the attention path of a real person. The other is of a computer agent.</p>
-    <p>The experiment will be split into two phases. Each phase will have 10 trials. There is a break between the two phases.</p>
+    <p>The experiment will be split into two phases. Each phase will have 64 trials. There is a break between the two phases.</p>
     <p>For each trial:</p>
     <ol>
       <li>You will watch Video 1</li>
@@ -65,6 +65,7 @@
   </div>
 
   <div id="experiment-area" class="container hidden">
+    <div id="video-label" class="video-label">Video 1</div>
     <div id="youtube-player-container"></div>
     <div id="trial-info">
       <p>Phase: <span id="phase-counter">1</span></p>
@@ -75,7 +76,7 @@
   <div id="break-screen" class="screen hidden">
     <h1>Phase 1 Complete!</h1>
     <p>You have completed the first phase of the experiment.</p>
-    <p>Take a break if you need one.</p>
+    <p>Take a break for at least 1 minute.</p>
     <p>When you're ready to continue with Phase 2, click the button below.</p>
     <button id="continue-button">Start Phase 2</button>
   </div>

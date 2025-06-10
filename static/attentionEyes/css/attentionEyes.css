@@ -57,6 +57,14 @@ button:hover {
   background-color: #000;
 }
 
+.video-label {
+  font-size: 24px;
+  font-weight: bold;
+  color: #333;
+  margin-bottom: 10px;
+  text-align: center;
+}
+
 #trial-info {
   margin: 20px 0;
   font-size: 18px;
