@@ -167,7 +167,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         await runTrials(trialOrder);
 
         //cornerSquareElement.classList.add('hidden');
-        cornerSquareElement.style.backgroundColor = find_color(3);
+        cornerSquareElement.style.backgroundColor = '#CBCBCB';
         
         // Send data to server in a consistent format
         const dataToSend = {
