@@ -130,15 +130,18 @@ button {
   /* ─── Bars (replace former dots) ─────────────────────────────── */
 }
 
-.bar{
-  position:absolute;
-  top:50%;
-  transform:translateY(-50%);
-  width:5px;          /* bar thickness  */
-  height:42px;        /* default “long” */
-  border-radius:4px;
-  display:none;        /* shown by JS    */
+.bar {
+  position: absolute;
+  top: 100%;                         /* anchor reference line */
+  transform-origin: bottom center;  /* pivot at the bar’s bottom */
+  transform: translateY(-100%);     /* move so bottom sits at 50% */
+  width: 5px;                       
+  height: 42px;                     /* default “long” */
+  border-radius: 4px;
+  display: none;
 }
+
+
 
 /* left/right position matches the old dot offsets               */
 .left-bar { left:calc(50% - 192px); }
@@ -149,4 +152,7 @@ button {
 .bar.red { background:#ff2525; }
 
 /* 20 % of trials – shorter bar                                  */
-.bar.short{ height:35px; }   /* tweak to taste                  */
+/* shorter bars still just override height */
+.bar.short {
+  height: 35px;
+}
