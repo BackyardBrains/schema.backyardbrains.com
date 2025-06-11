@@ -93,25 +93,27 @@ document.addEventListener('DOMContentLoaded', async () => {
   // });
 
 
-  async function startSession(session, attend_side, attend_color, trials = TOTAL_TRIALS) {
+  async function startSession(session, attend_side, attend_color, n_trials = TOTAL_TRIALS) {
       
     //cornerSquareElement.classList.remove('hidden');
   
     // Make sure experiment area is visible and cue display is ready
     if (experimentArea && cueDisplayElement && cueShapeElement) { // Ensure it's hidden initially
         
-        const trialOrder = generateTrialOrder();
+        const trialOrder = generateTrialOrder(n_trials);
 
         let trialDataArray = [];
 
         experimentUUID = generateUUID(); // From utils.js
 
-        for (let i = 0; i < trials; i++) {
+        for (let i = 0; i < n_trials; i++) {
 
           const side = trialOrder[0][i] ? 'right' : 'left';
           const color = trialOrder[1][i] ? 'red' : 'blue';
           const short = trialOrder[2][i] ? 'short' : 'tall';
-          
+          const event = 4 - (i % 2); // 4 if i is 0 and 3 if i is odd
+          const square_color = (event === 4) ? '#9F9F9F' : '#CBCBCB';
+
           let code = 'C';
           if(attend_color === color) {
             code = code + '+';
@@ -134,8 +136,8 @@ document.addEventListener('DOMContentLoaded', async () => {
             side: side,
             color: color,
             height: short,
-            event: find_color_code(trialOrder[0][i], trialOrder[1][i]),
-            square_color: find_color(find_color_code(trialOrder[0][i], trialOrder[1][i])),
+            event: event,//find_color_code(trialOrder[0][i]),
+            square_color: square_color,//find_color(find_color_code(trialOrder[0][i])),
             code: code,
             bar_delay_ms: trialOrder[3][i]
           });
@@ -150,7 +152,7 @@ document.addEventListener('DOMContentLoaded', async () => {
           experiment_version: "1.0",
           browser_data: getBrowserData(), // From utils.js
           experiment_config: {
-              session_trials: trials,
+              session_trials: n_trials,
               attending: attending,
               session: session,
               percent_uncommon: PERCENT_UNCOMMON,
@@ -159,11 +161,13 @@ document.addEventListener('DOMContentLoaded', async () => {
               experiment_screen_resolution: `${window.screen.width}x${window.screen.height}`
         }};
 
+        cueDisplayElement.classList.remove('hidden');        // show fixation cross
+
         // Run trials
         await runTrials(trialOrder);
 
         //cornerSquareElement.classList.add('hidden');
-        cornerSquareElement.style.backgroundColor = '#CBCBCB';
+        cornerSquareElement.style.backgroundColor = find_color(3);
         
         // Send data to server in a consistent format
         const dataToSend = {
@@ -181,30 +185,34 @@ document.addEventListener('DOMContentLoaded', async () => {
   async function runTrials(trialOrder) {
   
     let n_trials = trialOrder[0].length;
-  
+
     for (let count = 0; count < n_trials; count++) {
       color_code = 0;
   
       const bar = document.getElementById(trialOrder[0][count] ? 'right-bar' : 'left-bar');
 
       // Define bar properties by trials generated
-      bar.className = `bar ${trialOrder[0][count] ? 'right-bar' : 'left-bar'} 
-                  ${trialOrder[1][count] ? 'red' : 'blue'}` +
-                  (trialOrder[2][count] ? ' short' : '');
+      bar.className = `bar ${trialOrder[0][count] ? 'right-bar' : 'left-bar'}` + 
+                  `${trialOrder[1][count] ? ' red' : ' blue'}` +
+                  `${trialOrder[2][count] ? ' short' : ''}`;
 
       // Wait 500ms (fixation)
       //await new Promise(r => setTimeout(r, 500));
   
       //cornerSquareElement.classList.add('hidden');      // hide corner square
-      cueDisplayElement.classList.remove('hidden');        // show fixation cross
 
       // Wait random bar delay
       await new Promise(r => setTimeout(r, trialOrder[3][count]));
   
       // Show bars and corner square
       bar.style.display = 'block';
-      color_code = find_color_code(trialOrder[0][count], trialOrder[1][count])
-      cornerSquareElement.style.backgroundColor = find_color(color_code)
+      if (count % 2 === 0) {
+        cornerSquareElement.style.backgroundColor = '#9F9F9F';//find_color(find_color_code(trialOrder[0][count]))
+      }
+      else {
+        cornerSquareElement.style.backgroundColor = '#CBCBCB';
+      }
+        
 
       // Bars visible for period of time
       setTimeout(()=>bar.style.display = 'none', 32); 
@@ -213,8 +221,8 @@ document.addEventListener('DOMContentLoaded', async () => {
       bar.style.display = 'hidden';
   
       // Wait 250ms after bars disappear
-      await new Promise(r => setTimeout(r, 250));
-      cornerSquareElement.style.backgroundColor = '#CBCBCB';
+      //await new Promise(r => setTimeout(r, 250));
+      //cornerSquareElement.style.backgroundColor = '#CBCBCB';
     }
   
     // After all trials
@@ -225,7 +233,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
 
   // Randomize color appearance on left and right sides
-  function generateTrialOrder() {
+  function generateTrialOrder(n_trials) {
     // Color an location
     let cl_trials = [];
     // Target (short) or not
@@ -234,23 +242,23 @@ document.addEventListener('DOMContentLoaded', async () => {
     let finalTrials = [];
   
     // Evenly split trials between location and color
-    for (let i = 0; i < 0.5*TOTAL_TRIALS; i++) {
+    for (let i = 0; i < 0.5*n_trials; i++) {
       cl_trials.push(0);
     }
-    for (let i = cl_trials.length; i < TOTAL_TRIALS; i++) {  
+    for (let i = cl_trials.length; i < n_trials; i++) {  
       cl_trials.push(1);
     }
 
     // 1-percent_uncommon of trials are common
-    for (let i = 0; i < (1-PERCENT_UNCOMMON)*TOTAL_TRIALS; i++) {  
+    for (let i = 0; i < (1-PERCENT_UNCOMMON)*n_trials; i++) {  
       t_trials.push(0);
     }
     // percent_uncommon of trials are uncommon
-    for (let i = t_trials.length; i < TOTAL_TRIALS; i++) {
+    for (let i = t_trials.length; i < n_trials; i++) {
       t_trials.push(1);
     }
 
-    for (let i = 0; i < TOTAL_TRIALS; i++) {
+    for (let i = 0; i < n_trials; i++) {
       delays.push(Math.random() * 150 + 350)
     }
 
@@ -270,32 +278,24 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
 });
 
-function find_color_code(right, red) {
+// function find_color_code(right) {
   
-  color_code = -1;
+//   color_code = -1;
   
-  // Left blue bar
-  if (right === 0 && red === 0) {
-    color_code = 1;
-  }
-  // Left red bar
-  else if (right === 0 && red === 1) {
-    color_code = 2;
-  }
-  // Right blue bar
-  else if (right === 1 && red === 0) {
-    color_code = 4;
-  }
-  // Right red bar
-  else {
-    color_code = 5;
-  }
+//   // Left  bar
+//   if (right === 0) {
+//     color_code = 2;
+//   }
+//   // Left red bar
+//   else if (right === 1){
+//     color_code = 4;
+//   }
 
-  return color_code;
-}
+//   return color_code;
+// }
 
-function find_color(color_code) {
-  const COLOR_CODES = ['#FFFFFF','#EEEEEE', '#9F9F9F', '#7D7D7D'];
+// function find_color(color_code) {
+//   const COLOR_CODES = ['#FFFFFF','#EEEEEE', 'CBCBCB', '#9F9F9F', '#7D7D7D'];
 
-  return COLOR_CODES[color_code-2]
-}
+//   return COLOR_CODES[color_code-1]
+// }
