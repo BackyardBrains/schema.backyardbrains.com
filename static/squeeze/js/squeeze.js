@@ -12,7 +12,7 @@ document.addEventListener('DOMContentLoaded', () => {
     ];
     // const youtubeVideoURLs = hardVideoURLs.concat(softVideoURLs); // No longer directly used for ID extraction for playlist
 
-    const TOTAL_VIDEOS_TO_PLAY = 4;
+    const TOTAL_VIDEOS_TO_PLAY = 120;
     const DATAFILE_VERSION = '1.2';
     const COLOR_ACTIONS = {
         orange: 'opposite',
@@ -324,7 +324,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 document.head.appendChild(tag); 
             }
             window.youTubePlayerReadyCallback = () => {
-                console.log("YouTube API ready via global callback. Creating player for first video:", playlist[0].videId);
+                console.log("YouTube API ready via global callback. Creating player for first video:", playlist[0].videoId);
                 createYouTubePlayer();
             };
         } else {
