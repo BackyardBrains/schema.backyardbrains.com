@@ -1,3 +1,5 @@
+
+
 document.addEventListener('DOMContentLoaded', () => {
     const hardVideoURLs = [
         'https://youtu.be/EKlJn3o2YHM', 'https://youtu.be/LS_6wuTNTqM', 'https://youtu.be/LcLo5QlDby8',
@@ -29,55 +31,17 @@ document.addEventListener('DOMContentLoaded', () => {
     const trialCounterElement = document.getElementById('trial-counter');
     const totalTrialsDisplayElement = document.getElementById('total-trials-display');
     const YOUTUBE_PLAYER_DIV_ID = 'youtube-player-container';
+    const cornerSquareElement = document.getElementById('corner-square-element')
 
     const cueDisplayElement = document.getElementById('cue-display');
     const cueShapeElement = document.getElementById('cue-shape');
-    let cornerSquareElement = null;
 
     let dotTimer = null;
     let hasDotBeenScheduledForCurrentVideo = false;
     let dotAppearanceTime = null;
 
-    function getVideoId(url) {
-        let videoId = '';
-        const patterns = [
-            /youtu\.be\/([^#\&\?]{11})/,
-            /[?&]v=([^#\&\?]{11})/,
-            /embed\/([^#\&\?]{11})/
-        ];
-        for (const pattern of patterns) {
-            const match = url.match(pattern);
-            if (match && match[1]) {
-                videoId = match[1];
-                break;
-            }
-        }
-        if (!videoId) console.warn(`Could not extract video ID from URL: ${url}`);
-        return videoId;
-    }
-
-    if (cueShapeElement) {
-        cueShapeElement.classList.add('cue-dot');
-    }
-    if (cueDisplayElement) {
-        cueDisplayElement.classList.add('hidden');
-    }
-
-    if (!startButton) {
-        console.error("Start button (id: start-button) not found in HTML.");
-        return;
-    }
-    if (!instructionsScreen || !experimentArea || !endScreen) {
-        console.error("Required screen DIVs (instructions-screen, experiment-area, end-screen) not found.");
-        return;
-    }
-
-    function shuffleArray(array) { // shuffle is also in utils.js, but keep local for now if it was already here
-        for (let i = array.length - 1; i > 0; i--) {
-            const j = Math.floor(Math.random() * (i + 1));
-            [array[i], array[j]] = [array[j], array[i]];
-        }
-    }
+    cueShapeElement.classList.add('cue-dot');
+    cueDisplayElement.classList.add('hidden');
     
     window.onYouTubeIframeAPIReady = function() {
         console.log("YouTube Iframe API is ready.");
@@ -87,11 +51,9 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     };
 
+
+    // Function definitions
     function createYouTubePlayer() {
-        if (!experimentArea) {
-            console.error("Experiment area not found for YouTube player.");
-            return;
-        }
 
         const playerContainerDiv = document.createElement('div');
         playerContainerDiv.id = YOUTUBE_PLAYER_DIV_ID;
@@ -100,10 +62,8 @@ document.addEventListener('DOMContentLoaded', () => {
         experimentArea.innerHTML = ''; 
         experimentArea.appendChild(playerContainerDiv);
 
-        if (cueDisplayElement) {
-            experimentArea.appendChild(cueDisplayElement);
-            cueDisplayElement.classList.add('hidden'); 
-        }
+        experimentArea.appendChild(cueDisplayElement);
+        cueDisplayElement.classList.add('hidden'); 
         
         const containerWidth = playerContainerDiv.clientWidth > 0 ? playerContainerDiv.clientWidth : (experimentArea.clientWidth > 0 ? experimentArea.clientWidth : 640);
         const playerHeight = (containerWidth / 16) * 9;
@@ -160,8 +120,7 @@ document.addEventListener('DOMContentLoaded', () => {
             isTransitioning = true; // Lock to prevent re-entry while transitioning
 
             clearTimeout(dotTimer);
-            if (cueDisplayElement) cueDisplayElement.classList.add('hidden');
-            if (cornerSquareElement) cornerSquareElement.style.visibility = 'hidden';
+            cueDisplayElement.classList.add('hidden');
 
             dotAppearanceTime = null;
             currentVideoIndex++;
@@ -174,99 +133,64 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function manageDotDisplay() {
         clearTimeout(dotTimer);
-        if (cueDisplayElement) cueDisplayElement.classList.add('hidden');
-        if (cornerSquareElement) cornerSquareElement.style.visibility = 'hidden';
+        cueDisplayElement.classList.add('hidden');
 
         const minDotTime = 1000;  
         const maxDotTime = 3000; 
         const randomDelay = Math.floor(Math.random() * (maxDotTime - minDotTime + 1)) + minDotTime;
 
         dotTimer = setTimeout(() => {
-            if (cueShapeElement && cueDisplayElement && player && player.getPlayerState && playlist[currentVideoIndex]) {
-                if (player.getPlayerState() !== YT.PlayerState.PLAYING) {
-                    dotAppearanceTime = null; 
-                    return;
-                }
-
-                const currentTrial = playlist[currentVideoIndex];
-                const requiredDotColor = currentTrial.dotColor;
-
-                cueShapeElement.classList.remove('cue-orange', 'cue-green');
-                if (requiredDotColor === 'orange') {
-                    cueShapeElement.classList.add('cue-orange');
-                    if (cornerSquareElement) {
-                        if (currentTrial.type === 'hard') {
-                            cornerSquareElement.style.backgroundColor = '#CBCBCB';   // Hard + orange
-                        } else if (currentTrial.type === 'soft') {
-                            cornerSquareElement.style.backgroundColor = '#7D7D7D';   // Soft + orange
-                        } else {
-                            cornerSquareElement.style.backgroundColor = 'transparent';
-                        }
-                    }
-                } else if (requiredDotColor === 'green') {
-                    cueShapeElement.classList.add('cue-green');
-                    if (cornerSquareElement) {
-                        if (currentTrial.type === 'hard') {
-                            cornerSquareElement.style.backgroundColor = '#EEEEEE';   // Hard + green
-                        } else if (currentTrial.type === 'soft') {
-                            cornerSquareElement.style.backgroundColor = '#9F9F9F';   // Soft + green
-                        } else {
-                            cornerSquareElement.style.backgroundColor = 'transparent';
-                        }
-                    }
-                } else {
-                    console.warn(`[manageDotDisplay] Unknown dotColor '${requiredDotColor}' for trial. Defaulting to green.`);
-                    cueShapeElement.classList.add('cue-green');
-                    if (cornerSquareElement) {
-                        if (currentTrial.type === 'hard') {
-                            cornerSquareElement.style.backgroundColor = '#EEEEEE';   // Hard + (defaulted) green
-                        } else if (currentTrial.type === 'soft') {
-                            cornerSquareElement.style.backgroundColor = '#9F9F9F';   // Soft + (defaulted) green
-                        } else {
-                            cornerSquareElement.style.backgroundColor = 'transparent';
-                        }
-                    }
-                }
-
-                cueDisplayElement.classList.remove('hidden');
-                if (cornerSquareElement) {
-                    cornerSquareElement.style.visibility = 'visible';  // show the square along with the dot
-                    console.log(`[manageDotDisplay] Corner square shown (Type: ${currentTrial.type}, Color: ${cornerSquareElement.style.backgroundColor}).`);
-                }
-                setTimeout(() => {
-                    cueDisplayElement.classList.add('hidden');
-                    // (Square can remain visible until hidden at video end or next trial)
-                }, 300);
-                dotAppearanceTime = performance.now();
-
-                // Record trial data
-                const trialData = {
-                    trial_number: currentVideoIndex,
-                    video_id: currentTrial.id,
-                    video_type: currentTrial.type,
-                    dot_color_on_video: currentTrial.dotColor,
-                    dot_scheduled_delay_ms: randomDelay,
-                    dot_appearance_timestamp: dotAppearanceTime,
-                    corner_square_color_shown: (currentTrial.type === 'hard' ? '#CBCBCB' : '#7D7D7D')
-                };
-                allTrialsData.push(trialData);
-                console.log("Trial data recorded:", trialData);
-
+            
+            if (player.getPlayerState() !== YT.PlayerState.PLAYING) {
+                dotAppearanceTime = null; 
+                return;
             }
+
+            const currentTrial = playlist[currentVideoIndex];
+            const requiredDotColor = currentTrial.dotColor;
+
+            cueShapeElement.classList.remove('cue-orange', 'cue-green');
+
+            (requiredDotColor === 'orange') ?
+                cueShapeElement.classList.add('cue-orange') :
+                cueShapeElement.classList.add('cue-green');
+
+            cornerSquareElement.style.backgroundColor = "#9F9F9F"
+
+            cueDisplayElement.classList.remove('hidden');
+
+            console.log(`[manageDotDisplay] Corner square shown (Type: ${currentTrial.type}, Color: ${cornerSquareElement.style.backgroundColor}).`);
+            
+            setTimeout(() => {
+                cueDisplayElement.classList.add('hidden');
+                // (Square can remain visible until hidden at video end or next trial)
+            }, 300);
+            dotAppearanceTime = performance.now();
+
+            // Record trial data
+            const trialData = {
+                trial_number: currentVideoIndex,
+                video_id: currentTrial.id,
+                video_type: currentTrial.type,
+                dot_color_on_video: currentTrial.dotColor,
+                dot_scheduled_delay_ms: randomDelay,
+                dot_appearance_timestamp: dotAppearanceTime,
+                corner_square_color_shown: '#9F9F9F'
+            };
+            allTrialsData.push(trialData);
+            console.log("Trial data recorded:", trialData);
+
         }, randomDelay); 
     }
 
     function updateTrialDisplay() {
-        if (trialCounterElement) {
-            trialCounterElement.textContent = String(currentVideoIndex + 1 > TOTAL_VIDEOS_TO_PLAY ? TOTAL_VIDEOS_TO_PLAY : currentVideoIndex + 1);
-        }
-        if (totalTrialsDisplayElement) {
-            totalTrialsDisplayElement.textContent = String(TOTAL_VIDEOS_TO_PLAY);
-        }
+        trialCounterElement.textContent = String(currentVideoIndex + 1 > TOTAL_VIDEOS_TO_PLAY ? TOTAL_VIDEOS_TO_PLAY : currentVideoIndex + 1);
+        totalTrialsDisplayElement.textContent = String(TOTAL_VIDEOS_TO_PLAY);
     }
 
     function playNextVideoInSequence() {
         if (currentVideoIndex < playlist.length) {
+            cornerSquareElement.style.backgroundColor = "#CBCBCB"
             updateTrialDisplay();
             dotAppearanceTime = null;
 
@@ -293,8 +217,7 @@ document.addEventListener('DOMContentLoaded', () => {
             }
             if(endScreen) endScreen.classList.remove('hidden');
             clearTimeout(dotTimer);
-            if (cueDisplayElement) cueDisplayElement.classList.add('hidden');
-            if (cornerSquareElement) cornerSquareElement.style.visibility = 'hidden';
+            cueDisplayElement.classList.add('hidden');
             
             // Send data to server
             const finalData = {
@@ -347,13 +270,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
         shuffleArray(playlist); // Uses local shuffle or utils.js if that's preferred
 
-        if (playlist.length === 0) {
-            console.error("Playlist is empty.");
-            if (instructionsScreen) instructionsScreen.textContent = "Error: Could not create video playlist.";
-            if (startButton) startButton.disabled = true;
-            return;
-        }
-
         console.log(`Initialized playlist with ${playlist.length} videos.`);
         console.log("Current playlist (first 5 items):", playlist.slice(0,5));
 
@@ -378,22 +294,6 @@ document.addEventListener('DOMContentLoaded', () => {
         updateTrialDisplay(); 
     }
 
-    function initializeCornerSquare() {
-        cornerSquareElement = document.createElement('div');
-        cornerSquareElement.style.position = 'fixed';
-        cornerSquareElement.style.bottom = '30px';
-        cornerSquareElement.style.right = '30px';
-        cornerSquareElement.style.width = '100px';
-        cornerSquareElement.style.height = '100px';
-        cornerSquareElement.style.backgroundColor = 'transparent';
-        cornerSquareElement.style.visibility = 'hidden';
-        cornerSquareElement.style.zIndex = '2000';
-        document.body.appendChild(cornerSquareElement);
-        console.log("Corner square initialized.");
-    }
-    
-    initializeCornerSquare();
-
     function initializeExperimentSession() {
         experimentUUID = generateUUID(); // From utils.js
         const sessionGroup = getQueryParam('SG'); // From utils.js
@@ -414,26 +314,24 @@ document.addEventListener('DOMContentLoaded', () => {
         console.log("Experiment session initialized:", sessionData);
     }
 
+    // Flow
+
     startButton.addEventListener('click', () => {
         console.log("Start button clicked. Transitioning to video playback.");
         
         initializeExperimentSession(); // Initialize session and data collection arrays
 
-        if(instructionsScreen) instructionsScreen.classList.add('hidden');
-        if(experimentArea) experimentArea.classList.remove('hidden');
-        if(endScreen) endScreen.classList.add('hidden');
-        if (cueDisplayElement) cueDisplayElement.classList.add('hidden');
-        if (cornerSquareElement) cornerSquareElement.style.visibility = 'hidden';
+        instructionsScreen.classList.add('hidden');
+        experimentArea.classList.remove('hidden');
+        endScreen.classList.add('hidden');
+        cueDisplayElement.classList.add('hidden');  
 
         hasDotBeenScheduledForCurrentVideo = false;
         dotAppearanceTime = null;
 
-        if (totalTrialsDisplayElement) {
-            totalTrialsDisplayElement.textContent = String(TOTAL_VIDEOS_TO_PLAY);
-        }
-        if (trialCounterElement) {
-            trialCounterElement.textContent = '0'; 
-        }
+        totalTrialsDisplayElement.textContent = String(TOTAL_VIDEOS_TO_PLAY);
+
+        trialCounterElement.textContent = '0'; 
 
         if (typeof YT !== "undefined" && typeof YT.Player !== "undefined") {
             initializeVideoPlayback();
@@ -456,3 +354,28 @@ document.addEventListener('DOMContentLoaded', () => {
         };
     }
 });
+
+function getVideoId(url) {
+    let videoId = '';
+    const patterns = [
+        /youtu\.be\/([^#\&\?]{11})/,
+        /[?&]v=([^#\&\?]{11})/,
+        /embed\/([^#\&\?]{11})/
+    ];
+    for (const pattern of patterns) {
+        const match = url.match(pattern);
+        if (match && match[1]) {
+            videoId = match[1];
+            break;
+        }
+    }
+    if (!videoId) console.warn(`Could not extract video ID from URL: ${url}`);
+    return videoId;
+}
+
+function shuffleArray(array) { // shuffle is also in utils.js, but keep local for now if it was already here
+    for (let i = array.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [array[i], array[j]] = [array[j], array[i]];
+    }
+}
