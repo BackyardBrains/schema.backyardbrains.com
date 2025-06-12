@@ -37,7 +37,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const endScreen = document.getElementById('end-screen');
     const trialCounterElement = document.getElementById('trial-counter');
     const totalTrialsDisplayElement = document.getElementById('total-trials-display');
-    const YOUTUBE_PLAYER_DIV_ID = 'youtube-player-container';
+    const YOUTUBE_PLAYER_DIV_ID = 'youtube-player';
     const cornerSquareElement = document.getElementById('corner-square-element')
 
     const cueDisplayElement = document.getElementById('cue-display');
@@ -316,7 +316,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (typeof YT === 'undefined' || typeof YT.Player === 'undefined') {
             console.log("YouTube API not loaded. Loading now...");
             const tag = document.createElement('script');
-            tag.src = "https://youtube.com/iframe_api";
+            tag.src = "http://www.youtube.com/iframe_api";
             const firstScriptTag = document.getElementsByTagName('script')[0];
             if (firstScriptTag && firstScriptTag.parentNode) {
                 firstScriptTag.parentNode.insertBefore(tag, firstScriptTag);
