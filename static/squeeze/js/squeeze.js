@@ -12,7 +12,7 @@ document.addEventListener('DOMContentLoaded', () => {
     ];
     // const youtubeVideoURLs = hardVideoURLs.concat(softVideoURLs); // No longer directly used for ID extraction for playlist
 
-    const TOTAL_VIDEOS_TO_PLAY = 4;
+    const TOTAL_VIDEOS_TO_PLAY = 120;
 
     let player;
     let playlist = [];
