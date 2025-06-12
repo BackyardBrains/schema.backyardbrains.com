@@ -316,7 +316,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (typeof YT === 'undefined' || typeof YT.Player === 'undefined') {
             console.log("YouTube API not loaded. Loading now...");
             const tag = document.createElement('script');
-            tag.src = "https://www.youtube.com/iframe_api";
+            tag.src = "https://youtube.com/iframe_api";
             const firstScriptTag = document.getElementsByTagName('script')[0];
             if (firstScriptTag && firstScriptTag.parentNode) {
                 firstScriptTag.parentNode.insertBefore(tag, firstScriptTag);
