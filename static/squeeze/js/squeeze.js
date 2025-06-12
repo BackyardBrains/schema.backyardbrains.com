@@ -29,6 +29,7 @@ document.addEventListener('DOMContentLoaded', () => {
     let allTrialsData = [];
     let experimentUUID = '';
     let sessionStartMs = null;
+    let videoPlayStart = null;
 
     const instructionsScreen = document.getElementById('instructions-screen');
     const startButton = document.getElementById('start-button');
@@ -45,7 +46,6 @@ document.addEventListener('DOMContentLoaded', () => {
     let dotTimer = null;
     let hasDotBeenScheduledForCurrentVideo = false;
     let dotAppearanceTime = null;
-    let videoPlayStart = null;
 
     cueShapeElement.classList.add('cue-dot');
     cueDisplayElement.classList.add('hidden');
@@ -115,13 +115,15 @@ document.addEventListener('DOMContentLoaded', () => {
                 console.log("[onPlayerStateChange PLAYING] New video now playing. Resetting transition lock.");
                 isTransitioning = false; // Transition to new video is complete
                 dotAppearanceTime = null;
-                const playingTrial = playlist[currentVideoIndex];
+                let playingTrial = playlist[currentVideoIndex];
                 playingTrial.startTimestampMs = Date.now();
                 videoPlayStart = playingTrial.startTimestampMs;
                 manageDotDisplay();
                 hasDotBeenScheduledForCurrentVideo = true;
             }
+        
         } else if (event.data === YT.PlayerState.ENDED) {
+            
             if (isTransitioning) {
                 console.warn("[onPlayerStateChange ENDED] Transition already in progress. Ignoring this ENDED event.");
                 return;
@@ -132,26 +134,9 @@ document.addEventListener('DOMContentLoaded', () => {
             clearTimeout(dotTimer);
             cueDisplayElement.classList.add('hidden');
 
-            const finishedTrial = playlist[currentVideoIndex];
-            finishedTrial.endTimestampMs = Date.now();
-            const trialData = {
-                trial_number: currentVideoIndex,
-                video_id: finishedTrial.videoId,
-                video_type: finishedTrial.type,
-                trial_label: finishedTrial.trialLabel || `${finishedTrial.type}${finishedTrial.dotColor === 'green' ? '+' : '-'}`,
-                dot_type: finishedTrial.dotType || COLOR_ACTIONS[finishedTrial.dotColor],
-                dot_planned_delay_ms: finishedTrial.dotPlannedDelayMs,
-                dot_offset_from_video_start_ms: finishedTrial.dotOffsetMs,
-                trial_start_ts: ((finishedTrial.startTimestampMs || 0) - sessionStartMs) / 1000,
-                trial_end_ts: (finishedTrial.endTimestampMs - sessionStartMs) / 1000,
-                dot_ts: ((finishedTrial.dotAppearanceTimestampMs || 0) - sessionStartMs) / 1000,
-                corner_square_color: finishedTrial.cornerSquareColor
-            };
-            allTrialsData.push(trialData);
-
             dotAppearanceTime = null;
-            currentVideoIndex++;
             hasDotBeenScheduledForCurrentVideo = false;
+
             playNextVideoInSequence();
         } else if (event.data === YT.PlayerState.PAUSED) {
             console.log("[onPlayerStateChange PAUSED] Video paused.");
@@ -166,14 +151,14 @@ document.addEventListener('DOMContentLoaded', () => {
         const maxDotTime = 3000; 
         const randomDelay = Math.floor(Math.random() * (maxDotTime - minDotTime + 1)) + minDotTime;
 
+        const currentTrial = playlist[currentVideoIndex]
+
         dotTimer = setTimeout(() => {
             
             if (player.getPlayerState() !== YT.PlayerState.PLAYING) {
                 dotAppearanceTime = null; 
                 return;
             }
-
-            const currentTrial = playlist[currentVideoIndex];
             const requiredDotColor = currentTrial.dotColor;
 
             cueShapeElement.classList.remove('cue-orange', 'cue-green');
@@ -182,6 +167,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 cueShapeElement.classList.add('cue-orange') :
                 cueShapeElement.classList.add('cue-green');
 
+            playlist[currentVideoIndex].dotAppearanceTimestampMs = Date.now();
             cornerSquareElement.style.backgroundColor = "#9F9F9F"
 
             cueDisplayElement.classList.remove('hidden');
@@ -194,18 +180,14 @@ document.addEventListener('DOMContentLoaded', () => {
             }, 300);
             dotAppearanceTime = performance.now();
 
-            // Record trial data
-            const trialData = {
-                trial_number: currentVideoIndex + 1,
-                video_id: currentTrial.id,
-                video_type: currentTrial.type,
-                dot_color_on_video: currentTrial.dotColor,
-                consistent: currentTrial.dotColor === "green",
-                dot_scheduled_delay_ms: randomDelay,
-                dot_appearance_timestamp: dotAppearanceTime,
-            };
-            allTrialsData.push(trialData);
-            console.log("Trial data recorded:", trialData);
+            dotAppearanceTime = Date.now();
+            playlist[currentVideoIndex].trialLabel = `${currentTrial.type}${requiredDotColor === 'green' ? '+' : '-'}`;
+            playlist[currentVideoIndex].dotPlannedDelayMs = randomDelay;
+            playlist[currentVideoIndex].dotOffsetMs = currentTrial.dotAppearanceTimestampMs - videoPlayStart;
+            playlist[currentVideoIndex].cornerSquareColor = cornerSquareElement ? cornerSquareElement.style.backgroundColor : null;
+            playlist[currentVideoIndex].dotType = COLOR_ACTIONS[requiredDotColor];
+            console.log("Dot displayed. Data captured for trial:", currentTrial);
+
         }, randomDelay); 
     }
 
@@ -215,7 +197,26 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function playNextVideoInSequence() {
-        if (currentVideoIndex < playlist.length) {
+        if (currentVideoIndex + 1 < playlist.length) {
+            
+            let finishedTrial = playlist[currentVideoIndex];
+
+            const trialData = {
+                trial_number: currentVideoIndex + 1,
+                video_id: finishedTrial.videoId,
+                video_type: finishedTrial.type,
+                trial_label: finishedTrial.trialLabel || `${finishedTrial.type}${finishedTrial.dotColor === 'green' ? '+' : '-'}`,
+                dot_type: finishedTrial.dotType || COLOR_ACTIONS[finishedTrial.dotColor],
+                dot_planned_delay_ms: finishedTrial.dotPlannedDelayMs,
+                dot_offset_from_video_start_ms: finishedTrial.dotOffsetMs,
+                trial_start_ts: ((finishedTrial.startTimestampMs || 0) - sessionStartMs) / 1000,
+                trial_end_ts: (Date.now() - sessionStartMs) / 1000,
+                dot_ts: ((finishedTrial.dotAppearanceTimestampMs || 0) - sessionStartMs) / 1000,
+            };
+    
+            allTrialsData.push(trialData);
+
+            currentVideoIndex++;
             cornerSquareElement.style.backgroundColor = "#CBCBCB"
             updateTrialDisplay();
             dotAppearanceTime = null;
@@ -227,7 +228,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     playerContainer.style.visibility = 'hidden';
                 }
                 console.log(`Loading video ${currentVideoIndex + 1} of ${playlist.length}: ${nextVideoObject.videoId} (Type: ${nextVideoObject.type}), to play for 5 seconds.`);
-                player.loadVideoById({
+                player.loadVideoById({ 
                     'videoId': nextVideoObject.videoId,
                     'endSeconds': 5 // Changed to 5
                 });
@@ -235,6 +236,25 @@ document.addEventListener('DOMContentLoaded', () => {
                 console.error("Player not available or not fully initialized to load next video.");
             }
         } else {
+
+            let finishedTrial = playlist[currentVideoIndex];
+
+            const trialData = {
+                trial_number: currentVideoIndex + 1,
+                video_id: finishedTrial.videoId,
+                video_type: finishedTrial.type,
+                trial_label: finishedTrial.trialLabel || `${finishedTrial.type}${finishedTrial.dotColor === 'green' ? '+' : '-'}`,
+                dot_type: finishedTrial.dotType || COLOR_ACTIONS[finishedTrial.dotColor],
+                dot_planned_delay_ms: finishedTrial.dotPlannedDelayMs,
+                dot_offset_from_video_start_ms: finishedTrial.dotOffsetMs,
+                trial_start_ts: ((finishedTrial.startTimestampMs || 0) - sessionStartMs) / 1000,
+                trial_end_ts: (Date.now() - sessionStartMs) / 1000,
+                dot_ts: ((finishedTrial.dotAppearanceTimestampMs || 0) - sessionStartMs) / 1000,
+            };
+    
+            allTrialsData.push(trialData);
+            currentVideoIndex++;
+
             cornerSquareElement.style.backgroundColor = "#CBCBCB"
             console.log(`All ${TOTAL_VIDEOS_TO_PLAY} videos played. Preparing to send data.`);
             experimentArea.classList.add('hidden');
@@ -324,9 +344,9 @@ document.addEventListener('DOMContentLoaded', () => {
             experiment_name: "squeeze",
             experiment_version: "1.0",
             file_version: DATAFILE_VERSION,
-            browser_data: getBrowserData(), // From utils.js
             color_action_map: COLOR_ACTIONS,
             session_start_iso: new Date(sessionStartMs).toISOString(),
+            browser_data: getBrowserData(), // From utils.js
             experiment_config: {
                 total_videos_configured: TOTAL_VIDEOS_TO_PLAY,
                 hard_video_urls: hardVideoURLs, 
