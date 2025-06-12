@@ -169,13 +169,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
             // Record trial data
             const trialData = {
-                trial_number: currentVideoIndex,
+                trial_number: currentVideoIndex + 1,
                 video_id: currentTrial.id,
                 video_type: currentTrial.type,
                 dot_color_on_video: currentTrial.dotColor,
+                consistent: currentTrial.dotColor === "green",
                 dot_scheduled_delay_ms: randomDelay,
                 dot_appearance_timestamp: dotAppearanceTime,
-                corner_square_color_shown: '#9F9F9F'
             };
             allTrialsData.push(trialData);
             console.log("Trial data recorded:", trialData);
@@ -209,13 +209,14 @@ document.addEventListener('DOMContentLoaded', () => {
                 console.error("Player not available or not fully initialized to load next video.");
             }
         } else {
+            cornerSquareElement.style.backgroundColor = "#CBCBCB"
             console.log(`All ${TOTAL_VIDEOS_TO_PLAY} videos played. Preparing to send data.`);
-            if(experimentArea) experimentArea.classList.add('hidden');
+            experimentArea.classList.add('hidden');
             if(player && typeof player.destroy === 'function') {
                 try { player.destroy(); } catch(e) { console.error("Error destroying player", e); }
                 player = null;
             }
-            if(endScreen) endScreen.classList.remove('hidden');
+            endScreen.classList.remove('hidden');
             clearTimeout(dotTimer);
             cueDisplayElement.classList.add('hidden');
             
@@ -233,13 +234,6 @@ document.addEventListener('DOMContentLoaded', () => {
     function initializeVideoPlayback() {
         const hardVideoIds = hardVideoURLs.map(url => getVideoId(url)).filter(id => id);
         const softVideoIds = softVideoURLs.map(url => getVideoId(url)).filter(id => id);
-
-        if (hardVideoIds.length === 0 || softVideoIds.length === 0) {
-            console.error("Cannot proceed: Need at least one hard and one soft video defined.");
-            if (instructionsScreen) instructionsScreen.textContent = "Error: Define at least one hard and one soft video.";
-            if (startButton) startButton.disabled = true;
-            return;
-        }
         
         console.log("Available Hard video IDs:", hardVideoIds);
         console.log("Available Soft video IDs:", softVideoIds);
@@ -306,8 +300,11 @@ document.addEventListener('DOMContentLoaded', () => {
             experiment_config: {
                 total_videos_configured: TOTAL_VIDEOS_TO_PLAY,
                 hard_video_urls: hardVideoURLs, 
-                soft_video_urls: softVideoURLs
-
+                soft_video_urls: softVideoURLs,
+                baseline_square_color: "#9F9F9F",
+                baseline_event_number: 3,
+                cue_square_color: "#CBCBCB",
+                cue_event_number: 4
             }
         };
         allTrialsData = []; // Initialize/reset trials data array
