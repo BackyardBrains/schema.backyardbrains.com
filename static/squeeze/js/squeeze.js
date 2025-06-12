@@ -236,6 +236,25 @@ document.addEventListener('DOMContentLoaded', () => {
                 console.error("Player not available or not fully initialized to load next video.");
             }
         } else {
+
+            let finishedTrial = playlist[currentVideoIndex];
+
+            const trialData = {
+                trial_number: currentVideoIndex + 1,
+                video_id: finishedTrial.videoId,
+                video_type: finishedTrial.type,
+                trial_label: finishedTrial.trialLabel || `${finishedTrial.type}${finishedTrial.dotColor === 'green' ? '+' : '-'}`,
+                dot_type: finishedTrial.dotType || COLOR_ACTIONS[finishedTrial.dotColor],
+                dot_planned_delay_ms: finishedTrial.dotPlannedDelayMs,
+                dot_offset_from_video_start_ms: finishedTrial.dotOffsetMs,
+                trial_start_ts: ((finishedTrial.startTimestampMs || 0) - sessionStartMs) / 1000,
+                trial_end_ts: (Date.now() - sessionStartMs) / 1000,
+                dot_ts: ((finishedTrial.dotAppearanceTimestampMs || 0) - sessionStartMs) / 1000,
+            };
+    
+            allTrialsData.push(trialData);
+            currentVideoIndex++;
+
             cornerSquareElement.style.backgroundColor = "#CBCBCB"
             console.log(`All ${TOTAL_VIDEOS_TO_PLAY} videos played. Preparing to send data.`);
             experimentArea.classList.add('hidden');
