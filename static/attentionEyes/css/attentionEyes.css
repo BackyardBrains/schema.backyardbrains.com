@@ -1,0 +1,115 @@
+body {
+  font-family: Arial, sans-serif;
+  margin: 0;
+  padding: 20px;
+  background-color: #f5f5f5;
+}
+
+.screen {
+  max-width: 800px;
+  margin: 0 auto;
+  padding: 20px;
+  background-color: white;
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.hidden {
+  display: none !important;
+}
+
+h1 {
+  color: #333;
+  text-align: center;
+  margin-bottom: 30px;
+}
+
+button {
+  background-color: #4CAF50;
+  color: white;
+  border: none;
+  padding: 12px 24px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 16px;
+  transition: background-color 0.3s;
+}
+
+button:hover {
+  background-color: #45a049;
+}
+
+#start-button {
+  display: block;
+  margin: 30px auto;
+}
+
+.container {
+  max-width: 1200px;
+  margin: 0 auto;
+  text-align: center;
+}
+
+#youtube-player-container {
+  margin: 0 auto;
+  width: 800px;
+  height: 450px;
+  background-color: #000;
+}
+
+.video-label {
+  font-size: 24px;
+  font-weight: bold;
+  color: #333;
+  margin-bottom: 10px;
+  text-align: center;
+}
+
+#trial-info {
+  margin: 20px 0;
+  font-size: 18px;
+  color: #666;
+}
+
+#questionnaire-area {
+  max-width: 800px;
+  margin: 20px auto;
+  padding: 20px;
+  background-color: white;
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.question {
+  margin-bottom: 30px;
+}
+
+.question p {
+  font-size: 18px;
+  color: #333;
+  margin-bottom: 15px;
+}
+
+.options {
+  display: flex;
+  justify-content: center;
+  gap: 15px;
+  flex-wrap: wrap;
+}
+
+.option-btn, .confidence-btn {
+  min-width: 120px;
+  margin: 5px;
+}
+
+.option-btn.selected, .confidence-btn.selected {
+  background-color: #2196F3;
+}
+
+#download-results {
+  background-color: #2196F3;
+}
+
+#download-results:hover {
+  background-color: #1976D2;
+} 
