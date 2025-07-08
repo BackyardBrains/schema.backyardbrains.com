@@ -1,6 +1,6 @@
 document.addEventListener('DOMContentLoaded', async () => {
     
-  const TOTAL_TRIALS = 250;
+  const TOTAL_TRIALS = 500;
   const PERCENT_UNCOMMON = 0.2;
   
   const lr = ["left", "right"];
@@ -291,7 +291,6 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     return finalTrials;
   }
-});
 
 // function find_color_code(right) {
   
