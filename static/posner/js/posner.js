@@ -234,46 +234,61 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   // Randomize color appearance on left and right sides
   function generateTrialOrder(n_trials) {
-    // Color an location
+    // Color and location
     let cl_trials = [];
-    // Target (short) or not
-    let t_trials = [];
     let delays = [];
     let finalTrials = [];
-  
+
     // Evenly split trials between location and color
-    for (let i = 0; i < 0.5*n_trials; i++) {
+    for (let i = 0; i < 0.5 * n_trials; i++) {
       cl_trials.push(0);
     }
-    for (let i = cl_trials.length; i < n_trials; i++) {  
+    for (let i = cl_trials.length; i < n_trials; i++) {
       cl_trials.push(1);
     }
+    shuffle(cl_trials);
 
-    // 1-percent_uncommon of trials are common
-    for (let i = 0; i < (1-PERCENT_UNCOMMON)*n_trials; i++) {  
-      t_trials.push(0);
+    // Copy and shuffle for the other dimension
+    let loc_trials = JSON.parse(JSON.stringify(cl_trials));
+    shuffle(loc_trials);
+
+    // Prepare height (t_trials) stratified by (color, location)
+    let t_trials = new Array(n_trials).fill(0);
+    // Map from (color, location) to indices
+    let group_indices = {
+      '0_0': [], // color=0, loc=0
+      '0_1': [],
+      '1_0': [],
+      '1_1': []
+    };
+    for (let i = 0; i < n_trials; i++) {
+      let key = `${cl_trials[i]}_${loc_trials[i]}`;
+      group_indices[key].push(i);
     }
-    // percent_uncommon of trials are uncommon
-    for (let i = t_trials.length; i < n_trials; i++) {
-      t_trials.push(1);
+    // For each group, assign PERCENT_UNCOMMON 1s, rest 0s
+    for (let key in group_indices) {
+      let idxs = group_indices[key];
+      let n_uncommon = Math.round(PERCENT_UNCOMMON * idxs.length);
+      let arr = new Array(idxs.length).fill(0);
+      for (let j = 0; j < n_uncommon; j++) {
+        arr[j] = 1;
+      }
+      shuffle(arr);
+      // Assign to t_trials
+      for (let j = 0; j < idxs.length; j++) {
+        t_trials[idxs[j]] = arr[j];
+      }
     }
 
     for (let i = 0; i < n_trials; i++) {
-      delays.push(Math.random() * 150 + 350)
+      delays.push(Math.random() * 150 + 350);
     }
 
-    shuffle(cl_trials);
-
     finalTrials.push(cl_trials);
-    trials_copy = JSON.parse(JSON.stringify(cl_trials));
-    shuffle(trials_copy);
-    finalTrials.push(trials_copy);
-    
-    shuffle(t_trials);
+    finalTrials.push(loc_trials);
     finalTrials.push(t_trials);
+    finalTrials.push(delays);
 
-    finalTrials.push(delays)
- 
     return finalTrials;
   }
 });
