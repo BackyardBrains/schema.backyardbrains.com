@@ -148,11 +148,11 @@ button {
 .right-bar{ left:calc(50% + 192px); }
 
 /* colours                                                       */
-.bar.blue{ background:#0066ff; }
-.bar.red { background:#ff2525; }
+.bar.blue{ background:black; }
+.bar.red { background:black; }
 
 /* 20 % of trials – shorter bar                                  */
 /* shorter bars still just override height */
 .bar.short {
-  height: 35px;
+  height: 21px;
 }

@@ -1,17 +1,20 @@
 document.addEventListener('DOMContentLoaded', async () => {
     
-  const TOTAL_TRIALS = 250;
+  const TOTAL_TRIALS = 500;
   const PERCENT_UNCOMMON = 0.2;
   
   const lr = ["left", "right"];
-  const colors = ["red", "blue"]
+  const colors = ["black", "black"]
 
   let combos = []
-  for (let i = 0; i < 2; ++i) {
-    for (let j = 0; j < 2; ++j) {
-      combos.push([lr[i], [colors[j]]])
-    }
-  }
+  // For blue and
+  // for (let i = 0; i < 2; ++i) {
+  //   for (let j = 0; j < 2; ++j) {
+  //     combos.push([lr[i], [colors[j]]])
+  //   }
+  // }
+
+  combos = [["left", "black"], ["right", "black"]]
 
   shuffle(combos)
 
@@ -27,14 +30,14 @@ document.addEventListener('DOMContentLoaded', async () => {
   //otherSide.textContent = otherSideWord;
 
   // Load page elements
-  const color = document.getElementById('color');
+  //const color = document.getElementById('color');
   //const otherColor = document.getElementById('other-color');
   //randomIndex = Math.floor(Math.random() * lr.length);
   //const colorWord = colors[randomIndex];
   //const otherColorWord = lr[(randomIndex + 1) % lr.length];
 
   side.textContent = combos[session-1][0];
-  color.textContent = combos[session-1][1];
+  //color.textContent = combos[session-1][1];
   //otherColor.textContent = otherColorWord;
 
   const instructionsScreen = document.getElementById('instructions-screen');
@@ -46,7 +49,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   const endScreen = document.getElementById('end-screen');
   const trialCounterElement = document.getElementById('trial-counter');
   const totalTrialsDisplayElement = document.getElementById('total-trials-display');
-      totalTrialsDisplayElement.textContent = String(4);
+      totalTrialsDisplayElement.textContent = String(combos.length);
   
   const cueDisplayElement = document.getElementById('cue-display');
   const cueShapeElement = document.getElementById('cue-shape');
@@ -72,14 +75,14 @@ document.addEventListener('DOMContentLoaded', async () => {
     await startSession(session,combos[session-1][0], combos[session-1][1][0]);
     experimentArea.classList.add('hidden');
   
-    if (session === 4) {
+    if (session === combos.length) {
       endScreen.classList.remove('hidden');
     } 
     else {
       session++;
       trialCounterElement.textContent = String(session);
       side.textContent = combos[session-1][0]
-      color.textContent = combos[session-1][1]
+      //color.textContent = combos[session-1][1]
       instructionsScreen.classList.remove('hidden')
     }
   });
@@ -109,19 +112,19 @@ document.addEventListener('DOMContentLoaded', async () => {
         for (let i = 0; i < n_trials; i++) {
 
           const side = trialOrder[0][i] ? 'right' : 'left';
-          const color = trialOrder[1][i] ? 'red' : 'blue';
+          const color = trialOrder[1][i] ? 'black' : 'black';
           const short = trialOrder[2][i] ? 'short' : 'tall';
           const event = 4 - (i % 2); // 4 if i is 0 and 3 if i is odd
           const square_color = (event === 4) ? '#9F9F9F' : '#CBCBCB';
 
-          let code = 'C';
-          if(attend_color === color) {
-            code = code + '+';
-          }
-          else {
-            code = code + '-';
-          }
-          code = code + 'L';
+          // let code = 'C';
+          // if(attend_color === color) {
+          //   code = code + '+';
+          // }
+          // else {
+          //   code = code + '-';
+          // }
+          code = 'L';
           if(attend_side === side) {
             code = code + '+';
           }
@@ -129,7 +132,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             code = code + '-';
           }
 
-          attending = attend_side + " " + attend_color;
+          attending = attend_side// + " " + attend_color;
           
           trialDataArray.push({
             trial_number: i + 1,
@@ -215,16 +218,17 @@ document.addEventListener('DOMContentLoaded', async () => {
         
 
       // Bars visible for period of time
-      setTimeout(()=>bar.style.display = 'none', 32); 
+      setTimeout(()=>bar.style.display = 'none', 32);
   
       // Hide bars
-      bar.style.display = 'hidden';
+      //bar.style.display = 'hidden';
   
       // Wait 250ms after bars disappear
       //await new Promise(r => setTimeout(r, 250));
       //cornerSquareElement.style.backgroundColor = '#CBCBCB';
     }
-  
+    // Wait for the last bar to flash
+    await new Promise(resolve => setTimeout(resolve, 100));
     // After all trials
     experimentArea.classList.add('hidden');
     // Hide fixation cross and corner square
