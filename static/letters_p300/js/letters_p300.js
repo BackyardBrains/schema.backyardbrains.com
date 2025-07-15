@@ -127,7 +127,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       }
 
       // Bars visible for period of time
-      await new Promise(resolve => setTimeout(resolve, 125));
+      await new Promise(resolve => setTimeout(resolve, 150));
       
     }
     // Wait for the last bar to flash
