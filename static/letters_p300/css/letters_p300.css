@@ -39,6 +39,11 @@ video {
   height: 40px;
   background-color: transparent; /* Default, specific cues will set color */
   border-radius: 0%; /* Default square, dot will override */
+  color: black; /* Default color for letters */
+  font-size: 24px; /* Make letters visible */
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 .cue-dot {
   border-radius: 50%;
