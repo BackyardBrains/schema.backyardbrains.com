@@ -119,6 +119,12 @@ document.addEventListener('DOMContentLoaded', async () => {
         
       // Set the cue letter for this trial
       cueShapeElement.textContent = trialOrder[count];
+      // Set color based on letter
+      if (trialOrder[count] === 'X') {
+        cueShapeElement.style.color = 'red';
+      } else {
+        cueShapeElement.style.color = 'black';
+      }
 
       // Bars visible for period of time
       await new Promise(resolve => setTimeout(resolve, 125));
