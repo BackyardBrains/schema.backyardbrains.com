@@ -40,7 +40,7 @@ video {
   background-color: transparent; /* Default, specific cues will set color */
   border-radius: 0%; /* Default square, dot will override */
   color: black; /* Default color for letters */
-  font-size: 24px; /* Make letters visible */
+  font-size: 72px; /* Make letters visible */
   display: flex;
   align-items: center;
   justify-content: center;
