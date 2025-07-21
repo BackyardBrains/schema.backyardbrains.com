@@ -1,6 +1,6 @@
 document.addEventListener('DOMContentLoaded', async () => {
     
-  const TOTAL_TRIALS = 1000;
+  const TOTAL_TRIALS = 2000;
   const PERCENT_UNCOMMON = 0.05;
 
 
@@ -9,19 +9,12 @@ document.addEventListener('DOMContentLoaded', async () => {
   // const startButton2 = document.getElementById('start-button2');
   const experimentArea = document.getElementById('experiment-area');
   const endScreen = document.getElementById('end-screen');
-  const trialCounterElement = document.getElementById('trial-counter');
   
   const cueDisplayElement = document.getElementById('cue-display');
   const cueShapeElement = document.getElementById('cue-shape');
-  // cueShapeElement.className = 'cue-element fixation-cross'; // Set to be a cross
-  cueShapeElement.className = 'cue-element'; // Remove fixation cross styling
-  cueShapeElement.textContent = 'A'; // Display a single letter instead
+  cueShapeElement.className = 'cue-element fixation-cross'; // Set to be a cross
 
-  const leftBarElement = document.getElementById('left-bar');
-  cueDisplayElement.appendChild(leftBarElement);
-
-  const rightBarElement = document.getElementById('right-bar');
-  cueDisplayElement.appendChild(rightBarElement);
+  const letterCue = document.getElementById('letter-cue');
 
   const cornerSquareElement = document.getElementById('corner-square');
   cornerSquareElement.classList.remove('hidden');
@@ -58,7 +51,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         for (let i = 0; i < n_trials; i++) {
           // Count Xs up to this point
-          if (trialOrder[i] === 'X') {
+          if (trialOrder[0][i] === 'X') {
             xCount++;
           }
           const event = (xCount % 2 === 0) ? 4 : 3;
@@ -66,7 +59,9 @@ document.addEventListener('DOMContentLoaded', async () => {
 
           trialDataArray.push({
             trial_number: i + 1,
-            letter: trialOrder[i],
+            letter: trialOrder[0][i],
+            side: trialOrder[1][i],
+            letter_color: trialOrder[1][i] == "left" ? "green" : "red",
             event: event,
             square_color: square_color
           });
@@ -108,26 +103,38 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   async function runTrials(trialOrder) {
   
-    let n_trials = trialOrder.length;
-    cornerSquareElement.style.backgroundColor = '#9F9F9F';
+    let n_trials = trialOrder[0].length;
+    toggleSquare();
 
     for (let count = 0; count < n_trials; count++) {
 
-      if (trialOrder[count] == "X") {
+      if (trialOrder[0][count] == "X") {
         toggleSquare()
       }
-        
-      // Set the cue letter for this trial
-      cueShapeElement.textContent = trialOrder[count];
-      // Set color based on letter
-      if (trialOrder[count] === 'X') {
-        cueShapeElement.style.color = 'red';
+
+      const side = trialOrder[1][count];
+      if (side === 'left') {
+        letterCue.style.left = 'calc(50% - 192px)';
       } else {
-        cueShapeElement.style.color = 'black';
+        letterCue.style.left = 'calc(50% + 192px)';
       }
+        
+      letterCue.textContent = trialOrder[0][count];
+      if (trialOrder[0][count] === 'X') {
+        if (side === 'right') {
+          letterCue.style.color = 'red';
+        } else {
+          letterCue.style.color = 'green';
+        }
+      } else {
+        letterCue.style.color = 'black';
+      }
+      letterCue.style.display = 'block';
 
       // Bars visible for period of time
       await new Promise(resolve => setTimeout(resolve, 150));
+      letterCue.style.display = 'none';
+      await new Promise(resolve => setTimeout(resolve, 125));
       
     }
     // Wait for the last bar to flash
@@ -149,10 +156,11 @@ document.addEventListener('DOMContentLoaded', async () => {
       const alphabet = 'abcdefghijklmnopqrstuvwyzABCDEFGHIJKLMNOPQRSTUVWYZ';
       const n_uncommon = Math.max(1, Math.round(percent_uncommon * n_trials));
       let placed = 0;
+      let placed_idxs = [];
       // Place X's with at least 8 apart
       while (placed < n_uncommon) {
         let possible = [];
-        for (let i = 0; i < n_trials; i++) {
+        for (let i = 8; i < n_trials - 8; i++) {
           // Check if this position and the 8 before/after are not X
           let ok = true;
           for (let j = Math.max(0, i-8); j <= Math.min(n_trials-1, i+8); j++) {
@@ -166,6 +174,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (possible.length === 0) break; // can't place more X's
         const idx = possible[Math.floor(Math.random() * possible.length)];
         letters[idx] = 'X';
+        placed_idxs.push(idx);
         placed++;
       }
       // Fill in the rest with random letters (not X), ensuring no two identical letters are adjacent
@@ -181,16 +190,28 @@ document.addEventListener('DOMContentLoaded', async () => {
           letters[i] = letter;
         }
       }
-      return letters;
+      let sides = new Array(n_trials).fill(0).map(() => (Math.random() < 0.5) ? 'left' : 'right');
+      // Make same number of left and right X cues
+      let x_sides = new Array(placed);
+      x_sides.fill("left", 0, placed/2);
+      x_sides.fill("right", placed/2, placed);
+      shuffle(x_sides)
+      for (let i = 0; i < placed_idxs.length; i++) {
+        sides[placed_idxs[i]] = x_sides[i];
+      }
+      return [letters, sides];
     }
 
   function toggleSquare() {
-    if (cornerSquareElement.style.backgroundColor === "rgb(159, 159, 159)"){
+    let currentColor = cornerSquareElement.style.backgroundColor;
+    if (!currentColor) {
+        currentColor = window.getComputedStyle(cornerSquareElement).backgroundColor;
+    }
+    if (currentColor === "rgb(159, 159, 159)"){
       cornerSquareElement.style.backgroundColor = "rgb(203, 203, 203)";
     }
-    else if (cornerSquareElement.style.backgroundColor === "rgb(203, 203, 203)") {
+    else {
       cornerSquareElement.style.backgroundColor = "rgb(159, 159, 159)";
     }
-
   }
 });

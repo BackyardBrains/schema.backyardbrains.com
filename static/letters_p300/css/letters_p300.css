@@ -119,6 +119,14 @@ button {
   transform: translateX(-50%);
 }
 
+.letter-stimulus {
+  position: absolute;
+  left: calc(50% - 192px);
+  font-size: 72px;
+  display: none;
+  transform: translateX(-50%);
+}
+
 /* Ensure cue-display is centered if it's the container for the cross */
 /* This might override or complement existing .cue-overlay styles */
 #cue-display.cue-overlay {
@@ -133,9 +141,7 @@ button {
   /* position: absolute; (already in .cue-overlay) */
 
   /* ─── Bars (replace former dots) ─────────────────────────────── */
-}
-
-.bar {
+}.bar {
   position: absolute;
   top: 100%;                         /* anchor reference line */
   transform-origin: bottom center;  /* pivot at the bar’s bottom */
@@ -161,3 +167,4 @@ button {
 .bar.short {
   height: 21px;
 }
+
