@@ -2,35 +2,21 @@
 <html>
 <head>
   <meta charset="utf-8" />
-  <title>Posner Experiment</title>
+  <title>P300 Experiment with Letters</title>
   <link rel="stylesheet" href="css/posner.css">
 </head>
 <body>
   <div id="instructions-screen" class="screen">
-    <h1>Posner Experiment</h1>
-    <p>Please keep your vision fixed on the cross in the center of the screen and press the '8' key when a short bar appears only if it's on the <span id="side" style="font-weight: bold;"></span> side of the screen.</p>
+    <h1>P300 Experiment with Letters</h1>
+    <p>Keep your eyes focused on the cross in the center of the screen, and count the number of times that you see the letter X on the <span id="count-side" style="font-weight:bold"></span> side.</p>
     <button id="start-button1">Start</button>
   </div>
 
   <div id="experiment-area" class="container hidden">
     <div id="cue-display" class="cue-overlay hidden">
       <div id="cue-shape" class="cue-element"></div>
-      <div id="left-bar"  class="bar left-bar"></div>
-      <div id="right-bar" class="bar right-bar"></div>  
+      <div id="letter-cue" class="letter-stimulus"></div>
     </div>
-  </div>
-  
-  <div id="trial-info" class="screen">
-    <p>Session: <span id="trial-counter">1</span>/<span id="total-trials-display">0</span></p>
-  </div>
-
-  <div id="pause-screen" class="screen hidden">
-    <p>Please keep your vision fixed on the cross in the center of the screen and press the '8' key when a short bar appears only if it's on the <span id="other-side" style="font-weight: bold;"></span> side of the screen.</p>
-    <button id="start-button2">Start</button>
-  </div>
-
-  <div id="feedback-area" class="screen">
-    <p id="feedback-text"></p>
   </div>
   
   <div id="end-screen" class="screen hidden">
@@ -49,4 +35,4 @@
   <script src="../js/baseExperiment.js"></script>
   <script src="./js/posner.js"></script>
 </body>
-</html>
+</html> 
