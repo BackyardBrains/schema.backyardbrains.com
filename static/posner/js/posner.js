@@ -1,102 +1,43 @@
 document.addEventListener('DOMContentLoaded', async () => {
     
-  const TOTAL_TRIALS = 500;
-  const PERCENT_UNCOMMON = 0.2;
-  
-  const lr = ["left", "right"];
-  const colors = ["black", "black"]
+  const TOTAL_TRIALS = 1000;
+  const PERCENT_UNCOMMON = 0.05;
 
-  let combos = []
-  // For blue and
-  // for (let i = 0; i < 2; ++i) {
-  //   for (let j = 0; j < 2; ++j) {
-  //     combos.push([lr[i], [colors[j]]])
-  //   }
-  // }
-
-  combos = [["left", "black"], ["right", "black"]]
-
-  shuffle(combos)
-
-  let session = 1;
-
-  // Load page elements
-  const side = document.getElementById('side');
-  //const otherSide = document.getElementById('other-side');
-  //let randomIndex = Math.floor(Math.random() * lr.length);
-  //const sideWord = lr[randomIndex];
-  //const otherSideWord = lr[(randomIndex + 1) % lr.length];
-
-  //otherSide.textContent = otherSideWord;
-
-  // Load page elements
-  //const color = document.getElementById('color');
-  //const otherColor = document.getElementById('other-color');
-  //randomIndex = Math.floor(Math.random() * lr.length);
-  //const colorWord = colors[randomIndex];
-  //const otherColorWord = lr[(randomIndex + 1) % lr.length];
-
-  side.textContent = combos[session-1][0];
-  //color.textContent = combos[session-1][1];
-  //otherColor.textContent = otherColorWord;
 
   const instructionsScreen = document.getElementById('instructions-screen');
   const startButton1 = document.getElementById('start-button1');
   // const startButton2 = document.getElementById('start-button2');
   const experimentArea = document.getElementById('experiment-area');
-  const pauseScreen = document.getElementById('pause-screen');
-  pauseScreen.classList.add('hidden');
   const endScreen = document.getElementById('end-screen');
-  const trialCounterElement = document.getElementById('trial-counter');
-  const totalTrialsDisplayElement = document.getElementById('total-trials-display');
-      totalTrialsDisplayElement.textContent = String(combos.length);
   
   const cueDisplayElement = document.getElementById('cue-display');
   const cueShapeElement = document.getElementById('cue-shape');
   cueShapeElement.className = 'cue-element fixation-cross'; // Set to be a cross
 
-  const leftBarElement = document.getElementById('left-bar');
-  cueDisplayElement.appendChild(leftBarElement);
-
-  const rightBarElement = document.getElementById('right-bar');
-  cueDisplayElement.appendChild(rightBarElement);
+  const letterCue = document.getElementById('letter-cue');
 
   const cornerSquareElement = document.getElementById('corner-square');
   cornerSquareElement.classList.remove('hidden');
 
   console.log("Page elements initialized.");
 
+  let attendedSide = Math.random() < 0.5 ? 'left' : 'right';
+  document.getElementById('count-side').textContent = attendedSide;
+
 
   // Start button event listeners
   startButton1.addEventListener('click', async () => {
     instructionsScreen.classList.add('hidden');
     experimentArea.classList.remove('hidden');
-    //pauseScreen.classList.add('hidden');
-    await startSession(session,combos[session-1][0], combos[session-1][1][0]);
-    experimentArea.classList.add('hidden');
-  
-    if (session === combos.length) {
-      endScreen.classList.remove('hidden');
-    } 
-    else {
-      session++;
-      trialCounterElement.textContent = String(session);
-      side.textContent = combos[session-1][0]
-      //color.textContent = combos[session-1][1]
-      instructionsScreen.classList.remove('hidden')
-    }
+
+    await startSession();
+
+    experimentArea.classList.add('hidden');  
+    endScreen.classList.remove('hidden');
   });
 
-  // startButton2.addEventListener('click', async () => {
-  //   instructionsScreen.classList.add('hidden');
-  //   pauseScreen.classList.add('hidden');
-  //   await startSession();
-  //   pauseScreen.classList.add('hidden');
-  //   endScreen.classList.remove('hidden');
-  // });
 
-
-  async function startSession(session, attend_side, attend_color, n_trials = TOTAL_TRIALS) {
+  async function startSession(n_trials = TOTAL_TRIALS) {
       
     //cornerSquareElement.classList.remove('hidden');
   
@@ -109,40 +50,24 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         experimentUUID = generateUUID(); // From utils.js
 
-        for (let i = 0; i < n_trials; i++) {
+        let xCount = 0;
 
-          const side = trialOrder[0][i] ? 'right' : 'left';
-          const color = trialOrder[1][i] ? 'black' : 'black';
-          const short = trialOrder[2][i] ? 'short' : 'tall';
-          const event = 4 - (i % 2); // 4 if i is 0 and 3 if i is odd
+        for (let i = 0; i < n_trials; i++) {
+          // Count Xs up to this point
+          if (trialOrder[0][i] === 'X') {
+            xCount++;
+          }
+          const event = (xCount % 2 === 0) ? 4 : 3;
           const square_color = (event === 4) ? '#9F9F9F' : '#CBCBCB';
 
-          // let code = 'C';
-          // if(attend_color === color) {
-          //   code = code + '+';
-          // }
-          // else {
-          //   code = code + '-';
-          // }
-          code = 'L';
-          if(attend_side === side) {
-            code = code + '+';
-          }
-          else {
-            code = code + '-';
-          }
-
-          attending = attend_side// + " " + attend_color;
-          
           trialDataArray.push({
             trial_number: i + 1,
-            side: side,
-            color: color,
-            height: short,
-            event: event,//find_color_code(trialOrder[0][i]),
-            square_color: square_color,//find_color(find_color_code(trialOrder[0][i])),
-            code: code,
-            bar_delay_ms: trialOrder[3][i]
+            letter: trialOrder[0][i],
+            side: trialOrder[1][i],
+            code: (trialOrder[1][i] === attendedSide) ? "L+" : "L-",
+            letter_color: (trialOrder[1][i] === "left") ? "green" : "red",
+            event: event,
+            square_color: square_color
           });
         }
 
@@ -156,8 +81,7 @@ document.addEventListener('DOMContentLoaded', async () => {
           browser_data: getBrowserData(), // From utils.js
           experiment_config: {
               session_trials: n_trials,
-              attending: attending,
-              session: session,
+              attending: attendedSide,
               percent_uncommon: PERCENT_UNCOMMON,
               experiment_url: window.location.href,
               experiment_user_agent: navigator.userAgent,
@@ -168,9 +92,6 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         // Run trials
         await runTrials(trialOrder);
-
-        //cornerSquareElement.classList.add('hidden');
-        cornerSquareElement.style.backgroundColor = '#CBCBCB';
         
         // Send data to server in a consistent format
         const dataToSend = {
@@ -188,47 +109,43 @@ document.addEventListener('DOMContentLoaded', async () => {
   async function runTrials(trialOrder) {
   
     let n_trials = trialOrder[0].length;
+    toggleSquare();
 
     for (let count = 0; count < n_trials; count++) {
-      color_code = 0;
-  
-      const bar = document.getElementById(trialOrder[0][count] ? 'right-bar' : 'left-bar');
 
-      // Define bar properties by trials generated
-      bar.className = `bar ${trialOrder[0][count] ? 'right-bar' : 'left-bar'}` + 
-                  `${trialOrder[1][count] ? ' red' : ' blue'}` +
-                  `${trialOrder[2][count] ? ' short' : ''}`;
-
-      // Wait 500ms (fixation)
-      //await new Promise(r => setTimeout(r, 500));
-  
-      //cornerSquareElement.classList.add('hidden');      // hide corner square
-
-      // Wait random bar delay
-      await new Promise(r => setTimeout(r, trialOrder[3][count]));
-  
-      // Show bars and corner square
-      bar.style.display = 'block';
-      if (count % 2 === 0) {
-        cornerSquareElement.style.backgroundColor = '#9F9F9F';//find_color(find_color_code(trialOrder[0][count]))
+      if (trialOrder[0][count] == "X") {
+        toggleSquare()
       }
-      else {
-        cornerSquareElement.style.backgroundColor = '#CBCBCB';
+
+      const side = trialOrder[1][count];
+      if (side === 'left') {
+        letterCue.style.left = 'calc(50% - 192px)';
+      } else {
+        letterCue.style.left = 'calc(50% + 192px)';
       }
         
+      letterCue.textContent = trialOrder[0][count];
+      if (trialOrder[0][count] === 'X') {
+        if (side === 'right') {
+          letterCue.style.color = 'red';
+        } else {
+          letterCue.style.color = 'green';
+        }
+      } else {
+        letterCue.style.color = 'black';
+      }
+      letterCue.style.display = 'block';
 
       // Bars visible for period of time
-      setTimeout(()=>bar.style.display = 'none', 32);
-  
-      // Hide bars
-      //bar.style.display = 'hidden';
-  
-      // Wait 250ms after bars disappear
-      //await new Promise(r => setTimeout(r, 250));
-      //cornerSquareElement.style.backgroundColor = '#CBCBCB';
+      await new Promise(resolve => setTimeout(resolve, 150));
+      letterCue.style.display = 'none';
+      await new Promise(resolve => setTimeout(resolve, 125));
+      
     }
     // Wait for the last bar to flash
-    await new Promise(resolve => setTimeout(resolve, 100));
+    await new Promise(resolve => setTimeout(resolve, 125));
+
+    toggleSquare()
     // After all trials
     experimentArea.classList.add('hidden');
     // Hide fixation cross and corner square
@@ -237,85 +154,69 @@ document.addEventListener('DOMContentLoaded', async () => {
 
 
   // Randomize color appearance on left and right sides
-  function generateTrialOrder(n_trials) {
-    // Color and location
-    let cl_trials = [];
-    let delays = [];
-    let finalTrials = [];
-
-    // Evenly split trials between location and color
-    for (let i = 0; i < 0.5 * n_trials; i++) {
-      cl_trials.push(0);
-    }
-    for (let i = cl_trials.length; i < n_trials; i++) {
-      cl_trials.push(1);
-    }
-    shuffle(cl_trials);
-
-    // Copy and shuffle for the other dimension
-    let loc_trials = JSON.parse(JSON.stringify(cl_trials));
-    shuffle(loc_trials);
-
-    // Prepare height (t_trials) stratified by (color, location)
-    let t_trials = new Array(n_trials).fill(0);
-    // Map from (color, location) to indices
-    let group_indices = {
-      '0_0': [], // color=0, loc=0
-      '0_1': [],
-      '1_0': [],
-      '1_1': []
-    };
-    for (let i = 0; i < n_trials; i++) {
-      let key = `${cl_trials[i]}_${loc_trials[i]}`;
-      group_indices[key].push(i);
-    }
-    // For each group, assign PERCENT_UNCOMMON 1s, rest 0s
-    for (let key in group_indices) {
-      let idxs = group_indices[key];
-      let n_uncommon = Math.round(PERCENT_UNCOMMON * idxs.length);
-      let arr = new Array(idxs.length).fill(0);
-      for (let j = 0; j < n_uncommon; j++) {
-        arr[j] = 1;
+  function generateTrialOrder(n_trials = TOTAL_TRIALS, percent_uncommon = PERCENT_UNCOMMON) {
+      // Generate an array where PERCENT_UNCOMMON of the letters are 'X', rest are random (excluding 'X'),
+      // X's are at least 8 characters apart, and no two identical letters are adjacent
+      const letters = new Array(n_trials).fill(null);
+      const alphabet = 'abcdefghijklmnopqrstuvwyzABCDEFGHIJKLMNOPQRSTUVWYZ';
+      const n_uncommon = Math.max(1, Math.round(percent_uncommon * n_trials));
+      let placed = 0;
+      let placed_idxs = [];
+      // Place X's with at least 8 apart
+      while (placed < n_uncommon) {
+        let possible = [];
+        for (let i = 8; i < n_trials - 8; i++) {
+          // Check if this position and the 8 before/after are not X
+          let ok = true;
+          for (let j = Math.max(0, i-8); j <= Math.min(n_trials-1, i+8); j++) {
+            if (letters[j] === 'X') {
+              ok = false;
+              break;
+            }
+          }
+          if (ok) possible.push(i);
+        }
+        if (possible.length === 0) break; // can't place more X's
+        const idx = possible[Math.floor(Math.random() * possible.length)];
+        letters[idx] = 'X';
+        placed_idxs.push(idx);
+        placed++;
       }
-      shuffle(arr);
-      // Assign to t_trials
-      for (let j = 0; j < idxs.length; j++) {
-        t_trials[idxs[j]] = arr[j];
+      // Fill in the rest with random letters (not X), ensuring no two identical letters are adjacent
+      for (let i = 0; i < n_trials; i++) {
+        if (letters[i] === null) {
+          let tries = 0;
+          let letter;
+          do {
+            const randomIndex = Math.floor(Math.random() * alphabet.length);
+            letter = alphabet[randomIndex];
+            tries++;
+          } while (((i > 0 && letters[i-1] === letter) || (i < n_trials-1 && letters[i+1] === letter)) && tries < 100);
+          letters[i] = letter;
+        }
       }
+      let sides = new Array(n_trials).fill(0).map(() => (Math.random() < 0.5) ? 'left' : 'right');
+      // Make same number of left and right X cues
+      let x_sides = new Array(placed);
+      x_sides.fill("left", 0, placed/2);
+      x_sides.fill("right", placed/2, placed);
+      shuffle(x_sides)
+      for (let i = 0; i < placed_idxs.length; i++) {
+        sides[placed_idxs[i]] = x_sides[i];
+      }
+      return [letters, sides];
     }
 
-    for (let i = 0; i < n_trials; i++) {
-      delays.push(Math.random() * 150 + 350);
+  function toggleSquare() {
+    let currentColor = cornerSquareElement.style.backgroundColor;
+    if (!currentColor) {
+        currentColor = window.getComputedStyle(cornerSquareElement).backgroundColor;
     }
-
-    finalTrials.push(cl_trials);
-    finalTrials.push(loc_trials);
-    finalTrials.push(t_trials);
-    finalTrials.push(delays);
-
-    return finalTrials;
+    if (currentColor === "rgb(159, 159, 159)"){
+      cornerSquareElement.style.backgroundColor = "rgb(203, 203, 203)";
+    }
+    else {
+      cornerSquareElement.style.backgroundColor = "rgb(159, 159, 159)";
+    }
   }
-  // --- END DEV TEST ---
-});
-
-// function find_color_code(right) {
-  
-//   color_code = -1;
-  
-//   // Left  bar
-//   if (right === 0) {
-//     color_code = 2;
-//   }
-//   // Left red bar
-//   else if (right === 1){
-//     color_code = 4;
-//   }
-
-//   return color_code;
-// }
-
-// function find_color(color_code) {
-//   const COLOR_CODES = ['#FFFFFF','#EEEEEE', 'CBCBCB', '#9F9F9F', '#7D7D7D'];
-
-//   return COLOR_CODES[color_code-1]
-// }
+}); 
