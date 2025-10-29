@@ -120,7 +120,7 @@ class TubeExperiment extends Experiment {
         for(let i = 0; i < this.tubeTypes.length; i++) {
             for(let arrowdirection of ['left', 'right']) {
                 for(let faceSide of ['left', 'right']) {
-                    for(let faceType of ['ID001', 'ID022']) {
+                    for(let faceType of ['ID030', 'ID015']) {
                         this.trialtypes.push({tubeTypeIndex: i, arrowDirection: arrowdirection, faceSide: faceSide, faceType: faceType });
                     }
                 }
