@@ -228,7 +228,7 @@ class TubeExperiment extends Experiment {
         // save trial data
         let data = {session: this.session, 
             trials: this.trials };
-        sendDataToServer(data, this.UUID, 'tube'); 
+        sendDataToServer(data, this.UUID, this.experimentName); 
 
     }
   
