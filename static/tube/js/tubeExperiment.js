@@ -49,9 +49,11 @@ class TubeExperiment extends Experiment {
         this.trials = [];
         this.trialtypes = [];
         //this.FORM_URL_en = 'https://docs.google.com/forms/d/e/1FAIpQLSfiziJ_yQ7LLJEejvsMwjNVu7zyCmSQX8qUwC8sB7QDB6LmfQ/viewform?usp=pp_url&entry.766586855='
-        this.FORM_URL_en = 'https://docs.google.com/forms/d/e/1FAIpQLScp8OpnIVFY5GnInuG8QnMheuPEPs6B_l2VNBjyhx2sLAgewQ/viewform?usp=pp_url&entry.766586855=';
+        //this.FORM_URL_en = 'https://docs.google.com/forms/d/e/1FAIpQLScp8OpnIVFY5GnInuG8QnMheuPEPs6B_l2VNBjyhx2sLAgewQ/viewform?usp=pp_url&entry.766586855=';
+        this.FORM_URL_en = 'https://docs.google.com/forms/d/e/1FAIpQLSdVnyscX7YdUES8dmo_rGz_gHUzL8hfcY0gLi5zf7c9VZsvKA/viewform?usp=pp_url&entry.766586855=';
         this.FORM_URL_rs = 'https://docs.google.com/forms/d/e/1FAIpQLSc0P46iTLHyFHEJDGxZaqMF7k76JOuXgk1ZMRhqHNBxXyfKtA/viewform?usp=pp_url&entry.766586855=';
         this.image_name = 'threatlevel';
+        this.faceTypes = ['ID030', 'ID015'];
         this.tube = document.getElementById('tube');
         this.line = document.querySelector('line');
         this.arrow = document.getElementById('arrow');
@@ -120,7 +122,7 @@ class TubeExperiment extends Experiment {
         for(let i = 0; i < this.tubeTypes.length; i++) {
             for(let arrowdirection of ['left', 'right']) {
                 for(let faceSide of ['left', 'right']) {
-                    for(let faceType of ['ID030', 'ID015']) {
+                    for(let faceType of this.faceTypes) {
                         this.trialtypes.push({tubeTypeIndex: i, arrowDirection: arrowdirection, faceSide: faceSide, faceType: faceType });
                     }
                 }
@@ -271,18 +273,18 @@ function preloadImages(imageUrls) {
 }
 
 window.onload = function() {
-    const faceImageUrls = [ //Hack.  Sould be auto-generated from variables.
-        'img/left_threatlevel_ID001.png',
-        'img/left_threatlevel_ID022.png',
-        'img/right_threatlevel_ID001.png',
-        'img/right_threatlevel_ID022.png'
-    ];
+    const tubeExp = new TubeExperiment();
+
+    const faceImageUrls = [];
+    ['left', 'right'].forEach(side => {
+        tubeExp.faceTypes.forEach(faceId => {
+            faceImageUrls.push(`img/${side}_${tubeExp.image_name}_${faceId}.png`);
+        });
+    });
     
     preloadImages(faceImageUrls).then(() => {
-        const tubeExp = new TubeExperiment();
-            
         const sessionGroup = getQueryParam('SG'); // Get session_group from URL
-
+        
         tubeExp.session = {
             session_group: sessionGroup,
             experiment_version: config.experiment_version,
@@ -291,7 +293,7 @@ window.onload = function() {
             tubeTypes: tubeExp.tubeTypes
         };
         tubeExp.UUID = generateUUID();
-
+        
         // Generate trials and start the first one
         tubeExp.generateTrials();
         tubeExp.startTrial();
@@ -302,7 +304,7 @@ window.onload = function() {
     
     const lang = getLanguage(); // You need to define getLanguage() to read the 'lang' URL parameter
     updatePageContent(lang); // And define updatePageContent() to update the page's content
-
+    
 }
 
 function getQueryParam(param) {
