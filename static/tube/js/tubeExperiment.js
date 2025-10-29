@@ -1,6 +1,6 @@
 const config = {
-    experiment_name: 'tube',
-    experiment_version: '2.0',
+    experiment_name: 'threat',
+    experiment_version: '2.1',
     datafile_version: '1.4'
   };
 
