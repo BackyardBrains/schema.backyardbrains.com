@@ -411,4 +411,4 @@ FodyWeavers.xsd
 *.sln.iml
 .vscode/launch.json
 
-Icon
+Icon/
