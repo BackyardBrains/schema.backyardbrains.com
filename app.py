@@ -376,18 +376,13 @@ def admin_search_user():
     try:
         token = _get_mgmt_token()
         headers = {'Authorization': f'Bearer {token}'}
-        if '@' in email:
-            url = f"https://{AUTH0_DOMAIN}/api/v2/users-by-email"
-            r = requests.get(url, params={'email': email}, headers=headers, timeout=10)
-            r.raise_for_status()
-            users = r.json() or []
-        else:
-            # Partial search using v3 search engine requires read:users
-            url = f"https://{AUTH0_DOMAIN}/api/v2/users"
-            q = f"email:*{email}*"
-            r = requests.get(url, params={'q': q, 'search_engine': 'v3', 'fields': 'user_id,email,name,nickname', 'include_fields': 'true'}, headers=headers, timeout=10)
-            r.raise_for_status()
-            users = r.json() or []
+        # Always use v3 search to keep required scope to read:users only
+        url = f"https://{AUTH0_DOMAIN}/api/v2/users"
+        # If the input contains '@', prefer an exact email match; otherwise wildcard partial
+        q = f"email:\"{email}\"" if '@' in email else f"email:*{email}*"
+        r = requests.get(url, params={'q': q, 'search_engine': 'v3', 'fields': 'user_id,email,name,nickname', 'include_fields': 'true'}, headers=headers, timeout=10)
+        r.raise_for_status()
+        users = r.json() or []
         out = [{
             'user_id': u.get('user_id'),
             'email': u.get('email'),
