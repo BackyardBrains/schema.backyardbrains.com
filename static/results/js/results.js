@@ -33,6 +33,14 @@
     logout: document.getElementById('logout')
   };
 
+  function setWhoami(user){
+    const el = document.getElementById('whoami');
+    if (!el) return;
+    if (!user){ el.textContent = ''; return; }
+    const name = user.name || user.email || user.sub || '';
+    el.textContent = name ? `Logged in as ${name}` : '';
+  }
+
   function setInputsFromState(){
     els.pattern.value = state.pattern;
     els.since.value = state.since;
@@ -161,11 +169,14 @@
   async function checkSession(){
     try{
       const res = await fetch('/api/auth/me', { credentials: 'same-origin' });
-      if (!res.ok) { toggleAuthButtons(false); return false; }
-      toggleAuthButtons(true);
-      return true;
+      if (!res.ok) { toggleAuthButtons(false); setWhoami(null); return false; }
+      const data = await res.json();
+      toggleAuthButtons(Boolean(data && data.authenticated));
+      setWhoami(data && data.user);
+      return Boolean(data && data.authenticated);
     }catch{
       toggleAuthButtons(false);
+      setWhoami(null);
       return false;
     }
   }

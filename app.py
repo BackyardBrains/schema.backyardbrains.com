@@ -278,11 +278,12 @@ def auth_me():
 
 def _has_scope(payload: dict, required_scope: str) -> bool:
     try:
+        # Prefer RBAC permissions when present
+        if 'permissions' in payload and isinstance(payload.get('permissions'), list):
+            return required_scope in payload.get('permissions', [])
+        # Fallback to legacy OAuth scopes string
         scope_str = payload.get('scope') or ''
         scopes = scope_str.split() if isinstance(scope_str, str) else []
-        perms = payload.get('permissions') or []
-        if isinstance(perms, list):
-            scopes.extend(perms)
         return required_scope in scopes
     except Exception:
         return False
@@ -302,6 +303,7 @@ def require_results_scope(required_scope: str):
                         decoded = ''
                     password = decoded.split(':', 1)[1] if ':' in decoded else decoded
                     if _constant_time_eq(password, RESULTS_PASSWORD):
+                        app.logger.info('authz allow: basic')
                         return func(*args, **kwargs)
                 resp = Response('Authentication required', 401)
                 resp.headers['WWW-Authenticate'] = 'Basic realm="Results"'
@@ -313,10 +315,14 @@ def require_results_scope(required_scope: str):
                 token = authz.split(' ', 1)[1]
                 try:
                     payload = _verify_auth0_jwt(token)
+                    app.logger.info('authz check: bearer token; scopes=%s perms=%s', payload.get('scope'), payload.get('permissions'))
                     if _has_scope(payload, required_scope):
+                        app.logger.info('authz allow: bearer with scope %s', required_scope)
                         return func(*args, **kwargs)
+                    app.logger.info('authz deny: bearer missing scope %s', required_scope)
                     return jsonify({"status":"error","error":"forbidden","missing_scope": required_scope}), 403
                 except Exception:
+                    app.logger.info('authz deny: bearer invalid')
                     pass
 
             # Check session access token
@@ -324,12 +330,17 @@ def require_results_scope(required_scope: str):
             if token:
                 try:
                     payload = _verify_auth0_jwt(token)
+                    app.logger.info('authz check: session token; scopes=%s perms=%s', payload.get('scope'), payload.get('permissions'))
                     if _has_scope(payload, required_scope):
+                        app.logger.info('authz allow: session with scope %s', required_scope)
                         return func(*args, **kwargs)
+                    app.logger.info('authz deny: session missing scope %s', required_scope)
                     return jsonify({"status":"error","error":"forbidden","missing_scope": required_scope}), 403
                 except Exception:
+                    app.logger.info('authz deny: session token invalid')
                     return jsonify({"status":"error","error":"unauthorized"}), 401
 
+            app.logger.info('authz deny: no auth presented')
             return jsonify({"status":"error","error":"unauthorized"}), 401
         return wrapper
     return decorator
