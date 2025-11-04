@@ -44,13 +44,14 @@
       const tr = document.createElement('tr');
       const tdEmail = document.createElement('td'); tdEmail.textContent = u.email || '';
       const tdName = document.createElement('td'); tdName.textContent = u.name || '';
+      const tdConn = document.createElement('td'); tdConn.textContent = u.connection || '';
       const tdAct = document.createElement('td');
       const btn = document.createElement('button');
       btn.className = 'btn';
       btn.textContent = 'Grant read:results';
-      btn.addEventListener('click', ()=> grant(u.email));
+      btn.addEventListener('click', ()=> grantByUserId(u.user_id || '', u.email || ''));
       tdAct.appendChild(btn);
-      tr.append(tdEmail, tdName, tdAct);
+      tr.append(tdEmail, tdName, tdConn, tdAct);
       els.results.appendChild(tr);
     }
   }
@@ -70,24 +71,25 @@
     }catch(err){ els.status.textContent = 'Search error'; }
   }
 
-  async function grant(email){
+  async function grantByUserId(user_id, fallbackEmail){
     els.status.textContent = '';
     try{
       const res = await fetch('/api/admin/grant_read_results', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'same-origin',
-        body: JSON.stringify({ email })
+        body: JSON.stringify(user_id ? { user_id } : { email: fallbackEmail })
       });
       if (res.status === 403){ els.status.textContent = 'You do not have access.'; return; }
       if (!res.ok){ els.status.textContent = 'Grant failed'; return; }
       els.status.textContent = 'Granted read:results';
+      await loadReaders();
     }catch{ els.status.textContent = 'Grant error'; }
   }
 
   async function loadReaders(){
     try{
-      const res = await fetch('/api/admin/users_with_permission?permission=read:results', { credentials: 'same-origin' });
+      const res = await fetch('/api/admin/users_with_permission?permission=read:results&per_page=25', { credentials: 'same-origin' });
       if (res.status === 403){ els.status.textContent = 'You do not have access.'; return; }
       if (!res.ok){ return; }
       const data = await res.json();

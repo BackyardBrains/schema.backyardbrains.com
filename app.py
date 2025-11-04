@@ -37,6 +37,7 @@ AUTH0_MGMT_CLIENT_ID = os.environ.get('AUTH0_MGMT_CLIENT_ID')
 AUTH0_MGMT_CLIENT_SECRET = os.environ.get('AUTH0_MGMT_CLIENT_SECRET')
 AUTH0_MGMT_DOMAIN = os.environ.get('AUTH0_MGMT_DOMAIN')  # e.g. backyardbrains.us.auth0.com
 AUTH0_MGMT_AUDIENCE = os.environ.get('AUTH0_MGMT_AUDIENCE')  # e.g. https://backyardbrains.us.auth0.com/api/v2/
+AUTH0_READ_RESULTS_ROLE_ID = os.environ.get('AUTH0_READ_RESULTS_ROLE_ID')  # optional: role that includes read:results
 
 # Flask session config (required for server-side login)
 app.secret_key = os.environ.get('SECRET_KEY', os.environ.get('FLASK_SECRET_KEY', 'dev-insecure'))
@@ -385,13 +386,14 @@ def admin_search_user():
         url = f"https://{mgmt_domain}/api/v2/users"
         # If the input contains '@', prefer an exact email match; otherwise wildcard partial
         q = f"email:\"{email}\"" if '@' in email else f"email:*{email}*"
-        r = requests.get(url, params={'q': q, 'search_engine': 'v3', 'fields': 'user_id,email,name,nickname', 'include_fields': 'true'}, headers=headers, timeout=10)
+        r = requests.get(url, params={'q': q, 'search_engine': 'v3', 'fields': 'user_id,email,name,nickname,identities', 'include_fields': 'true'}, headers=headers, timeout=10)
         r.raise_for_status()
         users = r.json() or []
         out = [{
             'user_id': u.get('user_id'),
             'email': u.get('email'),
-            'name': u.get('name') or u.get('nickname')
+            'name': u.get('name') or u.get('nickname'),
+            'connection': (u.get('identities') or [{}])[0].get('connection')
         } for u in users]
         return jsonify({"status":"ok","users": out})
     except requests.HTTPError as he:
@@ -412,19 +414,21 @@ def admin_search_user():
 def admin_grant_read_results():
     try:
         body = request.get_json(silent=True) or {}
+        user_id = (body.get('user_id') or '').strip()
         email = (body.get('email') or '').strip()
-        if not email or '@' not in email:
-            return jsonify({"status":"error","error":"invalid email"}), 400
         token = _get_mgmt_token()
-        # Lookup user by email
+        # Resolve user_id from email if not provided
         mgmt_domain = AUTH0_MGMT_DOMAIN or AUTH0_DOMAIN
-        url = f"https://{mgmt_domain}/api/v2/users-by-email"
-        r = requests.get(url, params={'email': email}, headers={'Authorization': f'Bearer {token}'}, timeout=10)
-        r.raise_for_status()
-        users = r.json() or []
-        if not users:
-            return jsonify({"status":"error","error":"user not found"}), 404
-        user_id = users[0].get('user_id')
+        if not user_id:
+            if not email or '@' not in email:
+                return jsonify({"status":"error","error":"invalid email or user_id"}), 400
+            url = f"https://{mgmt_domain}/api/v2/users-by-email"
+            r = requests.get(url, params={'email': email}, headers={'Authorization': f'Bearer {token}'}, timeout=10)
+            r.raise_for_status()
+            users = r.json() or []
+            if not users:
+                return jsonify({"status":"error","error":"user not found"}), 404
+            user_id = users[0].get('user_id')
         # Assign permission directly
         perm = {
             'permission_name': 'read:results',
@@ -432,7 +436,6 @@ def admin_grant_read_results():
         }
         if not perm['resource_server_identifier']:
             return jsonify({"status":"error","error":"AUTH0_AUDIENCE not set"}), 500
-        mgmt_domain = AUTH0_MGMT_DOMAIN or AUTH0_DOMAIN
         purl = f"https://{mgmt_domain}/api/v2/users/{requests.utils.quote(user_id, safe='')}/permissions"
         pr = requests.post(purl, json={'permissions': [perm]}, headers={'Authorization': f'Bearer {token}'}, timeout=10)
         if pr.status_code not in (200, 201, 204):
@@ -449,7 +452,7 @@ def admin_grant_read_results():
 def admin_users_with_permission():
     permission = request.args.get('permission', 'read:results')
     audience = request.args.get('audience') or (AUTH0_AUDIENCE or '')
-    role_id = request.args.get('role_id')
+    role_id = request.args.get('role_id') or (AUTH0_READ_RESULTS_ROLE_ID if permission == 'read:results' else None)
     per_page = int(request.args.get('per_page', 50))
     page = int(request.args.get('page', 0))
     try:
@@ -466,7 +469,7 @@ def admin_users_with_permission():
         else:
             # Scan a page of users and filter by permission
             url = f"https://{mgmt_domain}/api/v2/users"
-            r = requests.get(url, params={'per_page': per_page, 'page': page, 'fields': 'user_id,email,name,nickname', 'include_fields': 'true'}, headers=headers, timeout=15)
+            r = requests.get(url, params={'per_page': per_page, 'page': page, 'fields': 'user_id,email,name,nickname,identities', 'include_fields': 'true'}, headers=headers, timeout=15)
             r.raise_for_status()
             candidates = r.json() or []
             for u in candidates:
@@ -484,7 +487,8 @@ def admin_users_with_permission():
         out = [{
             'user_id': u.get('user_id'),
             'email': u.get('email'),
-            'name': u.get('name') or u.get('nickname')
+            'name': u.get('name') or u.get('nickname'),
+            'connection': (u.get('identities') or [{}])[0].get('connection')
         } for u in users]
         return jsonify({"status":"ok","users": out, "page": page, "per_page": per_page})
     except requests.HTTPError as he:
