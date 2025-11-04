@@ -6,10 +6,17 @@ import os, json, fnmatch
 import base64, hmac, io, zipfile
 from functools import wraps
 
+# Load environment from a local .env when present (useful for dev)
+try:
+    from dotenv import load_dotenv  # type: ignore
+    load_dotenv()
+except Exception:
+    pass
+
 app = Flask(__name__)
 CORS(app)
 
-UPLOAD_DIRECTORY = '/var/www/schema.backyardbrains.com/uploads'
+UPLOAD_DIRECTORY = os.environ.get('UPLOAD_DIRECTORY', '/var/www/schema.backyardbrains.com/uploads')
 RESULTS_PASSWORD = os.environ.get('RESULTS_PASSWORD')
 
 def ensure_upload_dir():
