@@ -167,6 +167,13 @@ def results_page():
     return send_from_directory(os.path.join(app.root_path, 'static', 'results'), 'index.html')
 
 
+@app.get('/results/<path:filename>')
+@require_results_auth
+def results_assets(filename):
+    base_dir = os.path.join(app.root_path, 'static', 'results')
+    return send_from_directory(base_dir, filename)
+
+
 @app.get('/api/results/list')
 @require_results_auth
 def results_list():
