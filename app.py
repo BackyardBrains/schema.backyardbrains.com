@@ -184,15 +184,22 @@ def auth_login():
     nonce = base64.urlsafe_b64encode(os.urandom(24)).decode('ascii')
     session['oauth_nonce'] = nonce
 
+    # Build OIDC scopes; include API permission if audience is configured
+    scope = 'openid profile email'
+    if AUTH0_AUDIENCE:
+        scope += ' read:results'
+
     params = {
         'response_type': 'code',
         'client_id': AUTH0_CLIENT_ID,
         'redirect_uri': _abs_url('/api/auth/callback'),
-        'scope': 'openid profile email',
+        'scope': scope,
         'state': state,
         'nonce': nonce,
         'prompt': 'login'
     }
+    if AUTH0_AUDIENCE:
+        params['audience'] = AUTH0_AUDIENCE
     q = '&'.join(f"{k}={requests.utils.quote(v)}" for k, v in params.items() if v)
     return redirect(f"https://{AUTH0_DOMAIN}/authorize?{q}")
 
