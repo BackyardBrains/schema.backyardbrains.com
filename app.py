@@ -35,6 +35,8 @@ AUTH0_CLIENT_ID = os.environ.get('AUTH0_CLIENT_ID')
 AUTH0_CLIENT_SECRET = os.environ.get('AUTH0_CLIENT_SECRET')
 AUTH0_MGMT_CLIENT_ID = os.environ.get('AUTH0_MGMT_CLIENT_ID')
 AUTH0_MGMT_CLIENT_SECRET = os.environ.get('AUTH0_MGMT_CLIENT_SECRET')
+AUTH0_MGMT_DOMAIN = os.environ.get('AUTH0_MGMT_DOMAIN')  # e.g. backyardbrains.us.auth0.com
+AUTH0_MGMT_AUDIENCE = os.environ.get('AUTH0_MGMT_AUDIENCE')  # e.g. https://backyardbrains.us.auth0.com/api/v2/
 
 # Flask session config (required for server-side login)
 app.secret_key = os.environ.get('SECRET_KEY', os.environ.get('FLASK_SECRET_KEY', 'dev-insecure'))
@@ -67,14 +69,16 @@ def _get_mgmt_token() -> str:
     now = int(time.time())
     if _MGMT_TOKEN_CACHE and now < _MGMT_TOKEN_EXP - 30:
         return _MGMT_TOKEN_CACHE
-    if not (requests and AUTH0_DOMAIN and AUTH0_MGMT_CLIENT_ID and AUTH0_MGMT_CLIENT_SECRET):
+    mgmt_domain = AUTH0_MGMT_DOMAIN or AUTH0_DOMAIN
+    mgmt_audience = AUTH0_MGMT_AUDIENCE or (f"https://{AUTH0_MGMT_DOMAIN}/api/v2/" if AUTH0_MGMT_DOMAIN else f"https://{AUTH0_DOMAIN}/api/v2/")
+    if not (requests and mgmt_domain and AUTH0_MGMT_CLIENT_ID and AUTH0_MGMT_CLIENT_SECRET):
         raise RuntimeError('management api not configured')
-    token_url = f"https://{AUTH0_DOMAIN}/oauth/token"
+    token_url = f"https://{mgmt_domain}/oauth/token"
     data = {
         'grant_type': 'client_credentials',
         'client_id': AUTH0_MGMT_CLIENT_ID,
         'client_secret': AUTH0_MGMT_CLIENT_SECRET,
-        'audience': f"https://{AUTH0_DOMAIN}/api/v2/",
+        'audience': mgmt_audience,
     }
     # Optionally request specific scopes (app must be authorized for them)
     # read:users_by_email for users-by-email; read:users for search; update:users for granting permissions
@@ -375,9 +379,10 @@ def admin_search_user():
         return jsonify({"status":"error","error":"invalid email"}), 400
     try:
         token = _get_mgmt_token()
+        mgmt_domain = AUTH0_MGMT_DOMAIN or AUTH0_DOMAIN
         headers = {'Authorization': f'Bearer {token}'}
         # Always use v3 search to keep required scope to read:users only
-        url = f"https://{AUTH0_DOMAIN}/api/v2/users"
+        url = f"https://{mgmt_domain}/api/v2/users"
         # If the input contains '@', prefer an exact email match; otherwise wildcard partial
         q = f"email:\"{email}\"" if '@' in email else f"email:*{email}*"
         r = requests.get(url, params={'q': q, 'search_engine': 'v3', 'fields': 'user_id,email,name,nickname', 'include_fields': 'true'}, headers=headers, timeout=10)
@@ -412,7 +417,8 @@ def admin_grant_read_results():
             return jsonify({"status":"error","error":"invalid email"}), 400
         token = _get_mgmt_token()
         # Lookup user by email
-        url = f"https://{AUTH0_DOMAIN}/api/v2/users-by-email"
+        mgmt_domain = AUTH0_MGMT_DOMAIN or AUTH0_DOMAIN
+        url = f"https://{mgmt_domain}/api/v2/users-by-email"
         r = requests.get(url, params={'email': email}, headers={'Authorization': f'Bearer {token}'}, timeout=10)
         r.raise_for_status()
         users = r.json() or []
@@ -426,7 +432,8 @@ def admin_grant_read_results():
         }
         if not perm['resource_server_identifier']:
             return jsonify({"status":"error","error":"AUTH0_AUDIENCE not set"}), 500
-        purl = f"https://{AUTH0_DOMAIN}/api/v2/users/{requests.utils.quote(user_id, safe='')}/permissions"
+        mgmt_domain = AUTH0_MGMT_DOMAIN or AUTH0_DOMAIN
+        purl = f"https://{mgmt_domain}/api/v2/users/{requests.utils.quote(user_id, safe='')}/permissions"
         pr = requests.post(purl, json={'permissions': [perm]}, headers={'Authorization': f'Bearer {token}'}, timeout=10)
         if pr.status_code not in (200, 201, 204):
             app.logger.error('grant failed: %s %s', pr.status_code, pr.text)
