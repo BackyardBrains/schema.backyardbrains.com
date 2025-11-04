@@ -76,8 +76,14 @@ def _get_mgmt_token() -> str:
         'client_secret': AUTH0_MGMT_CLIENT_SECRET,
         'audience': f"https://{AUTH0_DOMAIN}/api/v2/",
     }
-    resp = requests.post(token_url, json=data, timeout=10)
-    resp.raise_for_status()
+    # Optionally request specific scopes (app must be authorized for them)
+    # read:users_by_email for users-by-email; read:users for search; update:users for granting permissions
+    try:
+        resp = requests.post(token_url, json=data, timeout=10)
+        resp.raise_for_status()
+    except Exception:
+        app.logger.exception('mgmt token fetch failed')
+        raise
     j = resp.json()
     _MGMT_TOKEN_CACHE = j.get('access_token')
     _MGMT_TOKEN_EXP = now + int(j.get('expires_in', 300))
@@ -365,21 +371,38 @@ def require_admin_permission(required_permission: str):
 @require_admin_permission('read:users')
 def admin_search_user():
     email = request.args.get('email', '').strip()
-    if not email or '@' not in email:
+    if not email:
         return jsonify({"status":"error","error":"invalid email"}), 400
     try:
         token = _get_mgmt_token()
-        url = f"https://{AUTH0_DOMAIN}/api/v2/users-by-email"
-        r = requests.get(url, params={'email': email}, headers={'Authorization': f'Bearer {token}'}, timeout=10)
-        r.raise_for_status()
-        users = r.json() or []
+        headers = {'Authorization': f'Bearer {token}'}
+        if '@' in email:
+            url = f"https://{AUTH0_DOMAIN}/api/v2/users-by-email"
+            r = requests.get(url, params={'email': email}, headers=headers, timeout=10)
+            r.raise_for_status()
+            users = r.json() or []
+        else:
+            # Partial search using v3 search engine requires read:users
+            url = f"https://{AUTH0_DOMAIN}/api/v2/users"
+            q = f"email:*{email}*"
+            r = requests.get(url, params={'q': q, 'search_engine': 'v3', 'fields': 'user_id,email,name,nickname', 'include_fields': 'true'}, headers=headers, timeout=10)
+            r.raise_for_status()
+            users = r.json() or []
         out = [{
             'user_id': u.get('user_id'),
             'email': u.get('email'),
             'name': u.get('name') or u.get('nickname')
         } for u in users]
         return jsonify({"status":"ok","users": out})
-    except Exception as e:
+    except requests.HTTPError as he:
+        try:
+            txt = he.response.text
+        except Exception:
+            txt = ''
+        app.logger.error('admin search_user failed %s %s', getattr(he.response, 'status_code', '?'), txt)
+        code = getattr(he.response, 'status_code', 500) or 500
+        return jsonify({"status":"error","error":"search failed","upstream_status": code}), 502
+    except Exception:
         app.logger.exception('admin search_user failed')
         return jsonify({"status":"error","error":"search failed"}), 500
 
