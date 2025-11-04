@@ -2,6 +2,7 @@
 from flask import Flask, request, jsonify, Response, send_from_directory
 from flask import redirect, url_for, session
 from flask_cors import CORS
+from werkzeug.middleware.proxy_fix import ProxyFix
 from datetime import datetime
 import os, json, fnmatch
 import base64, hmac, io, zipfile
@@ -24,6 +25,7 @@ except Exception:
 
 app = Flask(__name__)
 CORS(app)
+app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1)
 
 UPLOAD_DIRECTORY = os.environ.get('UPLOAD_DIRECTORY', '/var/www/schema.backyardbrains.com/uploads')
 RESULTS_PASSWORD = os.environ.get('RESULTS_PASSWORD')
@@ -164,6 +166,7 @@ def require_results_auth(func):
 # --------- Auth (server-side session with Auth0) ---------
 
 def _abs_url(path: str) -> str:
+    # Respect proxy headers for scheme/host
     root = request.url_root.rstrip('/')
     if not path.startswith('/'):
         path = '/' + path
@@ -257,6 +260,14 @@ def auth_logout():
         )
         return redirect(logout_url)
     return redirect('/results')
+
+
+@app.get('/api/auth/me')
+def auth_me():
+    user = session.get('user')
+    if not user:
+        return jsonify({"authenticated": False}), 401
+    return jsonify({"authenticated": True, "user": user})
 
 # ---- POST /data : save one submission ----
 @app.post('/data')

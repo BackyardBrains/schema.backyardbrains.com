@@ -74,6 +74,12 @@
 
   async function load(){
     updateUrlAndDownload();
+    const isLoggedIn = await checkSession();
+    if (!isLoggedIn){
+      els.stats.textContent = 'Please log in to view results';
+      els.tableBody.innerHTML = '';
+      return;
+    }
     const url = '/api/results/list?' + new URLSearchParams(location.search).toString();
     const res = await fetch(url, { credentials: 'same-origin' });
     if (!res.ok) throw new Error('Failed to load list');
@@ -150,6 +156,18 @@
     if (!els.login || !els.logout) return;
     els.login.style.display = isLoggedIn ? 'none' : 'inline-block';
     els.logout.style.display = isLoggedIn ? 'inline-block' : 'none';
+  }
+
+  async function checkSession(){
+    try{
+      const res = await fetch('/api/auth/me', { credentials: 'same-origin' });
+      if (!res.ok) { toggleAuthButtons(false); return false; }
+      toggleAuthButtons(true);
+      return true;
+    }catch{
+      toggleAuthButtons(false);
+      return false;
+    }
   }
 
   function attach(){
