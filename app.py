@@ -1,5 +1,6 @@
 # /var/www/schema.backyardbrains.com/app.py
 from flask import Flask, request, jsonify, Response, send_from_directory
+from flask import redirect, url_for, session
 from flask_cors import CORS
 from datetime import datetime
 import os, json, fnmatch
@@ -12,12 +13,106 @@ try:
     load_dotenv()
 except Exception:
     pass
+ 
+# Optional Auth0 dependencies
+try:
+    from jose import jwt
+    import requests
+except Exception:
+    jwt = None  # type: ignore
+    requests = None  # type: ignore
 
 app = Flask(__name__)
 CORS(app)
 
 UPLOAD_DIRECTORY = os.environ.get('UPLOAD_DIRECTORY', '/var/www/schema.backyardbrains.com/uploads')
 RESULTS_PASSWORD = os.environ.get('RESULTS_PASSWORD')
+AUTH0_DOMAIN = os.environ.get('AUTH0_DOMAIN')  # e.g. backyardbrains.us.auth0.com
+AUTH0_AUDIENCE = os.environ.get('AUTH0_AUDIENCE')  # e.g. https://schema.backyardbrains.com/api
+AUTH0_CLIENT_ID = os.environ.get('AUTH0_CLIENT_ID')
+AUTH0_CLIENT_SECRET = os.environ.get('AUTH0_CLIENT_SECRET')
+
+# Flask session config (required for server-side login)
+app.secret_key = os.environ.get('SECRET_KEY', os.environ.get('FLASK_SECRET_KEY', 'dev-insecure'))
+app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
+app.config['SESSION_COOKIE_SECURE'] = True
+
+_JWKS_CACHE = None
+
+def _get_auth0_jwks():
+    global _JWKS_CACHE
+    if _JWKS_CACHE is not None:
+        return _JWKS_CACHE
+    if not (requests and AUTH0_DOMAIN):
+        return None
+    try:
+        url = f"https://{AUTH0_DOMAIN}/.well-known/jwks.json"
+        resp = requests.get(url, timeout=5)
+        resp.raise_for_status()
+        _JWKS_CACHE = resp.json()
+        return _JWKS_CACHE
+    except Exception:
+        return None
+
+def _verify_auth0_jwt(token: str):
+    if not (jwt and AUTH0_DOMAIN and AUTH0_AUDIENCE):
+        raise ValueError('auth0 not configured')
+    unverified_header = jwt.get_unverified_header(token)
+    jwks = _get_auth0_jwks()
+    if not jwks:
+        raise ValueError('jwks unavailable')
+    rsa_key = {}
+    for key in jwks.get('keys', []):
+        if key.get('kid') == unverified_header.get('kid'):
+            rsa_key = {
+                'kty': key.get('kty'),
+                'kid': key.get('kid'),
+                'use': key.get('use'),
+                'n': key.get('n'),
+                'e': key.get('e')
+            }
+            break
+    if not rsa_key:
+        raise ValueError('no matching jwk')
+    issuer = f"https://{AUTH0_DOMAIN}/"
+    payload = jwt.decode(
+        token,
+        rsa_key,
+        algorithms=['RS256'],
+        audience=AUTH0_AUDIENCE,
+        issuer=issuer,
+    )
+    return payload
+
+def _verify_auth0_id_token(token: str):
+    if not (jwt and AUTH0_DOMAIN and AUTH0_CLIENT_ID):
+        raise ValueError('auth0 not configured')
+    unverified_header = jwt.get_unverified_header(token)
+    jwks = _get_auth0_jwks()
+    if not jwks:
+        raise ValueError('jwks unavailable')
+    rsa_key = {}
+    for key in jwks.get('keys', []):
+        if key.get('kid') == unverified_header.get('kid'):
+            rsa_key = {
+                'kty': key.get('kty'),
+                'kid': key.get('kid'),
+                'use': key.get('use'),
+                'n': key.get('n'),
+                'e': key.get('e')
+            }
+            break
+    if not rsa_key:
+        raise ValueError('no matching jwk')
+    issuer = f"https://{AUTH0_DOMAIN}/"
+    payload = jwt.decode(
+        token,
+        rsa_key,
+        algorithms=['RS256'],
+        audience=AUTH0_CLIENT_ID,
+        issuer=issuer,
+    )
+    return payload
 
 def ensure_upload_dir():
     os.makedirs(UPLOAD_DIRECTORY, exist_ok=True)
@@ -31,25 +126,137 @@ def _constant_time_eq(a: str, b: str) -> bool:
 def require_results_auth(func):
     @wraps(func)
     def wrapper(*args, **kwargs):
-        # If no password configured, allow access (useful for local/testing)
-        if not RESULTS_PASSWORD:
+        # Accept an existing Flask session login
+        if session.get('user'):
             return func(*args, **kwargs)
 
-        auth_header = request.headers.get('Authorization', '')
-        if auth_header.startswith('Basic '):
-            try:
-                decoded = base64.b64decode(auth_header.split(' ', 1)[1]).decode('utf-8', 'ignore')
-            except Exception:
-                decoded = ''
-            # Expect "username:password"; username is ignored
-            password = decoded.split(':', 1)[1] if ':' in decoded else decoded
-            if _constant_time_eq(password, RESULTS_PASSWORD):
-                return func(*args, **kwargs)
+        # If a basic password is configured, use Basic auth (backwards compatible)
+        if RESULTS_PASSWORD:
+            auth_header = request.headers.get('Authorization', '')
+            if auth_header.startswith('Basic '):
+                try:
+                    decoded = base64.b64decode(auth_header.split(' ', 1)[1]).decode('utf-8', 'ignore')
+                except Exception:
+                    decoded = ''
+                # Expect "username:password"; username is ignored
+                password = decoded.split(':', 1)[1] if ':' in decoded else decoded
+                if _constant_time_eq(password, RESULTS_PASSWORD):
+                    return func(*args, **kwargs)
+            resp = Response('Authentication required', 401)
+            resp.headers['WWW-Authenticate'] = 'Basic realm="Results"'
+            return resp
 
-        resp = Response('Authentication required', 401)
-        resp.headers['WWW-Authenticate'] = 'Basic realm="Results"'
+        # Otherwise, require a valid Auth0 JWT (Bearer token)
+        authz = request.headers.get('Authorization', '')
+        if authz.startswith('Bearer '):
+            token = authz.split(' ', 1)[1]
+            try:
+                _verify_auth0_jwt(token)
+                return func(*args, **kwargs)
+            except Exception:
+                pass
+        resp = Response('Unauthorized', 401)
+        resp.headers['WWW-Authenticate'] = 'Bearer realm="Results"'
         return resp
     return wrapper
+
+
+# --------- Auth (server-side session with Auth0) ---------
+
+def _abs_url(path: str) -> str:
+    root = request.url_root.rstrip('/')
+    if not path.startswith('/'):
+        path = '/' + path
+    return root + path
+
+
+@app.get('/api/auth/login')
+def auth_login():
+    if not (AUTH0_DOMAIN and AUTH0_CLIENT_ID and AUTH0_CLIENT_SECRET):
+        return jsonify({"status":"error","error":"auth0 not configured"}), 500
+    # Generate state to mitigate CSRF
+    state = base64.urlsafe_b64encode(os.urandom(24)).decode('ascii')
+    session['oauth_state'] = state
+    # Optional nonce for ID token
+    nonce = base64.urlsafe_b64encode(os.urandom(24)).decode('ascii')
+    session['oauth_nonce'] = nonce
+
+    params = {
+        'response_type': 'code',
+        'client_id': AUTH0_CLIENT_ID,
+        'redirect_uri': _abs_url('/api/auth/callback'),
+        'scope': 'openid profile email',
+        'audience': AUTH0_AUDIENCE or '',
+        'state': state,
+        'nonce': nonce,
+        'prompt': 'login'
+    }
+    q = '&'.join(f"{k}={requests.utils.quote(v)}" for k, v in params.items() if v)
+    return redirect(f"https://{AUTH0_DOMAIN}/authorize?{q}")
+
+
+@app.get('/api/auth/callback')
+def auth_callback():
+    if not (AUTH0_DOMAIN and AUTH0_CLIENT_ID and AUTH0_CLIENT_SECRET and requests):
+        return jsonify({"status":"error","error":"auth0 not configured"}), 500
+    code = request.args.get('code')
+    state = request.args.get('state')
+    if not code or not state or state != session.get('oauth_state'):
+        return jsonify({"status":"error","error":"invalid state or code"}), 400
+    # Exchange code for tokens
+    token_url = f"https://{AUTH0_DOMAIN}/oauth/token"
+    data = {
+        'grant_type': 'authorization_code',
+        'client_id': AUTH0_CLIENT_ID,
+        'client_secret': AUTH0_CLIENT_SECRET,
+        'code': code,
+        'redirect_uri': _abs_url('/api/auth/callback'),
+    }
+    try:
+        resp = requests.post(token_url, json=data, timeout=10)
+        resp.raise_for_status()
+        tok = resp.json()
+    except Exception as e:
+        return jsonify({"status":"error","error":"token exchange failed"}), 400
+
+    id_token = tok.get('id_token')
+    if not id_token:
+        return jsonify({"status":"error","error":"missing id_token"}), 400
+    try:
+        claims = _verify_auth0_id_token(id_token)
+    except Exception:
+        # If verification fails, do not log in
+        return jsonify({"status":"error","error":"invalid id_token"}), 400
+
+    # Store minimal user session
+    session.pop('oauth_state', None)
+    session.pop('oauth_nonce', None)
+    session['user'] = {
+        'sub': claims.get('sub'),
+        'email': claims.get('email'),
+        'name': claims.get('name') or claims.get('nickname'),
+    }
+
+    # Optional: store access_token if present (not sent to client)
+    if 'access_token' in tok:
+        session['access_token'] = tok['access_token']
+
+    # Redirect back to results
+    return redirect('/results')
+
+
+@app.get('/api/auth/logout')
+def auth_logout():
+    session.clear()
+    # Optional: Log out from Auth0 as well
+    if AUTH0_DOMAIN and AUTH0_CLIENT_ID:
+        return_to = _abs_url('/results')
+        logout_url = (
+            f"https://{AUTH0_DOMAIN}/v2/logout?client_id={AUTH0_CLIENT_ID}"
+            f"&returnTo={requests.utils.quote(return_to)}"
+        )
+        return redirect(logout_url)
+    return redirect('/results')
 
 # ---- POST /data : save one submission ----
 @app.post('/data')

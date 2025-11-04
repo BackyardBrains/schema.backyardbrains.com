@@ -28,7 +28,9 @@
     previewPanel: document.getElementById('previewPanel'),
     previewTitle: document.getElementById('previewTitle'),
     previewJson: document.getElementById('previewJson'),
-    closePreview: document.getElementById('closePreview')
+    closePreview: document.getElementById('closePreview'),
+    login: document.getElementById('login'),
+    logout: document.getElementById('logout')
   };
 
   function setInputsFromState(){
@@ -144,6 +146,12 @@
     }
   }
 
+  function toggleAuthButtons(isLoggedIn){
+    if (!els.login || !els.logout) return;
+    els.login.style.display = isLoggedIn ? 'none' : 'inline-block';
+    els.logout.style.display = isLoggedIn ? 'inline-block' : 'none';
+  }
+
   function attach(){
     setInputsFromState();
     els.apply.addEventListener('click', ()=>{ readInputs(); load().catch(console.error); });
@@ -155,6 +163,10 @@
     els.closePreview.addEventListener('click', ()=>{
       els.previewPanel.setAttribute('aria-hidden','true');
     });
+    if (els.login){ els.login.addEventListener('click', ()=>{ window.location.href = '/api/auth/login'; }); }
+    if (els.logout){ els.logout.addEventListener('click', ()=>{ window.location.href = '/api/auth/logout'; }); }
+    // We can't know login state from the client without a ping; keep buttons visible for now
+    toggleAuthButtons(true); // assume logged in after redirect
   }
 
   attach();
