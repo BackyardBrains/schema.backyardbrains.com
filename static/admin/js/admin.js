@@ -85,6 +85,18 @@
     }catch{ els.status.textContent = 'Grant error'; }
   }
 
+  async function loadReaders(){
+    try{
+      const res = await fetch('/api/admin/users_with_permission?permission=read:results', { credentials: 'same-origin' });
+      if (res.status === 403){ els.status.textContent = 'You do not have access.'; return; }
+      if (!res.ok){ return; }
+      const data = await res.json();
+      if (Array.isArray(data.users) && data.users.length){
+        renderUsers(data.users);
+      }
+    }catch{}
+  }
+
   function attach(){
     if (els.login){ els.login.addEventListener('click', ()=>{ window.location.href = '/api/auth/login'; }); }
     if (els.logout){ els.logout.addEventListener('click', ()=>{ window.location.href = '/api/auth/logout'; }); }
@@ -92,7 +104,12 @@
   }
 
   attach();
-  checkSession().then(ok=>{ if (ok && els.adminPanel) els.adminPanel.style.display = ''; });
+  checkSession().then(async ok=>{
+    if (ok && els.adminPanel){
+      els.adminPanel.style.display = '';
+      await loadReaders();
+    }
+  });
 })();
 
 

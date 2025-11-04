@@ -443,6 +443,62 @@ def admin_grant_read_results():
         app.logger.exception('admin grant_read_results failed')
         return jsonify({"status":"error","error":"internal error"}), 500
 
+
+@app.get('/api/admin/users_with_permission')
+@require_admin_permission('read:users')
+def admin_users_with_permission():
+    permission = request.args.get('permission', 'read:results')
+    audience = request.args.get('audience') or (AUTH0_AUDIENCE or '')
+    role_id = request.args.get('role_id')
+    per_page = int(request.args.get('per_page', 50))
+    page = int(request.args.get('page', 0))
+    try:
+        token = _get_mgmt_token()
+        headers = {'Authorization': f'Bearer {token}'}
+        mgmt_domain = AUTH0_MGMT_DOMAIN or AUTH0_DOMAIN
+        users = []
+        if role_id:
+            # If a role is provided, list users by role
+            url = f"https://{mgmt_domain}/api/v2/roles/{requests.utils.quote(role_id, safe='')}/users"
+            r = requests.get(url, params={'per_page': per_page, 'page': page}, headers=headers, timeout=15)
+            r.raise_for_status()
+            users = r.json() or []
+        else:
+            # Scan a page of users and filter by permission
+            url = f"https://{mgmt_domain}/api/v2/users"
+            r = requests.get(url, params={'per_page': per_page, 'page': page, 'fields': 'user_id,email,name,nickname', 'include_fields': 'true'}, headers=headers, timeout=15)
+            r.raise_for_status()
+            candidates = r.json() or []
+            for u in candidates:
+                uid = u.get('user_id')
+                if not uid:
+                    continue
+                purl = f"https://{mgmt_domain}/api/v2/users/{requests.utils.quote(uid, safe='')}/permissions"
+                pr = requests.get(purl, headers=headers, timeout=10)
+                if pr.status_code != 200:
+                    continue
+                perms = pr.json() or []
+                has = any((p.get('permission_name') == permission and (not audience or p.get('resource_server_identifier') == audience)) for p in perms)
+                if has:
+                    users.append(u)
+        out = [{
+            'user_id': u.get('user_id'),
+            'email': u.get('email'),
+            'name': u.get('name') or u.get('nickname')
+        } for u in users]
+        return jsonify({"status":"ok","users": out, "page": page, "per_page": per_page})
+    except requests.HTTPError as he:
+        try:
+            txt = he.response.text
+        except Exception:
+            txt = ''
+        app.logger.error('admin users_with_permission failed %s %s', getattr(he.response, 'status_code', '?'), txt)
+        code = getattr(he.response, 'status_code', 500) or 500
+        return jsonify({"status":"error","error":"list failed","upstream_status": code}), 502
+    except Exception:
+        app.logger.exception('admin users_with_permission failed')
+        return jsonify({"status":"error","error":"list failed"}), 500
+
 # ---- POST /data : save one submission ----
 @app.post('/data')
 def receive_data():
