@@ -132,22 +132,6 @@ def require_results_auth(func):
         if session.get('user'):
             return func(*args, **kwargs)
 
-        # If a basic password is configured, use Basic auth (backwards compatible)
-        if RESULTS_PASSWORD:
-            auth_header = request.headers.get('Authorization', '')
-            if auth_header.startswith('Basic '):
-                try:
-                    decoded = base64.b64decode(auth_header.split(' ', 1)[1]).decode('utf-8', 'ignore')
-                except Exception:
-                    decoded = ''
-                # Expect "username:password"; username is ignored
-                password = decoded.split(':', 1)[1] if ':' in decoded else decoded
-                if _constant_time_eq(password, RESULTS_PASSWORD):
-                    return func(*args, **kwargs)
-            resp = Response('Authentication required', 401)
-            resp.headers['WWW-Authenticate'] = 'Basic realm="Results"'
-            return resp
-
         # Otherwise, require a valid Auth0 JWT (Bearer token)
         authz = request.headers.get('Authorization', '')
         if authz.startswith('Bearer '):
@@ -293,22 +277,6 @@ def require_results_scope(required_scope: str):
     def decorator(func):
         @wraps(func)
         def wrapper(*args, **kwargs):
-            # Allow legacy Basic auth if configured
-            if RESULTS_PASSWORD:
-                auth_header = request.headers.get('Authorization', '')
-                if auth_header.startswith('Basic '):
-                    try:
-                        decoded = base64.b64decode(auth_header.split(' ', 1)[1]).decode('utf-8', 'ignore')
-                    except Exception:
-                        decoded = ''
-                    password = decoded.split(':', 1)[1] if ':' in decoded else decoded
-                    if _constant_time_eq(password, RESULTS_PASSWORD):
-                        app.logger.info('authz allow: basic')
-                        return func(*args, **kwargs)
-                resp = Response('Authentication required', 401)
-                resp.headers['WWW-Authenticate'] = 'Basic realm="Results"'
-                return resp
-
             # Check Bearer token if provided
             authz = request.headers.get('Authorization', '')
             if authz.startswith('Bearer '):

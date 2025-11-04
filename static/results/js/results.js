@@ -30,7 +30,8 @@
     previewJson: document.getElementById('previewJson'),
     closePreview: document.getElementById('closePreview'),
     login: document.getElementById('login'),
-    logout: document.getElementById('logout')
+    logout: document.getElementById('logout'),
+    filters: document.getElementById('filters')
   };
 
   function setWhoami(user){
@@ -86,12 +87,20 @@
     if (!isLoggedIn){
       els.stats.textContent = 'Please log in to view results';
       els.tableBody.innerHTML = '';
+      if (els.filters) els.filters.style.display = 'none';
       return;
     }
     const url = '/api/results/list?' + new URLSearchParams(location.search).toString();
     const res = await fetch(url, { credentials: 'same-origin' });
+    if (res.status === 403){
+      els.stats.textContent = 'You do not have access.';
+      els.tableBody.innerHTML = '';
+      if (els.filters) els.filters.style.display = 'none';
+      return;
+    }
     if (!res.ok) throw new Error('Failed to load list');
     const data = await res.json();
+    if (els.filters) els.filters.style.display = '';
     render(data.files || []);
   }
 
