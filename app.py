@@ -189,7 +189,6 @@ def auth_login():
         'client_id': AUTH0_CLIENT_ID,
         'redirect_uri': _abs_url('/api/auth/callback'),
         'scope': 'openid profile email',
-        'audience': AUTH0_AUDIENCE or '',
         'state': state,
         'nonce': nonce,
         'prompt': 'login'
