@@ -1,0 +1,33 @@
+<!doctype html>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Admin - Results Access</title>
+<link rel="stylesheet" href="/results/css/results.css">
+<header class="page-header">
+  <h1>Admin - Results Access</h1>
+  <div class="auth-actions">
+    <button id="login" class="btn">Log in</button>
+    <button id="logout" class="btn" style="display:none">Log out</button>
+    <span id="whoami" style="margin-left:10px;color:#666"></span>
+  </div>
+  <hr>
+</header>
+<section class="filters" id="adminPanel" style="display:none">
+  <div class="row">
+    <label>
+      User email
+      <input id="email" type="email" placeholder="user@example.com">
+    </label>
+    <button id="search" class="btn" style="align-self:flex-end">Search</button>
+  </div>
+  <div id="status" class="stats"></div>
+  <table style="margin-top:10px;width:100%">
+    <thead>
+      <tr><th>Email</th><th>Name</th><th>Action</th></tr>
+    </thead>
+    <tbody id="results"></tbody>
+  </table>
+</section>
+<script src="/admin/js/admin.js"></script>
+
+

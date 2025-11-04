@@ -33,6 +33,8 @@ AUTH0_DOMAIN = os.environ.get('AUTH0_DOMAIN')  # e.g. backyardbrains.us.auth0.co
 AUTH0_AUDIENCE = os.environ.get('AUTH0_AUDIENCE')  # e.g. https://schema.backyardbrains.com/api
 AUTH0_CLIENT_ID = os.environ.get('AUTH0_CLIENT_ID')
 AUTH0_CLIENT_SECRET = os.environ.get('AUTH0_CLIENT_SECRET')
+AUTH0_MGMT_CLIENT_ID = os.environ.get('AUTH0_MGMT_CLIENT_ID')
+AUTH0_MGMT_CLIENT_SECRET = os.environ.get('AUTH0_MGMT_CLIENT_SECRET')
 
 # Flask session config (required for server-side login)
 app.secret_key = os.environ.get('SECRET_KEY', os.environ.get('FLASK_SECRET_KEY', 'dev-insecure'))
@@ -40,6 +42,8 @@ app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
 app.config['SESSION_COOKIE_SECURE'] = True
 
 _JWKS_CACHE = None
+_MGMT_TOKEN_CACHE = None
+_MGMT_TOKEN_EXP = 0
 
 def _get_auth0_jwks():
     global _JWKS_CACHE
@@ -55,6 +59,29 @@ def _get_auth0_jwks():
         return _JWKS_CACHE
     except Exception:
         return None
+
+def _get_mgmt_token() -> str:
+    # Fetch a Management API token using client credentials; cache briefly
+    global _MGMT_TOKEN_CACHE, _MGMT_TOKEN_EXP
+    import time
+    now = int(time.time())
+    if _MGMT_TOKEN_CACHE and now < _MGMT_TOKEN_EXP - 30:
+        return _MGMT_TOKEN_CACHE
+    if not (requests and AUTH0_DOMAIN and AUTH0_MGMT_CLIENT_ID and AUTH0_MGMT_CLIENT_SECRET):
+        raise RuntimeError('management api not configured')
+    token_url = f"https://{AUTH0_DOMAIN}/oauth/token"
+    data = {
+        'grant_type': 'client_credentials',
+        'client_id': AUTH0_MGMT_CLIENT_ID,
+        'client_secret': AUTH0_MGMT_CLIENT_SECRET,
+        'audience': f"https://{AUTH0_DOMAIN}/api/v2/",
+    }
+    resp = requests.post(token_url, json=data, timeout=10)
+    resp.raise_for_status()
+    j = resp.json()
+    _MGMT_TOKEN_CACHE = j.get('access_token')
+    _MGMT_TOKEN_EXP = now + int(j.get('expires_in', 300))
+    return _MGMT_TOKEN_CACHE
 
 def _verify_auth0_jwt(token: str):
     if not (jwt and AUTH0_DOMAIN and AUTH0_AUDIENCE):
@@ -311,6 +338,85 @@ def require_results_scope(required_scope: str):
             return jsonify({"status":"error","error":"unauthorized"}), 401
         return wrapper
     return decorator
+
+
+def require_admin_permission(required_permission: str):
+    def decorator(func):
+        @wraps(func)
+        def wrapper(*args, **kwargs):
+            token = session.get('access_token')
+            if not token:
+                return jsonify({"status":"error","error":"unauthorized"}), 401
+            try:
+                payload = _verify_auth0_jwt(token)
+                app.logger.info('admin check perms=%s need=%s', payload.get('permissions'), required_permission)
+                if _has_scope(payload, required_permission):
+                    return func(*args, **kwargs)
+                return jsonify({"status":"error","error":"forbidden","missing_scope": required_permission}), 403
+            except Exception:
+                return jsonify({"status":"error","error":"unauthorized"}), 401
+        return wrapper
+    return decorator
+
+
+# --------- Admin APIs (via Auth0 Management API) ---------
+
+@app.get('/api/admin/search_user')
+@require_admin_permission('read:users')
+def admin_search_user():
+    email = request.args.get('email', '').strip()
+    if not email or '@' not in email:
+        return jsonify({"status":"error","error":"invalid email"}), 400
+    try:
+        token = _get_mgmt_token()
+        url = f"https://{AUTH0_DOMAIN}/api/v2/users-by-email"
+        r = requests.get(url, params={'email': email}, headers={'Authorization': f'Bearer {token}'}, timeout=10)
+        r.raise_for_status()
+        users = r.json() or []
+        out = [{
+            'user_id': u.get('user_id'),
+            'email': u.get('email'),
+            'name': u.get('name') or u.get('nickname')
+        } for u in users]
+        return jsonify({"status":"ok","users": out})
+    except Exception as e:
+        app.logger.exception('admin search_user failed')
+        return jsonify({"status":"error","error":"search failed"}), 500
+
+
+@app.post('/api/admin/grant_read_results')
+@require_admin_permission('write:users')
+def admin_grant_read_results():
+    try:
+        body = request.get_json(silent=True) or {}
+        email = (body.get('email') or '').strip()
+        if not email or '@' not in email:
+            return jsonify({"status":"error","error":"invalid email"}), 400
+        token = _get_mgmt_token()
+        # Lookup user by email
+        url = f"https://{AUTH0_DOMAIN}/api/v2/users-by-email"
+        r = requests.get(url, params={'email': email}, headers={'Authorization': f'Bearer {token}'}, timeout=10)
+        r.raise_for_status()
+        users = r.json() or []
+        if not users:
+            return jsonify({"status":"error","error":"user not found"}), 404
+        user_id = users[0].get('user_id')
+        # Assign permission directly
+        perm = {
+            'permission_name': 'read:results',
+            'resource_server_identifier': AUTH0_AUDIENCE or ''
+        }
+        if not perm['resource_server_identifier']:
+            return jsonify({"status":"error","error":"AUTH0_AUDIENCE not set"}), 500
+        purl = f"https://{AUTH0_DOMAIN}/api/v2/users/{requests.utils.quote(user_id, safe='')}/permissions"
+        pr = requests.post(purl, json={'permissions': [perm]}, headers={'Authorization': f'Bearer {token}'}, timeout=10)
+        if pr.status_code not in (200, 201, 204):
+            app.logger.error('grant failed: %s %s', pr.status_code, pr.text)
+            return jsonify({"status":"error","error":"grant failed"}), 500
+        return jsonify({"status":"ok","granted": True, "user_id": user_id})
+    except Exception:
+        app.logger.exception('admin grant_read_results failed')
+        return jsonify({"status":"error","error":"internal error"}), 500
 
 # ---- POST /data : save one submission ----
 @app.post('/data')
