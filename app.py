@@ -275,6 +275,65 @@ def auth_me():
         return jsonify({"authenticated": False}), 401
     return jsonify({"authenticated": True, "user": user})
 
+
+def _has_scope(payload: dict, required_scope: str) -> bool:
+    try:
+        scope_str = payload.get('scope') or ''
+        scopes = scope_str.split() if isinstance(scope_str, str) else []
+        perms = payload.get('permissions') or []
+        if isinstance(perms, list):
+            scopes.extend(perms)
+        return required_scope in scopes
+    except Exception:
+        return False
+
+
+def require_results_scope(required_scope: str):
+    def decorator(func):
+        @wraps(func)
+        def wrapper(*args, **kwargs):
+            # Allow legacy Basic auth if configured
+            if RESULTS_PASSWORD:
+                auth_header = request.headers.get('Authorization', '')
+                if auth_header.startswith('Basic '):
+                    try:
+                        decoded = base64.b64decode(auth_header.split(' ', 1)[1]).decode('utf-8', 'ignore')
+                    except Exception:
+                        decoded = ''
+                    password = decoded.split(':', 1)[1] if ':' in decoded else decoded
+                    if _constant_time_eq(password, RESULTS_PASSWORD):
+                        return func(*args, **kwargs)
+                resp = Response('Authentication required', 401)
+                resp.headers['WWW-Authenticate'] = 'Basic realm="Results"'
+                return resp
+
+            # Check Bearer token if provided
+            authz = request.headers.get('Authorization', '')
+            if authz.startswith('Bearer '):
+                token = authz.split(' ', 1)[1]
+                try:
+                    payload = _verify_auth0_jwt(token)
+                    if _has_scope(payload, required_scope):
+                        return func(*args, **kwargs)
+                    return jsonify({"status":"error","error":"forbidden","missing_scope": required_scope}), 403
+                except Exception:
+                    pass
+
+            # Check session access token
+            token = session.get('access_token')
+            if token:
+                try:
+                    payload = _verify_auth0_jwt(token)
+                    if _has_scope(payload, required_scope):
+                        return func(*args, **kwargs)
+                    return jsonify({"status":"error","error":"forbidden","missing_scope": required_scope}), 403
+                except Exception:
+                    return jsonify({"status":"error","error":"unauthorized"}), 401
+
+            return jsonify({"status":"error","error":"unauthorized"}), 401
+        return wrapper
+    return decorator
+
 # ---- POST /data : save one submission ----
 @app.post('/data')
 def receive_data():
@@ -399,7 +458,7 @@ def results_assets(filename):
 
 
 @app.get('/api/results/list')
-@require_results_auth
+@require_results_scope('read:results')
 def results_list():
     q = request.args
     files = _list_files(
@@ -448,7 +507,7 @@ def results_file(name):
 
 
 @app.get('/api/results/zip')
-@require_results_auth
+@require_results_scope('read:results')
 def results_zip():
     q = request.args
     max_files = int(q.get('max_files', 500))
