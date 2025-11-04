@@ -1,16 +1,48 @@
 # /var/www/schema.backyardbrains.com/app.py
-from flask import Flask, request, jsonify, Response
+from flask import Flask, request, jsonify, Response, send_from_directory
 from flask_cors import CORS
 from datetime import datetime
 import os, json, fnmatch
+import base64, hmac, io, zipfile
+from functools import wraps
 
 app = Flask(__name__)
 CORS(app)
 
 UPLOAD_DIRECTORY = '/var/www/schema.backyardbrains.com/uploads'
+RESULTS_PASSWORD = os.environ.get('RESULTS_PASSWORD')
 
 def ensure_upload_dir():
     os.makedirs(UPLOAD_DIRECTORY, exist_ok=True)
+
+def _constant_time_eq(a: str, b: str) -> bool:
+    try:
+        return hmac.compare_digest(a, b)
+    except Exception:
+        return False
+
+def require_results_auth(func):
+    @wraps(func)
+    def wrapper(*args, **kwargs):
+        # If no password configured, allow access (useful for local/testing)
+        if not RESULTS_PASSWORD:
+            return func(*args, **kwargs)
+
+        auth_header = request.headers.get('Authorization', '')
+        if auth_header.startswith('Basic '):
+            try:
+                decoded = base64.b64decode(auth_header.split(' ', 1)[1]).decode('utf-8', 'ignore')
+            except Exception:
+                decoded = ''
+            # Expect "username:password"; username is ignored
+            password = decoded.split(':', 1)[1] if ':' in decoded else decoded
+            if _constant_time_eq(password, RESULTS_PASSWORD):
+                return func(*args, **kwargs)
+
+        resp = Response('Authentication required', 401)
+        resp.headers['WWW-Authenticate'] = 'Basic realm="Results"'
+        return resp
+    return wrapper
 
 # ---- POST /data : save one submission ----
 @app.post('/data')
@@ -119,6 +151,100 @@ def api_uploads():
         <table><thead><tr><th>Name</th><th>Size</th><th>Modified</th></tr></thead><tbody>{rows}</tbody></table>"""
         return Response(html, mimetype="text/html")
     return jsonify({"count": len(files), "files": files})
+
+# ---- RESULTS SPA & API ----
+@app.get('/results')
+@require_results_auth
+def results_page():
+    # Serve the static SPA
+    return send_from_directory(os.path.join(app.root_path, 'static', 'results'), 'index.html')
+
+
+@app.get('/api/results/list')
+@require_results_auth
+def results_list():
+    q = request.args
+    files = _list_files(
+        pattern=q.get('pattern'),
+        ext=q.get('ext', '.json'),
+        sort=q.get('sort', 'date'),
+        order=q.get('order', 'desc'),
+        limit=q.get('limit', 200),
+        offset=q.get('offset', 0),
+        min_size=q.get('min_size', 0),
+        max_size=q.get('max_size'),
+        since=q.get('since'),
+        until=q.get('until'),
+    )
+    return jsonify({"count": len(files), "files": files})
+
+
+def _safe_join_uploads(name: str) -> str:
+    # prevent path traversal; only allow plain filenames within UPLOAD_DIRECTORY
+    if not name or '/' in name or '\\' in name or '..' in name:
+        raise ValueError('invalid name')
+    path = os.path.realpath(os.path.join(UPLOAD_DIRECTORY, name))
+    base = os.path.realpath(UPLOAD_DIRECTORY)
+    if not path.startswith(base + os.sep):
+        raise ValueError('invalid path')
+    return path
+
+
+@app.get('/api/results/file/<path:name>')
+@require_results_auth
+def results_file(name):
+    try:
+        if not name.lower().endswith('.json'):
+            return jsonify({"status": "error", "error": "not a JSON file"}), 400
+        file_path = _safe_join_uploads(name)
+        with open(file_path, 'rb') as f:
+            data = f.read()
+        return Response(data, mimetype='application/json')
+    except FileNotFoundError:
+        return jsonify({"status": "error", "error": "not found"}), 404
+    except ValueError:
+        return jsonify({"status": "error", "error": "invalid name"}), 400
+    except Exception as e:
+        app.logger.exception('file preview error')
+        return jsonify({"status": "error", "error": str(e)}), 500
+
+
+@app.get('/api/results/zip')
+@require_results_auth
+def results_zip():
+    q = request.args
+    max_files = int(q.get('max_files', 500))
+    files = _list_files(
+        pattern=q.get('pattern'),
+        ext=q.get('ext', '.json'),
+        sort=q.get('sort', 'date'),
+        order=q.get('order', 'desc'),
+        limit=q.get('limit', 200),
+        offset=q.get('offset', 0),
+        min_size=q.get('min_size', 0),
+        max_size=q.get('max_size'),
+        since=q.get('since'),
+        until=q.get('until'),
+    )
+    files = files[:max_files]
+
+    buf = io.BytesIO()
+    with zipfile.ZipFile(buf, 'w', compression=zipfile.ZIP_DEFLATED) as zf:
+        for fmeta in files:
+            name = fmeta.get('name')
+            try:
+                file_path = _safe_join_uploads(name)
+                zf.write(file_path, arcname=name)
+            except Exception:
+                # skip problematic files but continue
+                app.logger.exception(f"zip add failed for {name}")
+                continue
+
+    buf.seek(0)
+    ts = datetime.utcnow().strftime('%Y%m%d-%H%M%S')
+    resp = Response(buf.read(), mimetype='application/zip')
+    resp.headers['Content-Disposition'] = f'attachment; filename="results-{ts}.zip"'
+    return resp
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=8000)

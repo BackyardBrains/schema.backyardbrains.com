@@ -1,0 +1,88 @@
+<!doctype html>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Experiment Results</title>
+<link rel="stylesheet" href="/static/results/css/results.css">
+
+<header class="page-header">
+  <h1>Experiment Results</h1>
+  <div id="stats" class="stats">Matched: 0 • Size: 0 KB</div>
+  <a id="downloadAll" class="download" href="#" download>Download all (ZIP)</a>
+  <div class="note">Tip: use patterns like <code>posner_*.json</code></div>
+  <hr>
+</header>
+
+<section class="filters">
+  <div class="row">
+    <label>
+      Pattern
+      <input id="pattern" type="text" placeholder="e.g. posner_*.json">
+    </label>
+    <label>
+      Since
+      <input id="since" type="datetime-local">
+    </label>
+    <label>
+      Until
+      <input id="until" type="datetime-local">
+    </label>
+  </div>
+  <div class="row">
+    <label>
+      Min size (bytes)
+      <input id="min_size" type="number" min="0" step="1" placeholder="0">
+    </label>
+    <label>
+      Max size (bytes)
+      <input id="max_size" type="number" min="0" step="1" placeholder="">
+    </label>
+    <label>
+      Sort
+      <select id="sort">
+        <option value="date">date</option>
+        <option value="name">name</option>
+        <option value="size">size</option>
+      </select>
+    </label>
+    <label>
+      Order
+      <select id="order">
+        <option value="desc">desc</option>
+        <option value="asc">asc</option>
+      </select>
+    </label>
+    <label>
+      Limit
+      <input id="limit" type="number" min="1" step="1" value="200">
+    </label>
+  </div>
+  <div class="actions">
+    <button id="apply">Apply</button>
+    <button id="reset">Reset</button>
+  </div>
+</section>
+
+<section class="results">
+  <table id="resultsTable">
+    <thead>
+      <tr>
+        <th>Name</th>
+        <th class="num">Size</th>
+        <th>Modified</th>
+        <th>Actions</th>
+      </tr>
+    </thead>
+    <tbody id="resultsBody"></tbody>
+  </table>
+</section>
+
+<aside class="preview" id="previewPanel" aria-hidden="true">
+  <div class="preview-header">
+    <strong id="previewTitle">Preview</strong>
+    <button id="closePreview" title="Close">×</button>
+  </div>
+  <pre id="previewJson" class="json"></pre>
+</aside>
+
+<script src="/static/results/js/results.js"></script>
+
