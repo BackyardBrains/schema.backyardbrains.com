@@ -29,6 +29,9 @@
     previewTitle: document.getElementById('previewTitle'),
     previewJson: document.getElementById('previewJson'),
     closePreview: document.getElementById('closePreview'),
+    copyPreview: document.getElementById('copyPreview'),
+    downloadPreview: document.getElementById('downloadPreview'),
+    wrapToggle: document.getElementById('wrapToggle'),
     login: document.getElementById('login'),
     logout: document.getElementById('logout'),
     filters: document.getElementById('filters')
@@ -149,6 +152,36 @@
     }
   }
 
+  function escapeHtml(s){
+    return s.replace(/[&<>"']/g, ch => ({
+      '&': '&amp;',
+      '<': '&lt;',
+      '>': '&gt;',
+      '"': '&quot;',
+      "'": '&#39;'
+    }[ch] || ch));
+  }
+
+  function syntaxHighlightJson(obj){
+    const json = JSON.stringify(obj, null, 2);
+    const escaped = escapeHtml(json);
+    // Highlight keys, strings, numbers, booleans, null
+    return escaped
+      // keys
+      .replace(/(^|\s|{|,)\s*"(.*?)"\s*:/g, (m, p1, key) => `${p1}<span class="key">"${key}"</span>:`)
+      // strings
+      .replace(/"(?:\\.|[^"\\])*"/g, (m) => {
+        // if already wrapped as key above, skip; otherwise string value
+        if (m.startsWith('<span class="key">')) return m;
+        return `<span class="string">${m}</span>`;
+      })
+      // numbers
+      .replace(/\b-?(?:0|[1-9]\d*)(?:\.\d+)?(?:[eE][+\-]?\d+)?\b/g, (m) => `<span class="number">${m}</span>`)
+      // booleans & null
+      .replace(/\b(true|false)\b/g, '<span class="boolean">$1</span>')
+      .replace(/\b(null)\b/g, '<span class="null">$1</span>');
+  }
+
   async function preview(name){
     els.previewTitle.textContent = name;
     els.previewPanel.setAttribute('aria-hidden', 'false');
@@ -160,9 +193,26 @@
       // pretty-print if valid JSON; else show raw
       try {
         const obj = JSON.parse(txt);
-        els.previewJson.textContent = JSON.stringify(obj, null, 2);
+        els.previewJson.classList.remove('error');
+        els.previewJson.innerHTML = syntaxHighlightJson(obj);
+        // set download href
+        if (els.downloadPreview){
+          const blob = new Blob([JSON.stringify(obj, null, 2)], { type: 'application/json' });
+          const url = URL.createObjectURL(blob);
+          els.downloadPreview.href = url;
+          els.downloadPreview.download = name || 'result.json';
+        }
+        // remember plain text for copy
+        els.previewJson.dataset.raw = JSON.stringify(obj, null, 2);
       } catch {
         els.previewJson.textContent = txt;
+        els.previewJson.dataset.raw = txt;
+        if (els.downloadPreview){
+          const blob = new Blob([txt], { type: 'text/plain' });
+          const url = URL.createObjectURL(blob);
+          els.downloadPreview.href = url;
+          els.downloadPreview.download = name || 'result.txt';
+        }
       }
     }catch(err){
       els.previewJson.textContent = String(err);
@@ -201,6 +251,30 @@
     els.closePreview.addEventListener('click', ()=>{
       els.previewPanel.setAttribute('aria-hidden','true');
     });
+    if (els.copyPreview){
+      els.copyPreview.addEventListener('click', async ()=>{
+        const raw = els.previewJson.dataset.raw || els.previewJson.textContent || '';
+        try{
+          await navigator.clipboard.writeText(raw);
+          els.copyPreview.textContent = 'Copied';
+          setTimeout(()=>{ els.copyPreview.textContent = 'Copy'; }, 1200);
+        }catch{
+          // fallback
+          const ta = document.createElement('textarea');
+          ta.value = raw;
+          document.body.appendChild(ta);
+          ta.select();
+          try { document.execCommand('copy'); } catch(e){}
+          document.body.removeChild(ta);
+        }
+      });
+    }
+    if (els.wrapToggle){
+      els.wrapToggle.addEventListener('click', ()=>{
+        const wrapped = els.previewJson.classList.toggle('wrap');
+        els.wrapToggle.textContent = wrapped ? 'No wrap' : 'Wrap';
+      });
+    }
     if (els.login){ els.login.addEventListener('click', ()=>{ window.location.href = '/api/auth/login'; }); }
     if (els.logout){ els.logout.addEventListener('click', ()=>{ window.location.href = '/api/auth/logout'; }); }
     // We can't know login state from the client without a ping; keep buttons visible for now

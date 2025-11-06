@@ -25,6 +25,15 @@ aside.preview{position:fixed;top:0;right:0;height:100%;width:44%;max-width:720px
 aside.preview[aria-hidden="false"]{transform:translateX(0)}
 .preview-header{display:flex;justify-content:space-between;align-items:center;padding:10px 12px;border-bottom:1px solid var(--line)}
 .preview-header button{font-size:18px;line-height:1;border:none;background:transparent;cursor:pointer}
-.json{margin:0;padding:14px;overflow:auto;white-space:pre}
+.preview-header .preview-actions{display:flex;gap:8px;align-items:center}
+.preview-header .btn{border:1px solid var(--line);border-radius:6px;background:#fff;padding:4px 8px;font-size:12px;cursor:pointer}
+.preview-header .btn.link{background:transparent;color:var(--accent);border:none;padding:0 2px}
+.json{margin:0;padding:14px;overflow:auto;white-space:pre;background:#0f172a;color:#e2e8f0;border-top:1px solid var(--line);font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,"Liberation Mono","Courier New",monospace;font-size:12px;line-height:1.45}
+.json.wrap{white-space:pre-wrap;word-break:break-word}
+.json .key{color:#7dd3fc}
+.json .string{color:#a7f3d0}
+.json .number{color:#fca5a5}
+.json .boolean{color:#fde68a}
+.json .null{color:#c4b5fd}
 
 
