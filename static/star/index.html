@@ -760,7 +760,7 @@
       if (acc >= 80) {
         // SUCCESS: Accuracy is 80% or higher, show the form.
         
-        const hasUuidEntry = typeof GOOGLE_FORM_ENTRY_ID === 'string' && GOOGLE_FORM_ENTRY_ID.trim().length > 0;
+        const hasUuidEntry = typeof GOOGLE_FORM_UUID_ID === 'string' && GOOGLE_FORM_UUID_ID.trim().length > 0;
         const params = new URLSearchParams();
         params.set('usp', 'pp_url');
         if (hasUuidEntry) params.set(`entry.${GOOGLE_FORM_UUID_ID}`, sessionUUID);
