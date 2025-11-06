@@ -109,6 +109,96 @@
       }
     }
 
+    // Collect extended client hardware and environment info
+    async function collectClientHardwareInfo() {
+      const out = {};
+      try {
+        const ua = navigator.userAgentData;
+        if (ua && typeof ua.getHighEntropyValues === 'function') {
+          const hi = await ua.getHighEntropyValues([
+            'platform','platformVersion','architecture','bitness','model','fullVersionList','wow64'
+          ]);
+          out.uaCh = {
+            mobile: !!ua.mobile,
+            brands: ua.brands || [],
+            ...hi
+          };
+        }
+      } catch (e) {}
+      
+      out.userAgent = navigator.userAgent || '';
+      out.platform = navigator.platform || '';
+      out.hardwareConcurrency = typeof navigator.hardwareConcurrency === 'number' ? navigator.hardwareConcurrency : null;
+      out.deviceMemory = typeof navigator.deviceMemory === 'number' ? navigator.deviceMemory : null;
+      
+      // GPU via WebGL
+      try {
+        const canvas = document.createElement('canvas');
+        const gl = canvas.getContext('webgl') || canvas.getContext('experimental-webgl');
+        if (gl) {
+          const dbg = gl.getExtension('WEBGL_debug_renderer_info');
+          if (dbg) {
+            out.gpu = {
+              vendor: gl.getParameter(dbg.UNMASKED_VENDOR_WEBGL),
+              renderer: gl.getParameter(dbg.UNMASKED_RENDERER_WEBGL)
+            };
+          } else {
+            out.gpu = {
+              vendor: gl.getParameter(gl.VENDOR),
+              renderer: gl.getParameter(gl.RENDERER)
+            };
+          }
+        }
+      } catch (e) {}
+      
+      out.screen = {
+        width: window.screen.width,
+        height: window.screen.height,
+        availWidth: window.screen.availWidth,
+        availHeight: window.screen.availHeight,
+        colorDepth: window.screen.colorDepth
+      };
+      out.viewport = { width: window.innerWidth, height: window.innerHeight };
+      out.devicePixelRatio = window.devicePixelRatio || 1;
+      
+      out.maxTouchPoints = navigator.maxTouchPoints || 0;
+      out.pointer = {
+        coarse: !!(window.matchMedia && window.matchMedia('(pointer: coarse)').matches),
+        fine: !!(window.matchMedia && window.matchMedia('(pointer: fine)').matches),
+        hover: !!(window.matchMedia && window.matchMedia('(hover: hover)').matches)
+      };
+      
+      const conn = navigator.connection || navigator.mozConnection || navigator.webkitConnection;
+      if (conn) {
+        out.connection = {
+          effectiveType: conn.effectiveType,
+          downlink: conn.downlink,
+          rtt: conn.rtt,
+          saveData: conn.saveData
+        };
+      }
+      
+      try {
+        out.timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+      } catch (e) {}
+      out.language = navigator.language || '';
+      out.languages = navigator.languages || [];
+      
+      try {
+        if (navigator.getBattery) {
+          const b = await navigator.getBattery();
+          out.battery = {
+            charging: b.charging,
+            level: b.level,
+            chargingTime: b.chargingTime,
+            dischargingTime: b.dischargingTime
+          };
+        }
+      } catch (e) {}
+      
+      return out;
+    }
+
     function initGlobalCanvas(width = 800, height = 800) {
       if (!globalCanvas) {
         globalCanvas = document.createElement('canvas');
@@ -711,20 +801,24 @@
         testDirection: t.testDirection
       }));
 
+      const extraHardware = await collectClientHardwareInfo();
+
       const payload = {
-        experiment: 'motion-adaptation-rdk',
+        experiment: 'rdk-bars',
         UUID: sessionUUID,
         data: {
           session: {
             experiment_version: '1.0',
-            file_version: '1.0',
+            treatment: 'bars',
+            file_version: '1.1',
             totalTrials: totalTrials,
             session_group: 'default', // Added session group field
             browserData: {
               os: osName,
               browser: browserName,
               screenResolution: screenResolution,
-              browserViewport: browserViewport
+              browserViewport: browserViewport,
+              extraHardware: extraHardware
             },
             calibration: {
               monitorWidthCm: monitorWidthCm,
