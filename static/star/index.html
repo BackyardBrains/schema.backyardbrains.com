@@ -25,6 +25,9 @@
     const GOOGLE_FORM_BASE_URL = 'https://docs.google.com/forms/d/e/1FAIpQLSfJp6FP8ymot3W0--0X68F6sNXEma7mvi0HaC12aqIOUe7_aw/viewform';
     const GOOGLE_FORM_UUID_ID = '766586855';
     // Optional: set entry IDs for MTurk fields if you have corresponding questions in the form
+    const GOOGLE_FORM_WORKER_ID = '200625206';
+    const GOOGLE_FORM_ASSIGNMENT_ID = '713222877';
+    const GOOGLE_FORM_HIT_ID = '476344965';
 
     // Capture MTurk params from query string
     function getParam(name) {
@@ -761,9 +764,15 @@
         // SUCCESS: Accuracy is 80% or higher, show the form.
         
         const hasUuidEntry = typeof GOOGLE_FORM_UUID_ID === 'string' && GOOGLE_FORM_UUID_ID.trim().length > 0;
+        const hasWorkerEntry = typeof GOOGLE_FORM_WORKER_ID === 'string' && GOOGLE_FORM_WORKER_ID.trim().length > 0;
+        const hasAssignmentEntry = typeof GOOGLE_FORM_ASSIGNMENT_ID === 'string' && GOOGLE_FORM_ASSIGNMENT_ID.trim().length > 0;
+        const hasHitEntry = typeof GOOGLE_FORM_HIT_ID === 'string' && GOOGLE_FORM_HIT_ID.trim().length > 0;
         const params = new URLSearchParams();
         params.set('usp', 'pp_url');
         if (hasUuidEntry) params.set(`entry.${GOOGLE_FORM_UUID_ID}`, sessionUUID);
+        if (hasWorkerEntry && MTURK.workerId) params.set(`entry.${GOOGLE_FORM_WORKER_ID}`, MTURK.workerId);
+        if (hasAssignmentEntry && MTURK.assignmentId) params.set(`entry.${GOOGLE_FORM_ASSIGNMENT_ID}`, MTURK.assignmentId);
+        if (hasHitEntry && MTURK.hitId) params.set(`entry.${GOOGLE_FORM_HIT_ID}`, MTURK.hitId);
         const formUrl = `${GOOGLE_FORM_BASE_URL}?${params.toString()}`;
 
         container.innerHTML = `
@@ -772,7 +781,7 @@
           <p id="upload-status" style="margin-bottom: 16px;">${saveMsg}</p>
           <p style="margin-bottom: 24px;">Please click the button below to open the final form and complete the experiment.</p>
           <p><a id="btn-form" href="${formUrl}" target="_blank" rel="noopener noreferrer" style="display:inline-block; padding:10px 16px; background:#222; color:#fff; text-decoration:none; border-radius:6px;">Open Form</a></p>
-          ${hasUuidEntry ? '' : '<p style="margin-top:20px; font-size:14px; color:#ddd;">Note: Set GOOGLE_FORM_ENTRY_ID in the script to prefill the UUID.</p>'}
+          ${hasUuidEntry ? '' : '<p style="margin-top:20px; font-size:14px; color:#ddd;">Note: Set GOOGLE_FORM_UUID_ID in the script to prefill the UUID.</p>'}
         `;
 
         document.body.innerHTML = '';
