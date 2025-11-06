@@ -133,7 +133,11 @@
       stimulus: `
         <div class="center">
           <h2>Welcome</h2>
-          <p>Please stare at the dot at the center of the screen. Afterwards, you will see a row of bars, and then moving dots. Using the left or right arrow keys, determine which direction the dots are moving in as fast as possible.</p>
+          <p>In this experiment, you will be shown a field of moving dots. Your task is to determine the overall direction of the motion.</p>
+          <p>The dots will be moving either LEFT or RIGHT.</p>
+          <p>Your full attention will be required for this experiment.</p>
+          <p>Please ensure you are in a quiet environment and minimize distractions.</p>
+          <p>All trials with an accuracy less than 80% will be rejected</p>
           <p>Press any key to begin.</p>
         </div>
       `
@@ -144,8 +148,10 @@
       stimulus: `
         <div class="center">
           <h2>Practice Session</h2>
-          <p>You will now complete 10 practice trials with just the RDK (no adaptor).</p>
+          <p>You will now complete 10 practice trials with just the random dots (no adaptor).</p>
           <p>This helps you get familiar with the task before the main experiment.</p>
+          <p>Please stare at the center of the screen for each trial.</p>
+          <p>Use the LEFT and RIGHT arrow keys to indicate the perceived direction of motion.</p>
           <p>You need to achieve at least 80% accuracy to proceed to the main experiment.</p>
           <p>Press any key to start practice.</p>
         </div>
@@ -676,116 +682,129 @@
     });
 
     async function showResultsAndMenu() {
-      cleanup();
+      cleanup();
+      
+      const data = jsPsych.data.get();
+      const tests = data.filter({ phase: 'test' });
+      const n = tests.count();
+      // This is the accuracy calculation you asked about (e.g., 90 for 90%)
+      const acc = n ? Math.round(tests.filter({ correct: true }).count() / n * 100) : 0;
+      const meanRt = Math.round(tests.select('rt').mean() || 0);
+      
+      // Build session metadata
+      const ua = navigator.userAgent || '';
+      const isWindows = /Windows/i.test(ua);
+      const isMac = /Macintosh|Mac OS X/i.test(ua);
+      const isLinux = /Linux/i.test(ua);
+      const osName = isWindows ? 'Windows' : isMac ? 'Mac' : isLinux ? 'Linux' : 'Unknown';
+      const browserName = /Edg\//.test(ua) ? 'Edge' : /Chrome\//.test(ua) ? 'Chrome' : /Firefox\//.test(ua) ? 'Firefox' : /Safari\//.test(ua) ? 'Safari' : 'Unknown';
+      const screenResolution = `${window.screen.width}x${window.screen.height}`;
+      const browserViewport = `${window.innerWidth}x${window.innerHeight}`;
+
+      const trialsMinimal = tests.values().map(t => ({
+        trial_index: t.trial_index,
+        rt: t.rt,
+        correct: t.correct,
+        response: (typeof t.response === 'string') ? (t.response.toLowerCase().includes('left') ? 'ArrowLeft' : 'ArrowRight') : t.response,
+        congruent: t.congruent,
+        adaptorDirection: t.adaptorDirection,
+        testDirection: t.testDirection
+      }));
+
+      const payload = {
+        experiment: 'motion-adaptation-rdk',
+        UUID: sessionUUID,
+        data: {
+          session: {
+            experiment_version: '1.0',
+            file_version: '1.0',
+            totalTrials: totalTrials,
+            session_group: 'default', // Added session group field
+            browserData: {
+              os: osName,
+              browser: browserName,
+              screenResolution: screenResolution,
+              browserViewport: browserViewport
+            },
+            calibration: {
+              monitorWidthCm: monitorWidthCm,
+              viewingDistanceCm: viewingDistanceCm,
+              pixelsPerDegree: Math.round((pixelsPerDegree || 0) * 10) / 10
+            },
+            parameters: {
+              coherence: coherence,
+              apertureDeg: apertureDeg,
+              dotSpeedDegPerSec: dotSpeedDegPerSec,
+              lifetimeMs: lifetimeMs,
+              fixationDurationMs: fixationDurationMs,
+              adaptorDurationMs: adaptorDurationMs,
+              testDurationMs: testDurationMs
+            },
+            mturk: {
+              assignmentId: MTURK.assignmentId,
+              workerId: MTURK.workerId,
+              hitId: MTURK.hitId
+            }
+          },
+          trials: trialsMinimal
+        }
+      };
+
+      // Data is sent regardless of accuracy, which is good for your records
+      let uploadResult = await sendDataToServer(payload, { timeoutMs: 8000, maxRetries: 2 });
+      let saveMsg = uploadResult.ok ? 'Saved to server.' : `Save failed (${uploadResult.status} ${uploadResult.statusText}).`;
+      
+      // (Other summary calculations - removed for brevity but they were here)
+      
+      const container = document.createElement('div');
+      container.className = 'center';
       
-      const data = jsPsych.data.get();
-      const tests = data.filter({ phase: 'test' });
-      const n = tests.count();
-      const acc = n ? Math.round(tests.filter({ correct: true }).count() / n * 100) : 0;
-      const meanRt = Math.round(tests.select('rt').mean() || 0);
-      
-      // Build session metadata
-      const ua = navigator.userAgent || '';
-      const isWindows = /Windows/i.test(ua);
-      const isMac = /Macintosh|Mac OS X/i.test(ua);
-      const isLinux = /Linux/i.test(ua);
-      const osName = isWindows ? 'Windows' : isMac ? 'Mac' : isLinux ? 'Linux' : 'Unknown';
-      const browserName = /Edg\//.test(ua) ? 'Edge' : /Chrome\//.test(ua) ? 'Chrome' : /Firefox\//.test(ua) ? 'Firefox' : /Safari\//.test(ua) ? 'Safari' : 'Unknown';
-      const screenResolution = `${window.screen.width}x${window.screen.height}`;
-      const browserViewport = `${window.innerWidth}x${window.innerHeight}`;
+      // *** START OF THE NEW LOGIC ***
+      if (acc >= 80) {
+        // SUCCESS: Accuracy is 80% or higher, show the form.
+        
+        const hasUuidEntry = typeof GOOGLE_FORM_ENTRY_ID === 'string' && GOOGLE_FORM_ENTRY_ID.trim().length > 0;
+        const params = new URLSearchParams();
+        params.set('usp', 'pp_url');
+        if (hasUuidEntry) params.set(`entry.${GOOGLE_FORM_ENTRY_ID}`, sessionUUID);
+        if (GOOGLE_FORM_ASSIGNMENT_ENTRY_ID) params.set(`entry.${GOOGLE_FORM_ASSIGNMENT_ENTRY_ID}`, MTURK.assignmentId || '');
+        if (GOOGLE_FORM_WORKER_ENTRY_ID) params.set(`entry.${GOOGLE_FORM_WORKER_ENTRY_ID}`, MTURK.workerId || '');
+        if (GOOGLE_FORM_HIT_ENTRY_ID) params.set(`entry.${GOOGLE_FORM_HIT_ENTRY_ID}`, MTURK.hitId || '');
+        const formUrl = `${GOOGLE_FORM_BASE_URL}?${params.toString()}`;
 
-      const trialsMinimal = tests.values().map(t => ({
-        trial_index: t.trial_index,
-        rt: t.rt,
-        correct: t.correct,
-        response: (typeof t.response === 'string') ? (t.response.toLowerCase().includes('left') ? 'ArrowLeft' : 'ArrowRight') : t.response,
-        congruent: t.congruent,
-        adaptorDirection: t.adaptorDirection,
-        testDirection: t.testDirection
-      }));
+        container.innerHTML = `
+          <h2 style="margin-bottom: 16px;">Experiment Complete</h2>
+          <p>Your overall accuracy was <strong>${acc}%</strong>.</p>
+          <p id="upload-status" style="margin-bottom: 16px;">${saveMsg}</p>
+          <p style="margin-bottom: 24px;">Please click the button below to open the final form and complete the experiment.</p>
+          <p><a id="btn-form" href="${formUrl}" target="_blank" rel="noopener noreferrer" style="display:inline-block; padding:10px 16px; background:#222; color:#fff; text-decoration:none; border-radius:6px;">Open Form</a></p>
+          ${hasUuidEntry ? '' : '<p style="margin-top:20px; font-size:14px; color:#ddd;">Note: Set GOOGLE_FORM_ENTRY_ID in the script to prefill the UUID.</p>'}
+        `;
 
-      const payload = {
-        experiment: 'motion-adaptation-rdk',
-        UUID: sessionUUID,
-        data: {
-          session: {
-            experiment_version: '1.0',
-            file_version: '1.0',
-            totalTrials: totalTrials,
-            session_group: 'default', // Added session group field
-            browserData: {
-              os: osName,
-              browser: browserName,
-              screenResolution: screenResolution,
-              browserViewport: browserViewport
-            },
-            calibration: {
-              monitorWidthCm: monitorWidthCm,
-              viewingDistanceCm: viewingDistanceCm,
-              pixelsPerDegree: Math.round((pixelsPerDegree || 0) * 10) / 10
-            },
-            parameters: {
-              coherence: coherence,
-              apertureDeg: apertureDeg,
-              dotSpeedDegPerSec: dotSpeedDegPerSec,
-              lifetimeMs: lifetimeMs,
-              fixationDurationMs: fixationDurationMs,
-              adaptorDurationMs: adaptorDurationMs,
-              testDurationMs: testDurationMs
-            },
-            mturk: {
-              assignmentId: MTURK.assignmentId,
-              workerId: MTURK.workerId,
-              hitId: MTURK.hitId
-            }
-          },
-          trials: trialsMinimal
-        }
-      };
+        document.body.innerHTML = '';
+        document.body.appendChild(container);
 
-      let uploadResult = await sendDataToServer(payload, { timeoutMs: 8000, maxRetries: 2 });
-      let saveMsg = uploadResult.ok ? 'Saved to server.' : `Save failed (${uploadResult.status} ${uploadResult.statusText}).`;
-      
-      const byDir = [0, 180].map(dir => {
-        const set = tests.filter({ testDirection: dir });
-        const nn = set.count();
-        const aa = nn ? Math.round(set.filter({ correct: true }).count() / nn * 100) : 0;
-        return `${dir === 0 ? 'Right' : 'Left'}: ${aa}% (n=${nn})`;
-      }).join(' | ');
-      
-      const cong = tests.filter({ congruent: true });
-      const incong = tests.filter({ congruent: false });
-      const rtCon = Math.round(cong.select('rt').mean() || 0);
-      const rtIncon = Math.round(incong.select('rt').mean() || 0);
-      const deltaRt = (rtCon && rtIncon) ? (rtCon - rtIncon) : 0;
-      
-      const hasUuidEntry = typeof GOOGLE_FORM_ENTRY_ID === 'string' && GOOGLE_FORM_ENTRY_ID.trim().length > 0;
-      const params = new URLSearchParams();
-      params.set('usp', 'pp_url');
-      if (hasUuidEntry) params.set(`entry.${GOOGLE_FORM_ENTRY_ID}`, sessionUUID);
-      if (GOOGLE_FORM_ASSIGNMENT_ENTRY_ID) params.set(`entry.${GOOGLE_FORM_ASSIGNMENT_ENTRY_ID}`, MTURK.assignmentId || '');
-      if (GOOGLE_FORM_WORKER_ENTRY_ID) params.set(`entry.${GOOGLE_FORM_WORKER_ENTRY_ID}`, MTURK.workerId || '');
-      if (GOOGLE_FORM_HIT_ENTRY_ID) params.set(`entry.${GOOGLE_FORM_HIT_ENTRY_ID}`, MTURK.hitId || '');
-      const formUrl = `${GOOGLE_FORM_BASE_URL}?${params.toString()}`;
+        // Optional improvement: auto-redirect to the form when upload succeeds
+        if (uploadResult.ok) {
+          window.location.href = formUrl;
+        }
 
-      const container = document.createElement('div');
-      container.className = 'center';
-      container.innerHTML = `
-        <h2 style="margin-bottom: 16px;">Continue</h2>
-        <p id="upload-status" style="margin-bottom: 16px;">${saveMsg}</p>
-        <p style="margin-bottom: 24px;">Click the button below to open the form.</p>
-        <p><a id="btn-form" href="${formUrl}" target="_blank" rel="noopener noreferrer" style="display:inline-block; padding:10px 16px; background:#222; color:#fff; text-decoration:none; border-radius:6px;">Open Form</a></p>
-        ${hasUuidEntry ? '' : '<p style="margin-top:20px; font-size:14px; color:#ddd;">Note: Set GOOGLE_FORM_ENTRY_ID in the script to prefill the UUID.</p>'}
-      `;
-
-      document.body.innerHTML = '';
-      document.body.appendChild(container);
-
-      // Optional improvement: auto-redirect to the form when upload succeeds
-      if (uploadResult.ok) {
-        window.location.href = formUrl;
+      } else {
+        // FAILURE: Accuracy is less than 80%, show a rejection message.
+        
+        container.innerHTML = `
+          <h2 style="margin-bottom: 16px;">Experiment Incomplete</h2>
+          <p>Your overall accuracy was <strong>${acc}%</strong>.</p>
+          <p>As stated in the instructions, an accuracy of 80% or higher is required to complete the experiment.</p>
+          <p>Your data has been saved, but you will not be redirected to the completion form.</p>
+          <p id="upload-status" style="margin-top: 20px;">${saveMsg}</p>
+        `;
+        
+        document.body.innerHTML = '';
+        document.body.appendChild(container);
       }
-    }
+      // *** END OF THE NEW LOGIC ***
+    }
 
     jsPsych.run(timeline).then(async () => {
       await showResultsAndMenu();
