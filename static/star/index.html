@@ -903,6 +903,8 @@
       // *** END OF THE NEW LOGIC ***
     }
 
-    jsPsych.run(timeline);
+    jsPsych.run(timeline).then(async () => {
+      await showResultsAndMenu();
+    });
   </script>
 </html>
