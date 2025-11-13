@@ -188,8 +188,20 @@
               signal: ctrl.signal
             });
             const text = await res.text();
-            const ok = res.ok && text.trim() === 'OK';
-            if (ok) return { ok: true, status: res.status, statusText: res.statusText, body: text };
+            // Try to interpret server response:
+            // - Some servers return plain 'OK' (legacy), others return JSON {status:'ok', saved:...}.
+            // Accept either as success. Log response for debugging.
+            console.log('Upload response text:', text);
+            let ok = false;
+            try {
+              const j = JSON.parse(text || '{}');
+              if (j && (j.status === 'ok' || j.saved)) ok = true;
+            } catch (e) {
+              // not JSON
+            }
+            if (!ok && text && text.trim() === 'OK') ok = true;
+
+            if (res.ok && ok) return { ok: true, status: res.status, statusText: res.statusText, body: text };
             lastError = { ok: false, status: res.status, statusText: res.statusText, body: text };
           } catch (err) {
             lastError = { ok: false, status: 0, statusText: String(err), body: '' };
@@ -307,16 +319,31 @@
     }
 
     // Instructions
+    const INSTR_IMAGES = {
+      stare: "https://raw.githubusercontent.com/BackyardBrains/schema.backyardbrains.com/main/static/star/img/Stare_spot.png",
+      stars: "https://raw.githubusercontent.com/BackyardBrains/schema.backyardbrains.com/main/static/star/img/Starfield.png"
+    };
+
     const instructions = {
       type: jsPsychHtmlKeyboardResponse,
       stimulus: `
         <div class="center">
           <h2>The Starfield Game</h2>
           <p>You will be shown a field of moving dots. Most dots are moving randomly, but a portion are moving either LEFT or RIGHT.</p>
-          <p>How fast can you spot the direction of the moving dots?</p>
+          <p>Please ignore the faces in the game — they are irrelevant to the task.</p>
           <p>Your full attention will be required for this experiment.</p>
-          <p>We will start with a few practice trials to help you get familiar with the game.</p>
-          <p>Press any key to continue.</p>
+          <p>Below are two images to help you understand the stimuli:</p>
+          <div style="display:flex; justify-content:space-around; align-items:center; margin:12px 0;">
+            <div style="text-align:center; max-width:48%;">
+              <img src="${INSTR_IMAGES.stars}" alt="Starfield" style="width:320px; height:auto; border:1px solid #333; background:#fff;">
+              <div style="color:#ddd; margin-top:6px;">Starfield (background)</div>
+            </div>
+            <div style="text-align:center; max-width:48%;">
+              <img src="${INSTR_IMAGES.stare}" alt="Stare dot" style="width:120px; height:auto; border:1px solid #333; background:#fff;">
+              <div style="color:#ddd; margin-top:6px;">Stare dot (focus)</div>
+            </div>
+          </div>
+          <p>We will start with a few practice trials to help you get familiar with the game. Press any key to continue.</p>
         </div>
       `,
       choices: 'ALL_KEYS'
@@ -963,13 +990,18 @@
     initGlobalCanvas();
 
     // Preload face/tree images then start experiment
+    const INSTR_IMAGES_URLS = [
+      INSTR_IMAGES.stare,
+      INSTR_IMAGES.stars
+    ];
+
     const imgsToPreload = FACE_IMAGE_PAIRS.reduce((acc, p) => {
       if (p.L) acc.push(p.L);
       if (p.R) acc.push(p.R);
       if (p.L_blindfold) acc.push(p.L_blindfold);
       if (p.R_blindfold) acc.push(p.R_blindfold);
       return acc;
-    }, []).concat(TREE_CANDIDATES).filter(Boolean);
+    }, []).concat(TREE_CANDIDATES).concat(INSTR_IMAGES_URLS).filter(Boolean);
 
     preloadImages(imgsToPreload).then(() => {
       // Pick the first tree candidate that actually loaded
