@@ -38,6 +38,25 @@
       .face-image, .tree-image {
         position: absolute;
       }
+      .viewport-center {
+        min-height: 100vh;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+      /* Force jsPsych wrappers to center content vertically */
+      .jspsych-display-element,
+      .jspsych-content-wrapper {
+        min-height: 100vh !important;
+        display: flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        padding: 0 !important;
+      }
+      .jspsych-content {
+        margin: 0 auto !important;
+        width: 100%;
+      }
     </style>
     <script src="https://unpkg.com/jspsych@latest/dist/index.browser.js"></script>
     <script src="https://unpkg.com/@jspsych/plugin-html-keyboard-response@latest/dist/index.browser.js"></script>
@@ -329,20 +348,19 @@
       stimulus: `
         <div class="center">
           <h2>The Starfield Game</h2>
-          <p>You will be shown a field of moving dots. Most dots are moving randomly, but a portion are moving either LEFT or RIGHT.</p>
-          <p>Please ignore the faces in the game — they are irrelevant to the task.</p>
-          <p>Your full attention will be required for this experiment.</p>
-          <p>Below are two images to help you understand the stimuli:</p>
+          <p>You job is to determine the over all direction of a moving field of stars. </p>
           <div style="display:flex; justify-content:space-around; align-items:center; margin:12px 0;">
             <div style="text-align:center; max-width:48%;">
-              <img src="${INSTR_IMAGES.stars}" alt="Starfield" style="width:320px; height:auto; border:1px solid #333; background:#fff;">
-              <div style="color:#ddd; margin-top:6px;">Starfield (background)</div>
+              <img src="${INSTR_IMAGES.stare}" alt="Stare dot" style="width:120px; height:auto; border:1px solid #333;">
+              <div style="color:#ddd; margin-top:6px;">Start by staring here.</div>
             </div>
             <div style="text-align:center; max-width:48%;">
-              <img src="${INSTR_IMAGES.stare}" alt="Stare dot" style="width:120px; height:auto; border:1px solid #333; background:#fff;">
-              <div style="color:#ddd; margin-top:6px;">Stare dot (focus)</div>
+              <img src="${INSTR_IMAGES.stars}" alt="Starfield" style="width:120px; height:auto; border:1px solid #333;">
+              <div style="color:#ddd; margin-top:6px;">Maintain your gaze, and focus on the stars</div>
             </div>
+            
           </div>
+          <p>When you notice the star direction, quickly press the LEFT or RIGHT arrow key to indicate the where the stars are moving.</p>
           <p>We will start with a few practice trials to help you get familiar with the game. Press any key to continue.</p>
         </div>
       `,
@@ -354,7 +372,7 @@
       stimulus: `
         <div class="center">
           <h2>Practice Session</h2>
-          <p>You will now complete 10 practice trials with just the random dots.</p>
+          <p>You will now complete 10 practice trials.</p>
           <p>Please stare at the center of the screen for each trial.</p>
           <p>Use the LEFT and RIGHT arrow keys to indicate the perceived direction of motion.</p>
           <p>You need to achieve at least 80% accuracy to proceed to the main experiment.</p>
@@ -374,7 +392,7 @@
         trial_duration: fixationDurationMs,
         stimulus: () => {
           const canvas = initGlobalCanvas(width, height);
-          return canvas.outerHTML;
+          return `<div class="viewport-center">${canvas.outerHTML}</div>`;
         },
         on_load: () => {
           cleanup();
@@ -433,9 +451,11 @@
             `<div style="position:absolute; left:${faceX}px; top:${centerY-60}px;">${generateFaceSVG(eyesOpen, faceOnLeft)}</div>`;
 
           return `
-            <div class="stimulus-container" style="width:${width}px; height:${height}px; position:relative;">
-              ${faceHTML}
-              ${treeHTML}
+            <div class="viewport-center">
+              <div class="stimulus-container" style="width:${width}px; height:${height}px; position:relative;">
+                ${faceHTML}
+                ${treeHTML}
+              </div>
             </div>
           `;
         },
@@ -479,7 +499,7 @@
         response_ends_trial: true,
         stimulus: () => {
           const canvas = initGlobalCanvas(width, height);
-          return canvas.outerHTML;
+          return `<div class="viewport-center">${canvas.outerHTML}</div>`;
         },
         on_load: () => {
           cleanup();
@@ -768,10 +788,10 @@
         <div class="center">
           <h2>Practice Session Complete</h2>
           <p>Great job! You've successfully completed the practice session.</p>
-          <p>Now you'll proceed to the main game, this time with some faces in the background.</p>
-          <p>The game is the same, focus on the center dot, then quickly respond to the direction of the moving dots.</p>
+          <p>Now you'll proceed to the main game. Keep your eyes on the center dot, and ignore the faces and tree images.</p>
+          <p>Dont move your eyes, and quickly respond to the direction of the moving dots.</p>
           <p>You will need to achieve at least 80% accuracy for the task to be approved.</p>
-          <p>Press any key to begin.</p>
+          <p><b>Press any key to begin.</b></p>
         </div>
       `,
       choices: 'ALL_KEYS'
@@ -779,7 +799,7 @@
 
     // MODIFIED: Build main experimental trials with balanced conditions
     const experimentalSpecs = [];
-    const trialsPerCondition = 15; // 15 × 4 = 60 total trials
+    const trialsPerCondition = 12; // 15 × 4 = 60 total trials
 
     for (let i = 0; i < trialsPerCondition; i++) {
       experimentalSpecs.push({ eyesOpen: true, congruent: true, faceOnLeft: Math.random() < 0.5 });
@@ -879,9 +899,9 @@
         UUID: sessionUUID,
         data: {
           session: {
-            experiment_version: '1.2',
+            experiment_version: '1.3',
             treatment: 'faces',
-            file_version: '1.2',
+            file_version: '1.3',
             totalTrials: n,
             session_group: 'default',
             browserData: {
