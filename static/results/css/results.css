@@ -345,10 +345,12 @@ aside.preview {
   flex-direction: column;
   box-shadow: -8px 0 24px rgba(0, 0, 0, 0.08);
   z-index: 10;
+  visibility: hidden;
 }
 
 aside.preview[aria-hidden="false"] {
   transform: translateX(0);
+  visibility: visible;
 }
 
 .preview-header {

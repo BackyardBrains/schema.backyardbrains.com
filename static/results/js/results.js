@@ -88,9 +88,7 @@
     updateUrlAndDownload();
     const isLoggedIn = await checkSession();
     if (!isLoggedIn){
-      els.stats.textContent = 'Please log in to view results';
-      els.tableBody.innerHTML = '';
-      if (els.filters) els.filters.style.display = 'none';
+      window.location.href = '/api/auth/login?next=' + encodeURIComponent(location.pathname + location.search);
       return;
     }
     const url = '/api/results/list?' + new URLSearchParams(location.search).toString();
