@@ -36,7 +36,8 @@
     logout: document.getElementById('logout'),
     filters: document.getElementById('filters'),
     guestBanner: document.getElementById('guestBanner'),
-    resultsSection: document.querySelector('.results')
+    resultsSection: document.querySelector('.results'),
+    note: document.querySelector('.note')
   };
 
   function setWhoami(user) {
@@ -92,6 +93,7 @@
     if (els.resultsSection) els.resultsSection.style.display = isLoggedIn ? 'block' : 'none';
     if (els.stats) els.stats.style.display = isLoggedIn ? 'block' : 'none';
     if (els.downloadAll) els.downloadAll.style.display = isLoggedIn ? 'inline-block' : 'none';
+    if (els.note) els.note.style.display = isLoggedIn ? 'block' : 'none';
   }
 
   async function load() {
