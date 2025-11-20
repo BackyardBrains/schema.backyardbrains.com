@@ -79,20 +79,20 @@
     </thead>
     <tbody id="resultsBody"></tbody>
   </table>
+
+  <!-- MOVED INSIDE .results -->
+  <aside class="preview" id="previewPanel" aria-hidden="true">
+    <div class="preview-header">
+      <strong id="previewTitle">Preview</strong>
+      <div class="preview-actions">
+        <button id="wrapToggle" class="btn" title="Toggle wrap">Wrap</button>
+        <button id="copyPreview" class="btn" title="Copy to clipboard">Copy</button>
+        <a id="downloadPreview" class="btn link" href="#" download title="Download JSON">Download</a>
+        <button id="closePreview" title="Close">×</button>
+      </div>
+    </div>
+    <pre id="previewJson" class="json"></pre>
+  </aside>
 </section>
 
-<aside class="preview" id="previewPanel" aria-hidden="true">
-  <div class="preview-header">
-    <strong id="previewTitle">Preview</strong>
-    <div class="preview-actions">
-      <button id="wrapToggle" class="btn" title="Toggle wrap">Wrap</button>
-      <button id="copyPreview" class="btn" title="Copy to clipboard">Copy</button>
-      <a id="downloadPreview" class="btn link" href="#" download title="Download JSON">Download</a>
-      <button id="closePreview" title="Close">×</button>
-    </div>
-  </div>
-  <pre id="previewJson" class="json"></pre>
-</aside>
-
 <script src="/results/js/results.js"></script>
-

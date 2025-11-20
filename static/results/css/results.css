@@ -1,264 +1,386 @@
 :root {
-    /* BYB palette */
-    --fg: #000000;               /* Dark */
-    --muted: #707070;            /* Grey Text */
-    --bg: #f5f5f5;               /* Light Grey Background */
-    --card-bg: #ffffff;          /* White */
-    --line: #e9e9e9;             /* Div Line */
-    --accent: #ff805f;           /* Ambiguous Orange (primary) */
-    --accent-hover: #f07859;     /* Hover Orange */
-    --accent-soft: #ffe3db;      /* Light Tinted Orange */
-  }
-  
-  * {
-    box-sizing: border-box;
-  }
-  
-  html,
-  body {
-    margin: 0;
-    padding: 0;
-    background: var(--bg);
-    color: var(--fg);
-    font: 14px/1.4 system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
-  }
-  
-  /* ------- PAGE SHELL (HEADER) ------- */
-  
-  header.page-header {
-    max-width: 1120px;
-    margin: 24px auto 8px auto;
-    padding: 24px 32px 16px 32px;
-    background: var(--card-bg);
-    border-radius: 12px;
-    border: 1px solid var(--line);
-  }
-  
-  header.page-header h1 {
-    margin: 0 0 4px 0;
-    font-size: 24px;
-    line-height: 1.25;
-  }
-  
-  header .stats {
-    color: var(--muted);
-    margin: 4px 0;
-    font-size: 13px;
-  }
-  
-  header .download {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    margin: 12px 0 4px 0;
-    padding: 8px 14px;
-    border-radius: 8px;
-    border: none;
-    background: var(--accent);
-    color: #ffffff;
-    font-size: 13px;
-    text-decoration: none;
-    cursor: pointer;
-  }
-  
-  header .download:hover {
-    background: var(--accent-hover);
-  }
-  
-  header .note {
-    color: var(--muted);
-    font-size: 12px;
-    margin-top: 4px;
-  }
-  
-  header .auth-actions {
-    margin-top: 8px;
-    display: flex;
-    align-items: center;
-    gap: 8px;
-  }
-  
-  /* ghost-style buttons for auth */
-  header .auth-actions .btn {
-    padding: 6px 10px;
-    border-radius: 8px;
-    border: 1px solid var(--line);
-    background: #ffffff;
-    font-size: 13px;
-    cursor: pointer;
-  }
-  
-  header .auth-actions .btn:hover {
-    background: #f9f9f9;
-  }
-  
-  /* style the <hr> inside header so it matches BYB line */
-  header.page-header hr {
-    margin: 16px -32px 0 -32px;
-    border: none;
-    border-top: 1px solid var(--line);
-  }
-  
-  /* ------- FILTER CARD ------- */
-  
-  .filters {
-    max-width: 1120px;
-    margin: 0 auto 12px auto;
-    padding: 20px 32px 16px 32px;
-    background: var(--card-bg);
-    border-radius: 12px;
-    border: 1px solid var(--line);
-  }
-  
-  .filters .row {
-    display: flex;
-    gap: 16px;
-    flex-wrap: wrap;
-    margin: 8px 0;
-  }
-  
-  .filters label {
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-    min-width: 180px;
-    font-size: 13px;
-    color: var(--fg);
-  }
-  
-  .filters input,
-  .filters select {
-    padding: 8px 10px;
-    border: 1px solid var(--line);
-    border-radius: 8px;
-    background: #ffffff;
-    font-size: 13px;
-  }
-  
-  /* focus in BYB accent */
-  .filters input:focus,
-  .filters select:focus {
-    outline: 2px solid var(--accent-soft);
-    outline-offset: 0;
-    border-color: var(--accent);
-  }
-  
-  /* actions row: primary + secondary */
-  .filters .actions {
-    margin-top: 12px;
-    display: flex;
-    gap: 10px;
-    justify-content: flex-end;
-  }
-  
-  .filters button {
-    padding: 8px 14px;
-    border-radius: 8px;
-    font-size: 13px;
-    cursor: pointer;
-    border: 1px solid var(--line);
-  }
-  
-  /* secondary / ghost */
-  #reset {
-    background: #ffffff;
-    color: var(--fg);
-  }
-  
-  #reset:hover {
-    background: #f9f9f9;
-  }
-  
-  /* primary orange */
-  #apply {
-    border-color: transparent;
-    background: var(--accent);
-    color: #ffffff;
-  }
-  
-  #apply:hover {
-    background: var(--accent-hover);
-  }
-  
-  /* also treat admin search button as a primary action */
-  #search {
-    border-color: transparent;
-    background: var(--accent);
-    color: #ffffff;
-  }
-  
-  #search:hover {
-    background: var(--accent-hover);
-  }
-  
-  /* ------- RESULTS / ADMIN TABLE CARD ------- */
-  
-  .results,
-  #adminPanel {
-    max-width: 1120px;
-    margin: 0 auto 24px auto;
-    padding: 20px 32px 24px 32px;
-    background: var(--card-bg);
-    border-radius: 12px;
-    border: 1px solid var(--line);
-  }
-  
-  #adminPanel .row:first-child {
-    margin-bottom: 4px;
-  }
-  
-  #adminPanel .stats {
-    margin-top: 8px;
-    font-size: 13px;
-    color: var(--muted);
-  }
-  
-  table {
-    width: 100%;
-    border-collapse: collapse;
-    font-size: 13px;
-  }
-  
-  th,
-  td {
-    padding: 10px 8px;
-    border-bottom: 1px solid var(--line);
-    text-align: left;
-  }
-  
-  th {
-    background: #f5f5f5;
-    font-weight: 500;
-  }
-  
-  td.num {
-    text-align: right;
-  }
-  
-  tr:hover td {
-    background: var(--accent-soft);
-  }
-  
-  /* generic button style (non-primary) */
-  
-  .btn {
-    padding: 6px 10px;
-    border: 1px solid var(--line);
-    border-radius: 8px;
-    background: #ffffff;
-    cursor: pointer;
-    font-size: 13px;
-  }
-  
-  .btn:hover {
-    background: #f9f9f9;
-  }
-  
-  .btn.link {
-    background: transparent;
-    color: var(--accent);
-    border: none;
-    padding: 0;
-  }
-  
-  /* grant button in admin table = secondary style, but
+  /* BYB palette */
+  --fg: #000000;               /* Dark */
+  --muted: #707070;            /* Grey Text */
+  --bg: #f5f5f5;               /* Light Grey Background */
+  --card-bg: #ffffff;          /* White */
+  --line: #e9e9e9;             /* Div Line */
+  --accent: #ff805f;           /* Ambiguous Orange (primary) */
+  --accent-hover: #f07859;     /* Hover Orange */
+  --accent-soft: #ffe3db;      /* Light Tinted Orange */
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  background: var(--bg);
+  color: var(--fg);
+  font: 14px/1.4 system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+}
+
+/* ------- PAGE SHELL (HEADER) ------- */
+
+header.page-header {
+  max-width: 1120px;
+  margin: 24px auto 8px auto;
+  padding: 24px 32px 16px 32px;
+  background: var(--card-bg);
+  border-radius: 12px;
+  border: 1px solid var(--line);
+}
+
+header.page-header h1 {
+  margin: 0 0 4px 0;
+  font-size: 24px;
+  line-height: 1.25;
+}
+
+header .stats {
+  color: var(--muted);
+  margin: 4px 0;
+  font-size: 13px;
+}
+
+header .download {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin: 12px 0 4px 0;
+  padding: 8px 14px;
+  border-radius: 8px;
+  border: none;
+  background: var(--accent);
+  color: #ffffff;
+  font-size: 13px;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+header .download:hover {
+  background: var(--accent-hover);
+}
+
+header .note {
+  color: var(--muted);
+  font-size: 12px;
+  margin-top: 4px;
+}
+
+header .auth-actions {
+  margin-top: 8px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* ghost-style buttons for auth */
+header .auth-actions .btn {
+  padding: 6px 10px;
+  border-radius: 8px;
+  border: 1px solid var(--line);
+  background: #ffffff;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+header .auth-actions .btn:hover {
+  background: #f9f9f9;
+}
+
+/* style <hr> inside header like BYB divider */
+header.page-header hr {
+  margin: 16px -32px 0 -32px;
+  border: none;
+  border-top: 1px solid var(--line);
+}
+
+/* ------- FILTER CARD ------- */
+
+.filters {
+  max-width: 1120px;
+  margin: 0 auto 12px auto;
+  padding: 20px 32px 16px 32px;
+  background: var(--card-bg);
+  border-radius: 12px;
+  border: 1px solid var(--line);
+}
+
+.filters .row {
+  display: flex;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin: 8px 0;
+}
+
+.filters label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 180px;
+  font-size: 13px;
+  color: var(--fg);
+}
+
+.filters input,
+.filters select {
+  padding: 8px 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #ffffff;
+  font-size: 13px;
+}
+
+/* focus in BYB accent */
+.filters input:focus,
+.filters select:focus {
+  outline: 2px solid var(--accent-soft);
+  outline-offset: 0;
+  border-color: var(--accent);
+}
+
+/* actions row: primary + secondary */
+.filters .actions {
+  margin-top: 12px;
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end;
+}
+
+.filters button {
+  padding: 8px 14px;
+  border-radius: 8px;
+  font-size: 13px;
+  cursor: pointer;
+  border: 1px solid var(--line);
+}
+
+/* secondary / ghost */
+#reset {
+  background: #ffffff;
+  color: var(--fg);
+}
+
+#reset:hover {
+  background: #f9f9f9;
+}
+
+/* primary orange */
+#apply {
+  border-color: transparent;
+  background: var(--accent);
+  color: #ffffff;
+}
+
+#apply:hover {
+  background: var(--accent-hover);
+}
+
+/* admin search button as primary */
+#search {
+  border-color: transparent;
+  background: var(--accent);
+  color: #ffffff;
+}
+
+#search:hover {
+  background: var(--accent-hover);
+}
+
+/* ------- RESULTS / ADMIN TABLE CARD ------- */
+
+.results,
+#adminPanel {
+  max-width: 1120px;
+  margin: 0 auto 24px auto;
+  padding: 20px 32px 24px 32px;
+  background: var(--card-bg);
+  border-radius: 12px;
+  border: 1px solid var(--line);
+}
+
+/* results card as positioning context for preview drawer */
+.results {
+  position: relative;
+}
+
+#adminPanel .row:first-child {
+  margin-bottom: 4px;
+}
+
+#adminPanel .stats {
+  margin-top: 8px;
+  font-size: 13px;
+  color: var(--muted);
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+th,
+td {
+  padding: 10px 8px;
+  border-bottom: 1px solid var(--line);
+  text-align: left;
+}
+
+th {
+  background: #f5f5f5;
+  font-weight: 500;
+}
+
+td.num {
+  text-align: right;
+}
+
+tr:hover td {
+  background: var(--accent-soft);
+}
+
+/* generic button style (non-primary) */
+
+.btn {
+  padding: 6px 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #ffffff;
+  cursor: pointer;
+  font-size: 13px;
+}
+
+.btn:hover {
+  background: #f9f9f9;
+}
+
+.btn.link {
+  background: transparent;
+  color: var(--accent);
+  border: none;
+  padding: 0;
+}
+
+/* grant button in admin table = secondary */
+#results .btn {
+  border-color: var(--line);
+  background: #ffffff;
+  color: var(--fg);
+}
+
+#results .btn:hover {
+  background: #f9f9f9;
+}
+
+/* ------- PREVIEW DRAWER (attached to results card) ------- */
+
+aside.preview {
+  position: absolute;
+  top: 0;
+  right: 0;
+  height: 100%;
+  width: 44%;
+  max-width: 720px;
+  min-width: 320px;
+  border-left: 1px solid var(--line);
+  background: #ffffff;
+  transform: translateX(100%);
+  transition: transform 0.2s ease;
+  display: flex;
+  flex-direction: column;
+  box-shadow: -8px 0 24px rgba(0, 0, 0, 0.08);
+  z-index: 10;
+}
+
+aside.preview[aria-hidden="false"] {
+  transform: translateX(0);
+}
+
+.preview-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--line);
+}
+
+.preview-header button {
+  font-size: 16px;
+  line-height: 1;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+}
+
+.preview-header .preview-actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.preview-header .btn {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #ffffff;
+  padding: 4px 8px;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.preview-header .btn:hover {
+  background: #f9f9f9;
+}
+
+.preview-header .btn.link {
+  background: transparent;
+  color: var(--accent);
+  border: none;
+  padding: 0 2px;
+}
+
+/* ------- JSON AREA ------- */
+
+.json {
+  margin: 0;
+  padding: 14px;
+  overflow: auto;
+  white-space: pre;
+  background: #0f172a;
+  color: #e2e8f0;
+  border-top: 1px solid var(--line);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
+    "Liberation Mono", "Courier New", monospace;
+  font-size: 12px;
+  line-height: 1.45;
+  flex: 1 1 auto;
+}
+
+.json.wrap {
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.json .key {
+  color: #7dd3fc;
+}
+
+.json .string {
+  color: #a7f3d0;
+}
+
+.json .number {
+  color: #fca5a5;
+}
+
+.json .boolean {
+  color: #fde68a;
+}
+
+.json .null {
+  color: #c4b5fd;
+}
