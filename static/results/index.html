@@ -4,95 +4,105 @@
 <title>Experiment Results</title>
 <link rel="stylesheet" href="/results/css/results.css">
 
-<header class="page-header">
-  <h1>Experiment Results</h1>
-  <div id="stats" class="stats">Matched: 0 • Size: 0 KB</div>
-  <a id="downloadAll" class="download" href="#" download>Download all (ZIP)</a>
-  <div class="note">Tip: use patterns like <code>posner_*.json</code></div>
-  <div class="auth-actions">
-    <button id="login" class="btn">Log in</button>
-    <button id="logout" class="btn" style="display:none">Log out</button>
-    <span id="whoami" style="margin-left:10px;color:#666"></span>
-  </div>
-  <hr>
-</header>
+<body>
 
-<section class="filters" id="filters">
-  <div class="row">
-    <label>
-      Pattern
-      <input id="pattern" type="text" placeholder="e.g. posner_*.json">
-    </label>
-    <label>
-      Since
-      <input id="since" type="datetime-local">
-    </label>
-    <label>
-      Until
-      <input id="until" type="datetime-local">
-    </label>
-  </div>
-  <div class="row">
-    <label>
-      Min size (bytes)
-      <input id="min_size" type="number" min="0" step="1" placeholder="0">
-    </label>
-    <label>
-      Max size (bytes)
-      <input id="max_size" type="number" min="0" step="1" placeholder="">
-    </label>
-    <label>
-      Sort
-      <select id="sort">
-        <option value="date">date</option>
-        <option value="name">name</option>
-        <option value="size">size</option>
-      </select>
-    </label>
-    <label>
-      Order
-      <select id="order">
-        <option value="desc">desc</option>
-        <option value="asc">asc</option>
-      </select>
-    </label>
-    <label>
-      Limit
-      <input id="limit" type="number" min="1" step="1" value="200">
-    </label>
-  </div>
-  <div class="actions">
-    <button id="apply">Apply</button>
-    <button id="reset">Reset</button>
-  </div>
-</section>
-
-<section class="results">
-  <table id="resultsTable">
-    <thead>
-      <tr>
-        <th>Name</th>
-        <th class="num">Size</th>
-        <th>Modified</th>
-        <th>Actions</th>
-      </tr>
-    </thead>
-    <tbody id="resultsBody"></tbody>
-  </table>
-
-  <!-- MOVED INSIDE .results -->
-  <aside class="preview" id="previewPanel" aria-hidden="true">
-    <div class="preview-header">
-      <strong id="previewTitle">Preview</strong>
-      <div class="preview-actions">
-        <button id="wrapToggle" class="btn" title="Toggle wrap">Wrap</button>
-        <button id="copyPreview" class="btn" title="Copy to clipboard">Copy</button>
-        <a id="downloadPreview" class="btn link" href="#" download title="Download JSON">Download</a>
-        <button id="closePreview" title="Close">×</button>
-      </div>
+  <div class="app-bar">
+    <div class="app-bar-left">
+      <span class="app-logo">BYB</span>
+      <a href="/results/" class="app-nav-link app-nav-link--active">Results</a>
+      <a href="/admin/" id="adminLink" class="app-nav-link" style="display:none">Admin</a>
     </div>
-    <pre id="previewJson" class="json"></pre>
-  </aside>
-</section>
+    <div class="app-bar-right">
+      <span id="whoami" class="app-user"></span>
+      <button id="login" class="btn app-bar-btn">Log in</button>
+      <button id="logout" class="btn app-bar-btn" style="display:none">Log out</button>
+    </div>
+  </div>
 
-<script src="/results/js/results.js"></script>
+  <header class="page-header">
+    <h1>Experiment Results</h1>
+    <div id="stats" class="stats">Matched: 0 • Size: 0 KB</div>
+    <a id="downloadAll" class="download" href="#" download>Download all (ZIP)</a>
+    <div class="note">Tip: use patterns like <code>posner_*.json</code></div>
+    <hr>
+  </header>
+
+  <section class="filters" id="filters">
+    <div class="row">
+      <label>
+        Pattern
+        <input id="pattern" type="text" placeholder="e.g. posner_*.json">
+      </label>
+      <label>
+        Since
+        <input id="since" type="datetime-local">
+      </label>
+      <label>
+        Until
+        <input id="until" type="datetime-local">
+      </label>
+    </div>
+    <div class="row">
+      <label>
+        Min size (bytes)
+        <input id="min_size" type="number" min="0" step="1" placeholder="0">
+      </label>
+      <label>
+        Max size (bytes)
+        <input id="max_size" type="number" min="0" step="1" placeholder="">
+      </label>
+      <label>
+        Sort
+        <select id="sort">
+          <option value="date">date</option>
+          <option value="name">name</option>
+          <option value="size">size</option>
+        </select>
+      </label>
+      <label>
+        Order
+        <select id="order">
+          <option value="desc">desc</option>
+          <option value="asc">asc</option>
+        </select>
+      </label>
+      <label>
+        Limit
+        <input id="limit" type="number" min="1" step="1" value="200">
+      </label>
+    </div>
+    <div class="actions">
+      <button id="apply">Apply</button>
+      <button id="reset">Reset</button>
+    </div>
+  </section>
+
+  <section class="results">
+    <table id="resultsTable">
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th class="num">Size</th>
+          <th>Modified</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody id="resultsBody"></tbody>
+    </table>
+
+    <aside class="preview" id="previewPanel" aria-hidden="true">
+      <div class="preview-header">
+        <strong id="previewTitle">Preview</strong>
+        <div class="preview-actions">
+          <button id="wrapToggle" class="btn" title="Toggle wrap">Wrap</button>
+          <button id="copyPreview" class="btn" title="Copy to clipboard">Copy</button>
+          <a id="downloadPreview" class="btn link" href="#" download title="Download JSON">Download</a>
+          <button id="closePreview" title="Close">×</button>
+        </div>
+      </div>
+      <pre id="previewJson" class="json"></pre>
+    </aside>
+  </section>
+
+  <script src="/results/js/results.js"></script>
+</body>
