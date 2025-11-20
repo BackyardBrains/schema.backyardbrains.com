@@ -37,7 +37,8 @@
     filters: document.getElementById('filters'),
     guestBanner: document.getElementById('guestBanner'),
     resultsSection: document.querySelector('.results'),
-    note: document.querySelector('.note')
+    note: document.querySelector('.note'),
+    adminLink: document.getElementById('adminLink')
   };
 
   function setWhoami(user) {
@@ -242,12 +243,28 @@
       const res = await fetch('/api/auth/me', { credentials: 'same-origin' });
       if (!res.ok) { toggleAuthButtons(false); setWhoami(null); return false; }
       const data = await res.json();
-      toggleAuthButtons(Boolean(data && data.authenticated));
+      const authenticated = Boolean(data && data.authenticated);
+      toggleAuthButtons(authenticated);
       setWhoami(data && data.user);
-      return Boolean(data && data.authenticated);
+
+      // Check for admin permissions
+      if (authenticated && data.permissions) {
+        const perms = data.permissions;
+        // Show admin link if user has read:users OR schema:read:users
+        if (perms.includes('read:users') || perms.includes('schema:read:users')) {
+          if (els.adminLink) els.adminLink.style.display = 'inline-block';
+        } else {
+          if (els.adminLink) els.adminLink.style.display = 'none';
+        }
+      } else {
+        if (els.adminLink) els.adminLink.style.display = 'none';
+      }
+
+      return authenticated;
     } catch {
       toggleAuthButtons(false);
       setWhoami(null);
+      if (els.adminLink) els.adminLink.style.display = 'none';
       return false;
     }
   }

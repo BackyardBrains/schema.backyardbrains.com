@@ -295,7 +295,18 @@ def auth_me():
     user = session.get('user')
     if not user:
         return jsonify({"authenticated": False}), 401
-    return jsonify({"authenticated": True, "user": user})
+    
+    permissions = []
+    token = session.get('access_token')
+    if token:
+        try:
+            payload = _verify_auth0_jwt(token)
+            permissions = payload.get('permissions', [])
+        except Exception:
+            # Token might be expired or invalid; just return empty perms
+            pass
+
+    return jsonify({"authenticated": True, "user": user, "permissions": permissions})
 
 
 def _has_scope(payload: dict, required_scope: str) -> bool:
