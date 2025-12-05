@@ -1,0 +1,813 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>Motion Adaptation RDK — Fixed Implementation</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <link rel="stylesheet" href="https://unpkg.com/jspsych@latest/css/jspsych.css">
+    <style>
+      html, body { margin: 0; padding: 0; height: 100%; background: #808080; }
+      #rdk-canvas { display: block; margin: 0 auto; background: #808080; }
+      .center { color: #ddd; max-width: 800px; margin: 40px auto; line-height: 1.6; }
+      .center h2, .center h3 { color: #fff; }
+    </style>
+    <script src="https://unpkg.com/jspsych@latest/dist/index.browser.js"></script>
+    <script src="https://unpkg.com/@jspsych/plugin-html-keyboard-response@latest/dist/index.browser.js"></script>
+  </head>
+  <body></body>
+  <script>
+    const jsPsych = initJsPsych({});
+
+    // Configure Google Form prefill
+    // Set this to the entry ID of the short-answer question where you want the UUID stored.
+    // To find it: open the form > three dots > Get pre-filled link > type TEST > Get link,
+    // copy the URL and extract the number after entry. (e.g., entry.1234567890=TEST => use "1234567890").
+    const GOOGLE_FORM_BASE_URL = 'https://docs.google.com/forms/d/e/1FAIpQLSfJp6FP8ymot3W0--0X68F6sNXEma7mvi0HaC12aqIOUe7_aw/viewform';
+    const GOOGLE_FORM_ENTRY_ID = '766586855';
+    // Optional: set entry IDs for MTurk fields if you have corresponding questions in the form
+    const GOOGLE_FORM_ASSIGNMENT_ENTRY_ID = '745233423';
+    const GOOGLE_FORM_WORKER_ENTRY_ID = '1010214125';
+    const GOOGLE_FORM_HIT_ENTRY_ID = '';
+
+    // Capture MTurk params from query string
+    function getParam(name) {
+      const m = new URLSearchParams(location.search).get(name);
+      return m ? decodeURIComponent(m) : '';
+    }
+    const MTURK = {
+      assignmentId: getParam('assignmentId'),
+      workerId: getParam('workerId'),
+      hitId: getParam('hitId')
+    };
+
+    let pixelsPerDegree = null;
+    let monitorWidthCm = 38; // captured from calibration
+    let viewingDistanceCm = 54; // captured from calibration
+    const apertureDeg = 5;
+    const densityDotsPerDeg2 = 50;
+    const dotDiameterDeg = 0.05;
+    const dotSpeedDegPerSec = 2;
+    const lifetimeMs = 200;
+    const coherence = 0.40;
+    const interleavedSets = 3;
+
+    const fixationDurationMs = 1500;
+    const adaptorDurationMs = 1500;
+    const testDurationMs = 2000;
+    const itiMinMs = 1000;
+    const itiMaxMs = 2000;
+
+    // Global canvas and context to reuse
+    let globalCanvas = null;
+    let globalCtx = null;
+    let currentRafId = null;
+
+    const timeline = [];
+
+    // Helpers for data upload
+    function generateUUID() {
+      return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+        const r = Math.random() * 16 | 0;
+        const v = c === 'x' ? r : (r & 0x3 | 0x8);
+        return v.toString(16);
+      });
+    }
+
+    // Single session UUID for consistent file naming
+    const sessionUUID = generateUUID();
+
+    async function sendDataToServer(payload, { timeoutMs = 8000, maxRetries = 2 } = {}) {
+      const ctrl = new AbortController();
+      const t = setTimeout(() => ctrl.abort(), timeoutMs);
+      try {
+        let attempt = 0;
+        let lastError = null;
+        const backoff = (n) => new Promise(r => setTimeout(r, Math.min(2000, 300 * Math.pow(2, n))));
+        while (attempt <= maxRetries) {
+          try {
+            const res = await fetch('https://schema.backyardbrains.com/data', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(payload),
+              signal: ctrl.signal
+            });
+            const text = await res.text();
+            const ok = res.ok && text.trim() === 'OK';
+            if (ok) return { ok: true, status: res.status, statusText: res.statusText, body: text };
+            lastError = { ok: false, status: res.status, statusText: res.statusText, body: text };
+          } catch (err) {
+            lastError = { ok: false, status: 0, statusText: String(err), body: '' };
+          }
+          attempt += 1;
+          if (attempt <= maxRetries) {
+            await backoff(attempt - 1);
+          }
+        }
+        return lastError || { ok: false, status: 0, statusText: 'Unknown error', body: '' };
+      } finally {
+        clearTimeout(t);
+      }
+    }
+
+    function initGlobalCanvas(width = 800, height = 800) {
+      if (!globalCanvas) {
+        globalCanvas = document.createElement('canvas');
+        globalCanvas.id = 'rdk-canvas';
+        globalCanvas.width = width;
+        globalCanvas.height = height;
+        globalCtx = globalCanvas.getContext('2d');
+        globalCtx.imageSmoothingEnabled = false;
+      }
+      return globalCanvas;
+    }
+
+    function cleanup() {
+      if (currentRafId) {
+        cancelAnimationFrame(currentRafId);
+        currentRafId = null;
+      }
+    }
+
+    const instructions = {
+      type: jsPsychHtmlKeyboardResponse,
+      stimulus: `
+        <div class="center">
+          <h2>Starfield Experiment</h2>
+          <p>In this task, you will be shown a field of moving stars and determine their overall direction.</p>
+          <p>The stars will be moving either LEFT or RIGHT.</p>
+          <p>Your full attention will be required for this task.</p>
+          <p>Please ensure you are in a quiet environment and minimize distractions.</p>
+          <p>All trials with an accuracy less than 80% will be rejected</p>
+          <p>Press any key to begin.</p>
+        </div>
+      `
+    };
+
+    const practiceInstructions = {
+      type: jsPsychHtmlKeyboardResponse,
+      stimulus: `
+        <div class="center">
+          <h2>Practice Session</h2>
+          <p>You will now complete 10 practice trials with just the random stars (no adaptor).</p>
+          <p>This helps you get familiar with the task before the main experiment.</p>
+          <p>Please stare at the center of the screen for each trial.</p>
+          <p>Use the LEFT and RIGHT arrow keys to indicate the perceived direction of motion.</p>
+          <p>You need to achieve at least 80% accuracy to proceed to the main experiment.</p>
+          <p>Press any key to start practice.</p>
+        </div>
+      `
+    };
+
+    timeline.push(instructions, practiceInstructions);
+
+    function randInt(min, max) { return Math.floor(Math.random() * (max - min + 1)) + min; }
+
+    function fixationTrial({ width = 800, height = 800 } = {}) {
+      return {
+        type: jsPsychHtmlKeyboardResponse,
+        choices: 'NO_KEYS',
+        trial_duration: fixationDurationMs,
+        stimulus: () => {
+          const canvas = initGlobalCanvas(width, height);
+          return canvas.outerHTML;
+        },
+        on_load: () => {
+          cleanup();
+          
+          const canvas = document.getElementById('rdk-canvas');
+          if (!canvas) return;
+          
+          const ctx = canvas.getContext('2d');
+          const ppd = pixelsPerDegree || 50;
+          const radius = Math.max(1, Math.round(0.25 * ppd));
+          const cx = Math.floor(width / 2);
+          const cy = Math.floor(height / 2);
+          
+          ctx.fillStyle = '#808080'; // neutral gray background
+          ctx.fillRect(0, 0, width, height);
+          ctx.fillStyle = '#000000'; // black fixation dot
+          ctx.beginPath();
+          ctx.arc(cx, cy, radius, 0, Math.PI * 2);
+          ctx.fill();
+        }
+      };
+    }
+
+    function gratingAdaptor({ width = 800, height = 800, directionDeg = 0 } = {}) {
+      return {
+        type: jsPsychHtmlKeyboardResponse,
+        choices: 'NO_KEYS',
+        trial_duration: adaptorDurationMs,
+        stimulus: () => {
+          const canvas = initGlobalCanvas(width, height);
+          return canvas.outerHTML;
+        },
+        on_load: () => {
+          cleanup();
+          
+          const canvas = document.getElementById('rdk-canvas');
+          if (!canvas) return;
+          
+          const ctx = canvas.getContext('2d');
+          const ppd = pixelsPerDegree || 50;
+          const gw = Math.round(14.7 * ppd);
+          const gh = Math.round(5.7 * ppd);
+          const cx = Math.floor(width / 2);
+          const cy = Math.floor(height / 2);
+          const left = cx - Math.floor(gw / 2);
+          const top = cy - Math.floor(gh / 2);
+          const periodPx = Math.max(2, Math.round(0.8 * ppd));
+          const speedPxPerSec = 0.8 * ppd;
+          const dirSign = (directionDeg === 0) ? -1 : 1;
+
+          let phase = 0;
+          let start = null;
+          let lastTs = null;
+
+          const img = ctx.createImageData(gw, gh);
+
+          function renderPhase() {
+            ctx.fillStyle = '#808080'; // neutral gray background
+            ctx.fillRect(0, 0, width, height);
+            
+            const data = img.data;
+            for (let y = 0; y < gh; y++) {
+              for (let x = 0; x < gw; x++) {
+                const idx = (y * gw + x) * 4;
+                const val = Math.floor(127.5 + 127.5 * Math.sin(2 * Math.PI * (x / periodPx) + phase));
+                data[idx] = val;
+                data[idx + 1] = val;
+                data[idx + 2] = val;
+                data[idx + 3] = 255;
+              }
+            }
+            ctx.putImageData(img, left, top);
+          }
+
+          function step(ts) {
+            if (start === null) start = ts;
+            const elapsed = ts - start;
+            
+            if (elapsed >= adaptorDurationMs) {
+              cleanup();
+              return;
+            }
+            
+            const dt = lastTs == null ? 0 : (ts - lastTs) / 1000;
+            lastTs = ts;
+            phase += dirSign * (2 * Math.PI) * (speedPxPerSec / periodPx) * dt;
+            renderPhase();
+            currentRafId = requestAnimationFrame(step);
+          }
+
+          renderPhase();
+          currentRafId = requestAnimationFrame(step);
+        },
+        on_finish: (data) => {
+          cleanup();
+          data.phase = 'adaptor-grating';
+          data.adaptorType = 'grating';
+          data.adaptorDirection = directionDeg;
+        }
+      };
+    }
+
+    // FIXED RDK implementation with proper noise dot motion
+    function rdkTrial({
+      width = 800,
+      height = 800,
+      directionDeg = 180,
+      durationMs = 2000,
+      numSets = interleavedSets
+    } = {}) {
+      const ppd = pixelsPerDegree || 50;
+      const aperturePx = Math.round(apertureDeg * ppd);
+      const apertureHalf = Math.floor(aperturePx / 2);
+      const centerX = Math.floor(width / 2);
+      const centerY = Math.floor(height / 2);
+      const leftBound = centerX - apertureHalf;
+      const rightBound = centerX + apertureHalf;
+      const topBound = centerY - apertureHalf;
+      const bottomBound = centerY + apertureHalf;
+
+      const numDots = Math.max(50, Math.round(densityDotsPerDeg2 * apertureDeg * apertureDeg));
+      const coherentCount = Math.round(numDots * coherence);
+      const noiseCount = numDots - coherentCount;
+      const dotRadius = Math.max(1, (dotDiameterDeg * ppd) / 2);
+      const dotSpeedPxPerSec = dotSpeedDegPerSec * ppd;
+      const lifetimeSec = lifetimeMs / 1000;
+
+      return {
+        type: jsPsychHtmlKeyboardResponse,
+        choices: ['ArrowLeft','ArrowRight'],
+        trial_duration: durationMs,
+        response_ends_trial: true,
+        stimulus: () => {
+          const canvas = initGlobalCanvas(width, height);
+          return canvas.outerHTML;
+        },
+        on_load: () => {
+          cleanup();
+          
+          const canvas = document.getElementById('rdk-canvas');
+          if (!canvas) return;
+          
+          const ctx = canvas.getContext('2d');
+
+          const radians = directionDeg * Math.PI / 180;
+          const coherentVx = Math.cos(radians) * dotSpeedPxPerSec;
+          const coherentVy = Math.sin(radians) * dotSpeedPxPerSec;
+
+          function randInAperture() {
+            return {
+              x: leftBound + Math.random() * aperturePx,
+              y: topBound + Math.random() * aperturePx
+            };
+          }
+
+          // FIXED: Proper dot initialization 
+          function makeDot(isCoherent) {
+            const dot = {
+              ...randInAperture(),
+              ageSec: 0,
+              isCoherent
+            };
+            
+            // All dots start with signal direction, but noise dots will be repositioned randomly each frame
+            dot.vx = coherentVx;
+            dot.vy = coherentVy;
+            
+            return dot;
+          }
+
+          // Initialize dot sets
+          const sets = [];
+          const dotsPerSet = Math.floor(numDots / numSets);
+          const coherentPerSet = Math.floor(coherentCount / numSets);
+          
+          for (let s = 0; s < numSets; s++) {
+            const dots = [];
+            for (let i = 0; i < coherentPerSet; i++) {
+              dots.push(makeDot(true));
+            }
+            for (let i = coherentPerSet; i < dotsPerSet; i++) {
+              dots.push(makeDot(false));
+            }
+            sets.push(dots);
+          }
+
+          // Distribute remaining dots
+          let remaining = numDots - sets.reduce((sum, set) => sum + set.length, 0);
+          let remainingCoherent = coherentCount - sets.reduce((sum, set) => sum + set.filter(d => d.isCoherent).length, 0);
+          
+          for (let i = 0; i < remaining; i++) {
+            const isCoherent = i < remainingCoherent;
+            sets[i % numSets].push(makeDot(isCoherent));
+          }
+
+          function respawn(dot) {
+            const p = randInAperture();
+            dot.x = p.x;
+            dot.y = p.y;
+            dot.ageSec = 0;
+            
+            // All dots keep same signal direction velocity
+            dot.vx = coherentVx;
+            dot.vy = coherentVy;
+          }
+
+          function drawAllDots() {
+            ctx.fillStyle = '#808080'; // neutral gray background
+            ctx.fillRect(0, 0, width, height);
+            
+            ctx.strokeStyle = '#606060'; // slightly darker gray for aperture outline
+            ctx.lineWidth = 1;
+            ctx.strokeRect(leftBound, topBound, aperturePx, aperturePx);
+            
+            ctx.fillStyle = '#000000'; // black dots
+            const dotSize = Math.max(1, Math.round(dotRadius * 2));
+            
+            ctx.beginPath();
+            for (const set of sets) {
+              for (const d of set) {
+                ctx.rect(Math.floor(d.x - dotRadius), Math.floor(d.y - dotRadius), dotSize, dotSize);
+              }
+            }
+            ctx.fill();
+          }
+
+          // FIXED: Standard RDK motion update
+          function updateSet(activeSetIdx, dtSec) {
+            const set = sets[activeSetIdx];
+            for (const d of set) {
+              if (d.isCoherent) {
+                // Coherent dots move in signal direction
+                d.x += d.vx * dtSec;
+                d.y += d.vy * dtSec;
+              } else {
+                // Noise dots get random new position each frame (standard RDK approach)
+                const p = randInAperture();
+                d.x = p.x;
+                d.y = p.y;
+              }
+
+              // Handle boundary wrapping for coherent dots only
+              if (d.isCoherent) {
+                while (d.x < leftBound) d.x += aperturePx;
+                while (d.x >= rightBound) d.x -= aperturePx;
+                while (d.y < topBound) d.y += aperturePx;
+                while (d.y >= bottomBound) d.y -= aperturePx;
+              }
+
+              // Limited lifetime
+              d.ageSec += dtSec * numSets;
+              if (d.ageSec >= lifetimeSec) {
+                respawn(d);
+              }
+            }
+          }
+
+          let start = null;
+          let frame = 0;
+          let lastTs = null;
+          const targetFps = 60;
+          const frameDuration = 1000 / targetFps;
+
+          function step(ts) {
+            if (start === null) start = ts;
+            const elapsed = ts - start;
+            
+            if (elapsed >= durationMs) {
+              cleanup();
+              return;
+            }
+
+            const dtMs = lastTs == null ? frameDuration : (ts - lastTs);
+            lastTs = ts;
+            const dtSec = dtMs / 1000;
+
+            const activeSetIdx = frame % numSets;
+            updateSet(activeSetIdx, dtSec);
+            drawAllDots();
+            frame += 1;
+
+            currentRafId = requestAnimationFrame(step);
+          }
+
+          currentRafId = requestAnimationFrame(step);
+        },
+        on_finish: (data) => {
+          cleanup();
+          const correctKey = directionDeg === 0 ? 'arrowright' : 'arrowleft';
+          data.correct = jsPsych.pluginAPI.compareKeys(data.response, correctKey);
+          data.direction = directionDeg;
+          data.coherence = coherence;
+          data.lifetimeMs = lifetimeMs;
+          data.numSets = numSets;
+          data.apertureDeg = apertureDeg;
+          data.ppd = pixelsPerDegree || 50;
+        }
+      };
+    }
+
+    function practiceTrial({ directionDeg = 180 }) {
+      const itiMs = randInt(itiMinMs, itiMaxMs);
+      
+      const tooSlowScreen = {
+        type: jsPsychHtmlKeyboardResponse,
+        choices: 'NO_KEYS',
+        trial_duration: 1500,
+        stimulus: `<div class="center"><h3>Too Slow!</h3><p>Please respond faster.</p></div>`
+      };
+
+      const test = {
+        ...rdkTrial({ directionDeg: directionDeg, durationMs: testDurationMs }),
+        on_finish: (data) => {
+          const correctKey = directionDeg === 0 ? 'arrowright' : 'arrowleft';
+          data.correct = jsPsych.pluginAPI.compareKeys(data.response, correctKey);
+          data.phase = 'practice';
+          data.direction = directionDeg;
+        }
+      };
+
+      return {
+        timeline: [
+          { 
+            type: jsPsychHtmlKeyboardResponse, 
+            choices: 'NO_KEYS', 
+            trial_duration: itiMs, 
+            stimulus: '',
+            on_load: cleanup
+          },
+          fixationTrial(),
+          { timeline: [ test ], conditional_function: () => true },
+          { 
+            timeline: [ tooSlowScreen ], 
+            conditional_function: () => {
+              const last = jsPsych.data.get().last(1).values()[0];
+              return (typeof last.response === 'undefined' || last.response === null);
+            }
+          }
+        ]
+      };
+    }
+
+    function twoPhaseTrial({ adaptorDirDeg, congruent }) {
+      const testDirDeg = congruent ? adaptorDirDeg : (adaptorDirDeg === 0 ? 180 : 0);
+      const itiMs = randInt(itiMinMs, itiMaxMs);
+      
+      const tooSlowScreen = {
+        type: jsPsychHtmlKeyboardResponse,
+        choices: 'NO_KEYS',
+        trial_duration: 1500,
+        stimulus: `<div class="center"><h3>Too Slow!</h3><p>Please respond faster.</p></div>`
+      };
+
+      const test = {
+        ...rdkTrial({ directionDeg: testDirDeg, durationMs: testDurationMs }),
+        on_finish: (data) => {
+          const correctKey = testDirDeg === 0 ? 'arrowright' : 'arrowleft';
+          data.correct = jsPsych.pluginAPI.compareKeys(data.response, correctKey);
+          data.phase = 'test';
+          data.congruent = congruent;
+          data.adaptorDirection = adaptorDirDeg;
+          data.testDirection = testDirDeg;
+        }
+      };
+
+      const adaptor = {
+        ...gratingAdaptor({ directionDeg: adaptorDirDeg }),
+        on_finish: (data) => {
+          data.phase = 'adaptor';
+          data.congruent = congruent;
+          data.adaptorDirection = adaptorDirDeg;
+        }
+      };
+
+      return {
+        timeline: [
+          { 
+            type: jsPsychHtmlKeyboardResponse, 
+            choices: 'NO_KEYS', 
+            trial_duration: itiMs, 
+            stimulus: '',
+            on_load: cleanup
+          },
+          fixationTrial(),
+          adaptor,
+          { timeline: [ test ], conditional_function: () => true },
+          { 
+            timeline: [ tooSlowScreen ], 
+            conditional_function: () => {
+              const last = jsPsych.data.get().last(1).values()[0];
+              return (typeof last.response === 'undefined' || last.response === null);
+            }
+          }
+        ]
+      };
+    }
+
+    // Build practice trials
+    const practiceTrials = [];
+    for (let i = 0; i < 10; i++) {
+      const direction = Math.random() < 0.5 ? 0 : 180;
+      practiceTrials.push(practiceTrial({ directionDeg: direction }));
+    }
+    
+    // Practice success rate check
+    const practiceCheck = {
+      type: jsPsychHtmlKeyboardResponse,
+      choices: 'NO_KEYS',
+      trial_duration: 0,
+      stimulus: '',
+      on_load: () => {
+        const data = jsPsych.data.get();
+        const practiceData = data.filter({ phase: 'practice' });
+        const n = practiceData.count();
+        const correct = practiceData.filter({ correct: true }).count();
+        const accuracy = n > 0 ? correct / n : 0;
+        
+        if (accuracy < 0.8) {
+          // Redirect to main page
+          document.body.innerHTML = `
+            <div class="center">
+              <h2>Practice Session Complete</h2>
+              <p>Your accuracy was ${Math.round(accuracy * 100)}% (${correct}/${n} correct).</p>
+              <p>You need at least 80% accuracy to proceed with the main experiment.</p>
+              <p>Please return to the main page and try again.</p>
+              <button onclick="window.location.href='index.html'">Return to Main Page</button>
+            </div>
+          `;
+          jsPsych.endExperiment();
+        }
+      }
+    };
+
+    // Practice success message
+    const practiceSuccess = {
+      type: jsPsychHtmlKeyboardResponse,
+      stimulus: `
+        <div class="center">
+          <h2>Practice Session Complete</h2>
+          <p>Great job! You've successfully completed the practice session.</p>
+          <p>Now you'll proceed to the main experiment with the adaptor.</p>
+          <p>Press any key to continue.</p>
+        </div>
+      `,
+      choices: 'ALL_KEYS'
+    };
+
+    // Build main experiment trials
+    const totalTrials = 30;
+    const blockSize = 30;
+    const congruencyList = [
+      ...Array.from({ length: totalTrials / 2 }, () => true),
+      ...Array.from({ length: totalTrials / 2 }, () => false)
+    ];
+    
+    for (let i = congruencyList.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [congruencyList[i], congruencyList[j]] = [congruencyList[j], congruencyList[i]];
+    }
+    
+    const trials = [];
+    for (const cong of congruencyList) {
+      const adaptorDir = Math.random() < 0.5 ? 0 : 180;
+      trials.push(twoPhaseTrial({ adaptorDirDeg: adaptorDir, congruent: cong }));
+    }
+    
+    const blocks = [];
+    for (let i = 0; i < trials.length; i += blockSize) {
+      const block = trials.slice(i, i + blockSize);
+      blocks.push({ timeline: block });
+    }
+    
+    // Add practice trials and check to timeline
+    timeline.push({ timeline: practiceTrials, randomize_order: false });
+    timeline.push({
+      timeline: [practiceCheck],
+      conditional_function: () => {
+        const data = jsPsych.data.get();
+        const practiceData = data.filter({ phase: 'practice' });
+        const n = practiceData.count();
+        const correct = practiceData.filter({ correct: true }).count();
+        const accuracy = n > 0 ? correct / n : 0;
+        return accuracy < 0.8; // Only show check if accuracy is below 80%
+      }
+    });
+    timeline.push({
+      timeline: [practiceSuccess],
+      conditional_function: () => {
+        const data = jsPsych.data.get();
+        const practiceData = data.filter({ phase: 'practice' });
+        const n = practiceData.count();
+        const correct = practiceData.filter({ correct: true }).count();
+        const accuracy = n > 0 ? correct / n : 0;
+        return accuracy >= 0.8; // Only show success message if accuracy is 80% or above
+      }
+    });
+    timeline.push({ timeline: blocks, randomize_order: false });
+
+    // (Survey removed)
+    
+    // Add final trial to trigger results
+    timeline.push({
+      type: jsPsychHtmlKeyboardResponse,
+      choices: 'NO_KEYS',
+      trial_duration: 0,
+      stimulus: '',
+      on_load: () => {
+        showResultsAndMenu();
+      }
+    });
+
+    async function showResultsAndMenu() {
+      cleanup();
+      
+      const data = jsPsych.data.get();
+      const tests = data.filter({ phase: 'test' });
+      const n = tests.count();
+      // This is the accuracy calculation you asked about (e.g., 90 for 90%)
+      const acc = n ? Math.round(tests.filter({ correct: true }).count() / n * 100) : 0;
+      const meanRt = Math.round(tests.select('rt').mean() || 0);
+      
+      // Build session metadata
+      const ua = navigator.userAgent || '';
+      const isWindows = /Windows/i.test(ua);
+      const isMac = /Macintosh|Mac OS X/i.test(ua);
+      const isLinux = /Linux/i.test(ua);
+      const osName = isWindows ? 'Windows' : isMac ? 'Mac' : isLinux ? 'Linux' : 'Unknown';
+      const browserName = /Edg\//.test(ua) ? 'Edge' : /Chrome\//.test(ua) ? 'Chrome' : /Firefox\//.test(ua) ? 'Firefox' : /Safari\//.test(ua) ? 'Safari' : 'Unknown';
+      const screenResolution = `${window.screen.width}x${window.screen.height}`;
+      const browserViewport = `${window.innerWidth}x${window.innerHeight}`;
+
+      const trialsMinimal = tests.values().map(t => ({
+        trial_index: t.trial_index,
+        rt: t.rt,
+        correct: t.correct,
+        response: (typeof t.response === 'string') ? (t.response.toLowerCase().includes('left') ? 'ArrowLeft' : 'ArrowRight') : t.response,
+        congruent: t.congruent,
+        adaptorDirection: t.adaptorDirection,
+        testDirection: t.testDirection
+      }));
+
+      const payload = {
+        experiment: 'motion-adaptation-rdk',
+        UUID: sessionUUID,
+        data: {
+          session: {
+            experiment_version: '1.0',
+            file_version: '1.0',
+            totalTrials: totalTrials,
+            session_group: 'default', // Added session group field
+            browserData: {
+              os: osName,
+              browser: browserName,
+              screenResolution: screenResolution,
+              browserViewport: browserViewport
+            },
+            calibration: {
+              monitorWidthCm: monitorWidthCm,
+              viewingDistanceCm: viewingDistanceCm,
+              pixelsPerDegree: Math.round((pixelsPerDegree || 0) * 10) / 10
+            },
+            parameters: {
+              coherence: coherence,
+              apertureDeg: apertureDeg,
+              dotSpeedDegPerSec: dotSpeedDegPerSec,
+              lifetimeMs: lifetimeMs,
+              fixationDurationMs: fixationDurationMs,
+              adaptorDurationMs: adaptorDurationMs,
+              testDurationMs: testDurationMs
+            },
+            mturk: {
+              assignmentId: MTURK.assignmentId,
+              workerId: MTURK.workerId,
+              hitId: MTURK.hitId
+            }
+          },
+          trials: trialsMinimal
+        }
+      };
+
+      // Data is sent regardless of accuracy, which is good for your records
+      let uploadResult = await sendDataToServer(payload, { timeoutMs: 8000, maxRetries: 2 });
+      let saveMsg = uploadResult.ok ? 'Saved to server.' : `Save failed (${uploadResult.status} ${uploadResult.statusText}).`;
+      
+      // (Other summary calculations - removed for brevity but they were here)
+      
+      const container = document.createElement('div');
+      container.className = 'center';
+      
+      // *** START OF THE NEW LOGIC ***
+      if (acc >= 80) {
+        // SUCCESS: Accuracy is 80% or higher, show the form.
+        
+        const hasUuidEntry = typeof GOOGLE_FORM_ENTRY_ID === 'string' && GOOGLE_FORM_ENTRY_ID.trim().length > 0;
+        const params = new URLSearchParams();
+        params.set('usp', 'pp_url');
+        if (hasUuidEntry) params.set(`entry.${GOOGLE_FORM_ENTRY_ID}`, sessionUUID);
+        if (GOOGLE_FORM_ASSIGNMENT_ENTRY_ID) params.set(`entry.${GOOGLE_FORM_ASSIGNMENT_ENTRY_ID}`, MTURK.assignmentId || '');
+        if (GOOGLE_FORM_WORKER_ENTRY_ID) params.set(`entry.${GOOGLE_FORM_WORKER_ENTRY_ID}`, MTURK.workerId || '');
+        if (GOOGLE_FORM_HIT_ENTRY_ID) params.set(`entry.${GOOGLE_FORM_HIT_ENTRY_ID}`, MTURK.hitId || '');
+        const formUrl = `${GOOGLE_FORM_BASE_URL}?${params.toString()}`;
+
+        container.innerHTML = `
+          <h2 style="margin-bottom: 16px;">Experiment Complete</h2>
+          <p>Your overall accuracy was <strong>${acc}%</strong>.</p>
+          <p id="upload-status" style="margin-bottom: 16px;">${saveMsg}</p>
+          <p style="margin-bottom: 24px;">Please click the button below to open the final form and complete the experiment.</p>
+          <p><a id="btn-form" href="${formUrl}" target="_blank" rel="noopener noreferrer" style="display:inline-block; padding:10px 16px; background:#222; color:#fff; text-decoration:none; border-radius:6px;">Open Form</a></p>
+          ${hasUuidEntry ? '' : '<p style="margin-top:20px; font-size:14px; color:#ddd;">Note: Set GOOGLE_FORM_ENTRY_ID in the script to prefill the UUID.</p>'}
+        `;
+
+        document.body.innerHTML = '';
+        document.body.appendChild(container);
+
+        // Optional improvement: auto-redirect to the form when upload succeeds
+        if (uploadResult.ok) {
+          window.location.href = formUrl;
+        }
+
+      } else {
+        // FAILURE: Accuracy is less than 80%, show a rejection message.
+        
+        container.innerHTML = `
+          <h2 style="margin-bottom: 16px;">Experiment Incomplete</h2>
+          <p>Your overall accuracy was <strong>${acc}%</strong>.</p>
+          <p>As stated in the instructions, an accuracy of 80% or higher is required to complete the experiment.</p>
+          <p>Your data has been saved, but you will not be redirected to the completion form.</p>
+          <p id="upload-status" style="margin-top: 20px;">${saveMsg}</p>
+        `;
+        
+        document.body.innerHTML = '';
+        document.body.appendChild(container);
+      }
+      // *** END OF THE NEW LOGIC ***
+    }
+
+    jsPsych.run(timeline).then(async () => {
+      await showResultsAndMenu();
+    });
+  </script>
+</html>
