@@ -1,0 +1,1232 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8" />
+    <title>The Starfield Game</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <link href="https://maxcdn.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css" rel="stylesheet">
+    <link href="/css/experiments.css" rel="stylesheet">
+    <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
+    <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png">
+    <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png">
+    <link rel="manifest" href="/site.webmanifest">
+    <link rel="stylesheet" href="https://unpkg.com/jspsych@latest/css/jspsych.css">
+    <style>
+        html,
+        body {
+            margin: 0;
+            padding: 0;
+            height: 100%;
+            background: #808080;
+        }
+
+        #rdk-canvas {
+            display: block;
+            margin: 0 auto;
+            background: #808080;
+        }
+
+        .center {
+            color: #ddd;
+            max-width: 800px;
+            margin: 40px auto;
+            line-height: 1.6;
+            padding: 0 20px;
+        }
+
+        .center h2,
+        .center h3 {
+            color: #fff;
+        }
+
+        /* General viewport centering */
+        .viewport-center {
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 100%;
+        }
+
+        /* --- RESPONSIVE LAYOUT --- */
+        /* The container defining the total width span */
+        .stimulus-flex-container {
+            display: flex;
+            justify-content: space-between;
+            /* Pushes items to the edges of this container */
+            align-items: center;
+            /* Centers them vertically relative to each other */
+
+            /* CHANGED: Set back to 60vw to move them closer together */
+            width: 60vw;
+            max-width: 1200px;
+            height: auto;
+            margin: 0 auto;
+        }
+
+        /* Wrappers for the individual items */
+        .stimulus-item-wrapper {
+            /* CHANGED: Increased to 40% to balance the smaller 60vw container */
+            width: 40%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        /* Responsive image styling */
+        .stimulus-img-responsive {
+            width: 100%;
+            /* Take up the full width of the wrapper */
+            height: auto;
+            /* Maintain aspect ratio */
+            object-fit: contain;
+        }
+
+        /* Make SVG fallbacks responsive too */
+        .stimulus-item-wrapper svg {
+            width: 100%;
+            height: auto;
+        }
+
+        /* ------------------------------------------- */
+
+
+        /* Force jsPsych wrappers to center content vertically */
+        .jspsych-display-element,
+        .jspsych-content-wrapper {
+            min-height: 100vh !important;
+            display: flex !important;
+            align-items: center !important;
+            justify-content: center !important;
+            padding: 0 !important;
+            background: #808080;
+            /* Ensure background stays gray */
+        }
+
+        .jspsych-content {
+            margin: 0 auto !important;
+            width: 100%;
+        }
+
+        /* UPDATED Button styling for the start screen */
+        .start-btn {
+            background-color: #FFFFFF;
+            /* CHANGED: White background */
+            border: 2px solid #000000;
+            /* ADDED: Black border */
+            color: #000000;
+            /* CHANGED: Black text */
+            padding: 15px 32px;
+            text-align: center;
+            text-decoration: none;
+            display: inline-block;
+            font-size: 18px;
+            margin: 20px 2px;
+            cursor: pointer;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            transition: background 0.3s, color 0.3s;
+        }
+
+        .start-btn:hover {
+            background-color: #e0e0e0;
+            /* CHANGED: Light grey on hover */
+            color: #000000;
+        }
+    </style>
+    <script src="https://unpkg.com/jspsych@latest/dist/index.browser.js"></script>
+    <script src="https://unpkg.com/@jspsych/plugin-html-keyboard-response@latest/dist/index.browser.js"></script>
+    <script src="https://unpkg.com/@jspsych/plugin-html-button-response@latest/dist/index.browser.js"></script>
+</head>
+
+<body>
+    <script>
+        const jsPsych = initJsPsych({});
+
+        // --- NEW: Capture Start Time ---
+        const startTime = new Date();
+
+        // Configure Google Form prefill - UPDATED WITH MTURK FORM URL
+        // Base form URL (params will be appended automatically). UUID will be added to entry.766586855
+        const GOOGLE_FORM_BASE_URL = 'https://docs.google.com/forms/d/e/1FAIpQLSetUbx3GaRBXk5yOJ2JehjL2t78A2PlY7FpPqwpBPOMAfWlvA/viewform';
+        const GOOGLE_FORM_ENTRY_ID = '766586855'; // Same entry ID as provided in your URL
+        // Optional: set entry IDs for MTurk fields if you have corresponding questions in the form
+        const GOOGLE_FORM_ASSIGNMENT_ENTRY_ID = ''; // Update these if your new form has these fields
+        const GOOGLE_FORM_WORKER_ENTRY_ID = '';
+        const GOOGLE_FORM_HIT_ENTRY_ID = '';
+
+        // Capture MTurk params from query string
+        function getParam(name) {
+            const m = new URLSearchParams(location.search).get(name);
+            return m ? decodeURIComponent(m) : '';
+        }
+        const MTURK = {
+            assignmentId: getParam('assignmentId'),
+            workerId: getParam('workerId'),
+            hitId: getParam('hitId')
+        };
+
+        // --- NEW: Preview Mode Detection ---
+        function checkPreviewMode() {
+            // Preview mode if explicit ASSIGNMENT_ID_NOT_AVAILABLE or if IDs are missing
+            const isPreview = (MTURK.assignmentId === 'ASSIGNMENT_ID_NOT_AVAILABLE') ||
+                (!MTURK.workerId && !MTURK.hitId && !MTURK.assignmentId);
+
+            if (isPreview) {
+                // Show a non-blocking modal/alert using Bootstrap (already linked)
+                // We'll inject a simple overlay
+                const warningDiv = document.createElement('div');
+                warningDiv.style.position = 'fixed';
+                warningDiv.style.top = '0';
+                warningDiv.style.left = '0';
+                warningDiv.style.width = '100%';
+                warningDiv.style.zIndex = '99999'; // On top of everything
+                warningDiv.style.background = 'rgba(255, 165, 0, 0.9)'; // Orange background
+                warningDiv.style.color = '#000';
+                warningDiv.style.padding = '15px';
+                warningDiv.style.textAlign = 'center';
+                warningDiv.style.fontSize = '18px';
+                warningDiv.style.fontWeight = 'bold';
+                warningDiv.style.boxShadow = '0 2px 10px rgba(0,0,0,0.3)';
+                warningDiv.innerHTML = `
+                    <div style="max-width: 800px; margin: 0 auto; display: flex; align-items: center; justify-content: space-between;">
+                        <span>⚠️ PREVIEW MODE: You must ACCEPT the HIT to receive payment. Practice trials are enabled.</span>
+                        <button onclick="this.parentElement.parentElement.remove()" style="margin-left: 20px; padding: 5px 15px; border: 2px solid #000; background: transparent; cursor: pointer; font-weight: bold;">✕ Dismiss</button>
+                    </div>
+                `;
+                document.body.appendChild(warningDiv);
+            }
+        }
+        checkPreviewMode();
+
+        // Use default value like original code for proper scale
+        let pixelsPerDegree = null; // Will default to 50 in the code, matching original
+        let monitorWidthCm = 38;
+        let viewingDistanceCm = 54;
+        const apertureDeg = 5;
+        const densityDotsPerDeg2 = 16;
+        const dotDiameterDeg = 0.05;
+        const dotSpeedDegPerSec = 2.4;
+        const lifetimeMs = 200;
+        const coherence = 0.40;
+        const interleavedSets = 3;
+
+        const fixationDurationMs = 1500;
+        const faceDurationMs = 1500; // Same as adaptor duration in Exp 1
+        const testDurationMs = 2000;
+        const itiMinMs = 1000;
+        const itiMaxMs = 2000;
+
+        // Global canvas and context
+        let globalCanvas = null;
+        let globalCtx = null;
+        let currentRafId = null;
+
+        const timeline = [];
+
+        // Helper functions
+        function generateUUID() {
+            return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function (c) {
+                const r = Math.random() * 16 | 0;
+                const v = c === 'x' ? r : (r & 0x3 | 0x8);
+                return v.toString(16);
+            });
+        }
+
+        const sessionUUID = generateUUID();
+
+        // IMAGE STIMULI CONFIG -------------------------------------------------
+        // Use the star images in static/star/img. Each face has an L (left-gaze) and R (right-gaze) version.
+        const FACE_IMAGE_PAIRS = [
+            {
+                // When face is on Right, it must look Left (use L)
+                L: "https://raw.githubusercontent.com/BackyardBrains/schema.backyardbrains.com/main/static/star/img/BlankFaceLookingLeft%20(1).png",
+
+                // When face is on Left, it must look Right (use R)
+                R: "https://raw.githubusercontent.com/BackyardBrains/schema.backyardbrains.com/main/static/star/img/BlankFaceLookingRight%20(1).png",
+
+                // Blindfold versions
+                L_blindfold: "https://raw.githubusercontent.com/BackyardBrains/schema.backyardbrains.com/main/static/star/img/BlindfoldDrawingLeft.png",
+
+                R_blindfold: "https://raw.githubusercontent.com/BackyardBrains/schema.backyardbrains.com/main/static/star/img/BlindfoldDrawingRight.png"
+            }
+            // Add more pairs here if you upload additional identities
+        ];
+
+        // NEW SINGLE TREE IMAGE
+        const TREE_IMAGE = "https://raw.githubusercontent.com/BackyardBrains/schema.backyardbrains.com/main/static/star/img/Tree.png";
+
+        const preloadedImgs = {};
+        const attemptLog = []; // records { url, triedRemote, status }
+        const GITHUB_RAW_BASE = 'https://raw.githubusercontent.com/BackyardBrains/schema.backyardbrains.com/main';
+        function preloadImages(list) {
+            console.log('Attempting to preload images:', list);
+            return Promise.all(list.filter(Boolean).map(src => new Promise((resolve) => {
+                const img = new Image();
+                img.crossOrigin = 'anonymous';
+                let triedRemote = false;
+                let original = src;
+                console.log('Loading image:', src);
+
+                const record = (url, status, triedRemoteFlag) => {
+                    attemptLog.push({ url, status, triedRemote: !!triedRemoteFlag });
+                };
+
+                const fail = (url) => {
+                    console.warn('Failed to preload', url);
+                    record(url, 'failed', triedRemote);
+                    resolve(url);
+                };
+
+                img.onload = () => {
+                    // store under the original requested src (not the remote override)
+                    preloadedImgs[original] = img;
+                    record(img.src, 'loaded', triedRemote);
+                    resolve(original);
+                };
+
+                img.onerror = () => {
+                    // If this was a local absolute path (starts with /), try the GitHub raw URL once
+                    if (!triedRemote && original.startsWith('/')) {
+                        triedRemote = true;
+                        const remote = GITHUB_RAW_BASE + original;
+                        console.log('Local load failed for', original, '- trying remote', remote);
+                        // try remote URL
+                        img.onerror = () => fail(remote);
+                        img.src = remote;
+                        return;
+                    }
+                    fail(img.src || original);
+                };
+
+                // start loading
+                try {
+                    img.src = src;
+                } catch (e) {
+                    fail(src);
+                }
+            })));
+        }
+        // ----------------------------------------------------------------------
+
+        async function sendDataToServer(payload, { timeoutMs = 8000, maxRetries = 2 } = {}) {
+            const ctrl = new AbortController();
+            const t = setTimeout(() => ctrl.abort(), timeoutMs);
+            try {
+                let attempt = 0;
+                let lastError = null;
+                const backoff = (n) => new Promise(r => setTimeout(r, Math.min(2000, 300 * Math.pow(2, n))));
+                while (attempt <= maxRetries) {
+                    try {
+                        const res = await fetch('https://schema.backyardbrains.com/data', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify(payload),
+                            signal: ctrl.signal
+                        });
+                        const text = await res.text();
+                        // Try to interpret server response:
+                        // - Some servers return plain 'OK' (legacy), others return JSON {status:'ok', saved:...}.
+                        // - Accept either as success. Log response for debugging.
+                        console.log('Upload response text:', text);
+                        let ok = false;
+                        try {
+                            const j = JSON.parse(text || '{}');
+                            if (j && (j.status === 'ok' || j.saved)) ok = true;
+                        } catch (e) {
+                            // not JSON
+                        }
+                        if (!ok && text && text.trim() === 'OK') ok = true;
+
+                        if (res.ok && ok) return { ok: true, status: res.status, statusText: res.statusText, body: text };
+                        lastError = { ok: false, status: res.status, statusText: res.statusText, body: text };
+                    } catch (err) {
+                        lastError = { ok: false, status: 0, statusText: String(err), body: '' };
+                    }
+                    attempt += 1;
+                    if (attempt <= maxRetries) {
+                        await backoff(attempt - 1);
+                    }
+                }
+                return lastError || { ok: false, status: 0, statusText: 'Unknown error', body: '' };
+            } finally {
+                clearTimeout(t);
+            }
+        }
+
+        function initGlobalCanvas(width = 800, height = 800) {
+            if (!globalCanvas) {
+                globalCanvas = document.createElement('canvas');
+                globalCanvas.id = 'rdk-canvas';
+                globalCanvas.width = width;
+                globalCanvas.height = height;
+                globalCtx = globalCanvas.getContext('2d');
+                globalCtx.imageSmoothingEnabled = false;
+            }
+            return globalCanvas;
+        }
+
+        function cleanup() {
+            if (currentRafId) {
+                cancelAnimationFrame(currentRafId);
+                currentRafId = null;
+            }
+        }
+
+        function randInt(min, max) {
+            return Math.floor(Math.random() * (max - min + 1)) + min;
+        }
+
+        // Generate face SVG with proper gaze direction (UPDATED for responsiveness)
+        function generateFaceSVG(eyesOpen = true, lookingRight = true) {
+            // Eye content based on whether eyes are open or blindfolded
+            let eyeContent;
+            if (eyesOpen) {
+                if (lookingRight) {
+                    // Looking right - pupils shifted to the right
+                    eyeContent = `
+            <circle cx="32" cy="35" r="7" fill="white" stroke="black" stroke-width="1"/>
+            <circle cx="36" cy="35" r="3" fill="black"/>
+            <circle cx="48" cy="35" r="7" fill="white" stroke="black" stroke-width="1"/>
+            <circle cx="52" cy="35" r="3" fill="black"/>
+          `;
+                } else {
+                    // Looking left - pupils shifted to the left
+                    eyeContent = `
+            <circle cx="32" cy="35" r="7" fill="white" stroke="black" stroke-width="1"/>
+            <circle cx="28" cy="35" r="3" fill="black"/>
+            <circle cx="48" cy="35" r="7" fill="white" stroke="black" stroke-width="1"/>
+            <circle cx="44" cy="35" r="3" fill="black"/>
+          `;
+                }
+            } else {
+                // Blindfold - black rectangle across eyes
+                eyeContent = `<rect x="25" y="30" width="30" height="10" fill="black"/>`;
+            }
+
+            // C-shaped ear - always on the side away from gaze direction
+            const earPath = lookingRight ?
+                'M 24 38 C 20 35, 20 45, 24 42' :  // ear on left when looking right
+                'M 56 38 C 60 35, 60 45, 56 42';   // ear on right when looking left
+
+            // Nose points in direction of gaze
+            const nosePath = lookingRight ?
+                'M 40 40 L 42 43' :
+                'M 40 40 L 38 43';
+
+            // UPDATED: Use viewBox instead of fixed width/height for responsiveness
+            return `
+        <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+          <ellipse cx="40" cy="45" rx="22" ry="28" fill="white" stroke="black" stroke-width="2"/>
+          
+          <path d="${earPath}" fill="none" stroke="black" stroke-width="1.5"/>
+          
+          ${eyeContent}
+          
+          <path d="${nosePath}" stroke="black" stroke-width="1"/>
+          
+          <line x1="35" y1="52" x2="45" y2="52" stroke="black" stroke-width="1.5"/>
+          
+          <path d="M 20 30 Q 40 20, 60 30" fill="none" stroke="black" stroke-width="1.5"/>
+        </svg>
+      `;
+        }
+
+        // UPDATED for responsiveness
+        function generateTreeSVG() {
+            return `
+        <svg viewBox="0 0 80 100" xmlns="http://www.w3.org/2000/svg">
+          <rect x="35" y="60" width="10" height="30" fill="white" stroke="black" stroke-width="2"/>
+          <circle cx="40" cy="50" r="20" fill="white" stroke="black" stroke-width="2"/>
+          <circle cx="30" cy="40" r="18" fill="white" stroke="black" stroke-width="2"/>
+          <circle cx="50" cy="40" r="18" fill="white" stroke="black" stroke-width="2"/>
+          <circle cx="40" cy="30" r="16" fill="white" stroke="black" stroke-width="2"/>
+        </svg>
+      `;
+        }
+
+        // Instructions
+        const INSTR_IMAGES = {
+            stare: "https://raw.githubusercontent.com/BackyardBrains/schema.backyardbrains.com/main/static/star/img/Stare_spot.png",
+            stars: "https://raw.githubusercontent.com/BackyardBrains/schema.backyardbrains.com/main/static/star/img/Starfield.png"
+        };
+
+        const instructions = {
+            type: jsPsychHtmlKeyboardResponse,
+            stimulus: `
+        <div class="center">
+          <h2>The Starfield Game</h2>
+          <p>You job is to determine the over all direction of a moving field of stars. </p>
+          <div style="display:flex; justify-content:space-around; align-items:center; margin:12px 0;">
+            <div style="text-align:center; max-width:48%;">
+              <img src="${INSTR_IMAGES.stare}" alt="Stare dot" style="width:120px; height:auto; border:1px solid #333;">
+              <div style="color:#ddd; margin-top:6px;">Start by staring here.</div>
+            </div>
+            <div style="text-align:center; max-width:48%;">
+              <img src="${INSTR_IMAGES.stars}" alt="Starfield" style="width:120px; height:auto; border:1px solid #333;">
+              <div style="color:#ddd; margin-top:6px;">Maintain your gaze, and focus on the stars</div>
+            </div>
+          </div>
+          <p>When you notice the star direction, quickly press the LEFT or RIGHT arrow key to indicate the where the stars are moving.</p>
+          <p>We will start with a few practice trials to help you get familiar with the game.</p>
+          
+          <button id="start-btn" class="start-btn">CLICK TO START & ENTER FULLSCREEN</button>
+        </div>
+      `,
+            choices: 'NO_KEYS', // Wait for button click
+            on_load: function () {
+                // Attach event listener to the button
+                document.getElementById('start-btn').addEventListener('click', function () {
+                    // Request fullscreen
+                    var elem = document.documentElement;
+                    if (elem.requestFullscreen) {
+                        elem.requestFullscreen().then(() => {
+                            jsPsych.finishTrial();
+                        }).catch(err => {
+                            console.log("Fullscreen denied/error", err);
+                            jsPsych.finishTrial(); // Finish anyway if fullscreen fails
+                        });
+                    } else if (elem.webkitRequestFullscreen) { /* Safari */
+                        elem.webkitRequestFullscreen();
+                        jsPsych.finishTrial();
+                    } else if (elem.msRequestFullscreen) { /* IE11 */
+                        elem.msRequestFullscreen();
+                        jsPsych.finishTrial();
+                    } else {
+                        // Fallback if API not supported
+                        jsPsych.finishTrial();
+                    }
+                });
+            }
+        };
+
+        const practiceInstructions = {
+            type: jsPsychHtmlKeyboardResponse,
+            stimulus: `
+        <div class="center">
+          <h2>Practice Session</h2>
+          <p>You will now complete 10 practice trials.</p>
+          <p>Please stare at the center of the screen for each trial.</p>
+          <p>Use the LEFT and RIGHT arrow keys to indicate the perceived direction of motion.</p>
+          <p>You need to achieve at least 80% accuracy to proceed to the main experiment.</p>
+          <p>Press any key to start practice.</p>
+        </div>
+      `,
+            choices: 'ALL_KEYS'
+        };
+
+        timeline.push(instructions, practiceInstructions);
+
+        // Fixation trial
+        function fixationTrial({ width = 800, height = 800 } = {}) {
+            return {
+                type: jsPsychHtmlKeyboardResponse,
+                choices: 'NO_KEYS',
+                trial_duration: fixationDurationMs,
+                stimulus: () => {
+                    const canvas = initGlobalCanvas(width, height);
+                    return `<div class="viewport-center">${canvas.outerHTML}</div>`;
+                },
+                on_load: () => {
+                    cleanup();
+                    const canvas = document.getElementById('rdk-canvas');
+                    if (!canvas) return;
+
+                    const ctx = canvas.getContext('2d');
+                    const ppd = pixelsPerDegree || 50; // Default to 50 like original
+                    const radius = Math.max(1, Math.round(0.25 * ppd));
+                    const cx = Math.floor(width / 2);
+                    const cy = Math.floor(height / 2);
+
+                    ctx.fillStyle = '#808080';
+                    ctx.fillRect(0, 0, width, height);
+                    ctx.fillStyle = '#000000';
+                    ctx.beginPath();
+                    ctx.arc(cx, cy, radius, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+            };
+        }
+
+        // UPDATED: Face-Tree stimulus using responsive flexbox layout instead of absolute positioning
+        function faceTreeStimulus({ faceOnLeft = true, eyesOpen = true } = {}) {
+            return {
+                type: jsPsychHtmlKeyboardResponse,
+                choices: 'NO_KEYS',
+                trial_duration: faceDurationMs,
+                stimulus: () => {
+                    // Choose a face identity (random) and pick the correct gaze version
+                    const pairIndex = Math.floor(Math.random() * FACE_IMAGE_PAIRS.length);
+                    const pair = FACE_IMAGE_PAIRS[pairIndex];
+                    // If face is on left, it should look right => use R image. If on right, use L image.
+                    let faceSrc;
+                    if (eyesOpen) {
+                        faceSrc = faceOnLeft ? pair.R : pair.L;
+                    } else {
+                        faceSrc = faceOnLeft ? pair.R_blindfold : pair.L_blindfold;
+                    }
+                    const treeSrc = TREE_IMAGE;
+
+                    // Generate the content for the face and tree wrappers
+                    const faceContent = (preloadedImgs[faceSrc]) ?
+                        `<img class="stimulus-img-responsive" src="${faceSrc}" alt="Face">` :
+                        generateFaceSVG(eyesOpen, faceOnLeft);
+
+                    const treeContent = (treeSrc && preloadedImgs[treeSrc]) ?
+                        `<img class="stimulus-img-responsive" src="${treeSrc}" alt="Tree">` :
+                        generateTreeSVG();
+
+                    // Wrap them in the responsive wrapper class
+                    const faceWrapper = `<div class="stimulus-item-wrapper">${faceContent}</div>`;
+                    const treeWrapper = `<div class="stimulus-item-wrapper">${treeContent}</div>`;
+
+                    // Determine left and right elements based on config
+                    const leftElement = faceOnLeft ? faceWrapper : treeWrapper;
+                    const rightElement = faceOnLeft ? treeWrapper : faceWrapper;
+
+                    // Return the responsive flex container
+                    return `
+            <div class="viewport-center">
+              <div class="stimulus-flex-container">
+                ${leftElement}
+                ${rightElement}
+              </div>
+            </div>
+          `;
+                },
+                on_finish: (data) => {
+                    data.phase = 'face-tree-stimulus';
+                    data.faceOnLeft = faceOnLeft;
+                    data.eyesOpen = eyesOpen;
+                    data.impliedDirection = faceOnLeft ? 0 : 180;
+                }
+            };
+        }
+
+        // RDK trial (same as Experiment 1)
+        function rdkTrial({
+            width = 800,
+            height = 800,
+            directionDeg = 180,
+            durationMs = 2000,
+            numSets = interleavedSets
+        } = {}) {
+            const ppd = pixelsPerDegree || 50; // Default to 50 like original
+            const aperturePx = Math.round(apertureDeg * ppd);
+            const apertureHalf = Math.floor(aperturePx / 2);
+            const centerX = Math.floor(width / 2);
+
+            // CHANGED: Shift centerY UP by 100px to move dots slightly upwards
+            const centerY = Math.floor(height / 2) - 75;
+
+            const leftBound = centerX - apertureHalf;
+            const rightBound = centerX + apertureHalf;
+            const topBound = centerY - apertureHalf;
+            const bottomBound = centerY + apertureHalf;
+
+            const numDots = Math.max(50, Math.round(densityDotsPerDeg2 * apertureDeg * apertureDeg));
+            const coherentCount = Math.round(numDots * coherence);
+            const dotRadius = Math.max(1, (dotDiameterDeg * ppd) / 2);
+            const dotSpeedPxPerSec = dotSpeedDegPerSec * ppd;
+            const lifetimeSec = lifetimeMs / 1000;
+
+            return {
+                type: jsPsychHtmlKeyboardResponse,
+                choices: ['ArrowLeft', 'ArrowRight'],
+                trial_duration: durationMs,
+                response_ends_trial: true,
+                stimulus: () => {
+                    const canvas = initGlobalCanvas(width, height);
+                    return `<div class="viewport-center">${canvas.outerHTML}</div>`;
+                },
+                on_load: () => {
+                    cleanup();
+
+                    const canvas = document.getElementById('rdk-canvas');
+                    if (!canvas) return;
+
+                    const ctx = canvas.getContext('2d');
+
+                    const radians = directionDeg * Math.PI / 180;
+                    const coherentVx = Math.cos(radians) * dotSpeedPxPerSec;
+                    const coherentVy = Math.sin(radians) * dotSpeedPxPerSec;
+
+                    function randInAperture() {
+                        return {
+                            x: leftBound + Math.random() * aperturePx,
+                            y: topBound + Math.random() * aperturePx
+                        };
+                    }
+
+                    function makeDot(isCoherent) {
+                        const dot = {
+                            ...randInAperture(),
+                            ageSec: 0,
+                            isCoherent
+                        };
+                        dot.vx = coherentVx;
+                        dot.vy = coherentVy;
+                        return dot;
+                    }
+
+                    // Initialize dot sets
+                    const sets = [];
+                    const dotsPerSet = Math.floor(numDots / numSets);
+                    const coherentPerSet = Math.floor(coherentCount / numSets);
+
+                    for (let s = 0; s < numSets; s++) {
+                        const dots = [];
+                        for (let i = 0; i < coherentPerSet; i++) {
+                            dots.push(makeDot(true));
+                        }
+                        for (let i = coherentPerSet; i < dotsPerSet; i++) {
+                            dots.push(makeDot(false));
+                        }
+                        sets.push(dots);
+                    }
+
+                    // Distribute remaining dots
+                    let remaining = numDots - sets.reduce((sum, set) => sum + set.length, 0);
+                    let remainingCoherent = coherentCount - sets.reduce((sum, set) => sum + set.filter(d => d.isCoherent).length, 0);
+
+                    for (let i = 0; i < remaining; i++) {
+                        const isCoherent = i < remainingCoherent;
+                        sets[i % numSets].push(makeDot(isCoherent));
+                    }
+
+                    function respawn(dot) {
+                        const p = randInAperture();
+                        dot.x = p.x;
+                        dot.y = p.y;
+                        dot.ageSec = 0;
+                        dot.vx = coherentVx;
+                        dot.vy = coherentVy;
+                    }
+
+                    function drawAllDots() {
+                        ctx.fillStyle = '#808080';
+                        ctx.fillRect(0, 0, width, height);
+
+                        ctx.strokeStyle = '#606060';
+                        ctx.lineWidth = 1;
+                        ctx.strokeRect(leftBound, topBound, aperturePx, aperturePx);
+
+                        ctx.fillStyle = '#000000';
+                        const dotSize = Math.max(1, Math.round(dotRadius * 2));
+
+                        ctx.beginPath();
+                        for (const set of sets) {
+                            for (const d of set) {
+                                ctx.rect(Math.floor(d.x - dotRadius), Math.floor(d.y - dotRadius), dotSize, dotSize);
+                            }
+                        }
+                        ctx.fill();
+                    }
+
+                    function updateSet(activeSetIdx, dtSec) {
+                        const set = sets[activeSetIdx];
+                        for (const d of set) {
+                            if (d.isCoherent) {
+                                d.x += d.vx * dtSec;
+                                d.y += d.vy * dtSec;
+                            } else {
+                                const p = randInAperture();
+                                d.x = p.x;
+                                d.y = p.y;
+                            }
+
+                            if (d.isCoherent) {
+                                while (d.x < leftBound) d.x += aperturePx;
+                                while (d.x >= rightBound) d.x -= aperturePx;
+                                while (d.y < topBound) d.y += aperturePx;
+                                while (d.y >= bottomBound) d.y -= aperturePx;
+                            }
+
+                            d.ageSec += dtSec * numSets;
+                            if (d.ageSec >= lifetimeSec) {
+                                respawn(d);
+                            }
+                        }
+                    }
+
+                    let start = null;
+                    let frame = 0;
+                    let lastTs = null;
+                    const targetFps = 60;
+                    const frameDuration = 1000 / targetFps;
+
+                    function step(ts) {
+                        if (start === null) start = ts;
+                        const elapsed = ts - start;
+
+                        if (elapsed >= durationMs) {
+                            cleanup();
+                            return;
+                        }
+
+                        const dtMs = lastTs == null ? frameDuration : (ts - lastTs);
+                        lastTs = ts;
+                        const dtSec = dtMs / 1000;
+
+                        const activeSetIdx = frame % numSets;
+                        updateSet(activeSetIdx, dtSec);
+                        drawAllDots();
+                        frame += 1;
+
+                        currentRafId = requestAnimationFrame(step);
+                    }
+
+                    currentRafId = requestAnimationFrame(step);
+                },
+                on_finish: (data) => {
+                    cleanup();
+                    const correctKey = directionDeg === 0 ? 'arrowright' : 'arrowleft';
+                    data.correct = jsPsych.pluginAPI.compareKeys(data.response, correctKey);
+                    data.direction = directionDeg;
+                    data.coherence = coherence;
+                    data.lifetimeMs = lifetimeMs;
+                    data.numSets = numSets;
+                    data.apertureDeg = apertureDeg;
+                    data.ppd = pixelsPerDegree || 50;
+                }
+            };
+        }
+
+        // Practice trial
+        function practiceTrial({ directionDeg = 180 }) {
+            const itiMs = randInt(itiMinMs, itiMaxMs);
+
+            const tooSlowScreen = {
+                type: jsPsychHtmlKeyboardResponse,
+                choices: 'NO_KEYS',
+                trial_duration: 1500,
+                stimulus: `<div class="center"><h3>Too Slow!</h3><p>Please respond faster.</p></div>`
+            };
+
+            const test = {
+                ...rdkTrial({ directionDeg: directionDeg, durationMs: testDurationMs }),
+                on_finish: (data) => {
+                    const correctKey = directionDeg === 0 ? 'arrowright' : 'arrowleft';
+                    data.correct = jsPsych.pluginAPI.compareKeys(data.response, correctKey);
+                    data.phase = 'practice';
+                    data.direction = directionDeg;
+                }
+            };
+
+            return {
+                timeline: [
+                    {
+                        type: jsPsychHtmlKeyboardResponse,
+                        choices: 'NO_KEYS',
+                        trial_duration: itiMs,
+                        stimulus: '',
+                        on_load: cleanup
+                    },
+                    fixationTrial(),
+                    { timeline: [test], conditional_function: () => true },
+                    {
+                        timeline: [tooSlowScreen],
+                        conditional_function: () => {
+                            const last = jsPsych.data.get().last(1).values()[0];
+                            return (typeof last.response === 'undefined' || last.response === null);
+                        }
+                    }
+                ]
+            };
+        }
+
+        // MODIFIED: Main experimental trial to accept forced congruency
+        function experimentalTrial({ faceOnLeft, eyesOpen, forceCongruent = null }) {
+            const impliedDirection = faceOnLeft ? 0 : 180; // rightward : leftward
+            const congruent = forceCongruent !== null ? forceCongruent : Math.random() < 0.5;
+            const testDirection = congruent ? impliedDirection : (impliedDirection === 0 ? 180 : 0);
+            const itiMs = randInt(itiMinMs, itiMaxMs);
+
+            const tooSlowScreen = {
+                type: jsPsychHtmlKeyboardResponse,
+                choices: 'NO_KEYS',
+                trial_duration: 1500,
+                stimulus: `<div class="center"><h3>Too Slow!</h3><p>Please respond faster.</p></div>`
+            };
+
+            const test = {
+                ...rdkTrial({ directionDeg: testDirection, durationMs: testDurationMs }),
+                on_finish: (data) => {
+                    const correctKey = testDirection === 0 ? 'arrowright' : 'arrowleft';
+                    data.correct = jsPsych.pluginAPI.compareKeys(data.response, correctKey);
+                    data.phase = 'test';
+                    data.congruent = congruent;
+                    data.eyesOpen = eyesOpen;
+                    data.faceOnLeft = faceOnLeft;
+                    data.impliedDirection = impliedDirection;
+                    data.testDirection = testDirection;
+                }
+            };
+
+            return {
+                timeline: [
+                    {
+                        type: jsPsychHtmlKeyboardResponse,
+                        choices: 'NO_KEYS',
+                        trial_duration: itiMs,
+                        stimulus: '',
+                        on_load: cleanup
+                    },
+                    fixationTrial(),
+                    faceTreeStimulus({ faceOnLeft: faceOnLeft, eyesOpen: eyesOpen }),
+                    { timeline: [test], conditional_function: () => true },
+                    {
+                        timeline: [tooSlowScreen],
+                        conditional_function: () => {
+                            const last = jsPsych.data.get().last(1).values()[0];
+                            return (typeof last.response === 'undefined' || last.response === null);
+                        }
+                    }
+                ]
+            };
+        }
+
+        // Build practice trials
+        const practiceTrials = [];
+        for (let i = 0; i < 10; i++) {
+            const direction = Math.random() < 0.5 ? 0 : 180;
+            practiceTrials.push(practiceTrial({ directionDeg: direction }));
+        }
+
+        // Practice check
+        const practiceCheck = {
+            type: jsPsychHtmlKeyboardResponse,
+            choices: 'NO_KEYS',
+            trial_duration: 0,
+            stimulus: '',
+            on_load: () => {
+                const data = jsPsych.data.get();
+                const practiceData = data.filter({ phase: 'practice' });
+                const n = practiceData.count();
+                const correct = practiceData.filter({ correct: true }).count();
+                const accuracy = n > 0 ? correct / n : 0;
+
+                if (accuracy < 0.8) {
+                    document.body.innerHTML = `
+            <div class="center">
+              <h2>Practice Session Complete</h2>
+              <p>Your accuracy was only ${Math.round(accuracy * 100)}% (${correct}/${n} correct).</p>
+              <p>You need at least 80% accuracy to proceed with the game.</p>
+              <p>Please return to the main page and try again.</p>
+            </div>
+          `;
+                    jsPsych.endExperiment();
+                }
+            }
+        };
+
+        const practiceSuccess = {
+            type: jsPsychHtmlKeyboardResponse,
+            stimulus: `
+        <div class="center">
+          <h2>Practice Session Complete</h2>
+          <p>Great job! You've successfully completed the practice session.</p>
+          <p>Now you'll proceed to the main game.</p>
+          <p>You will need to achieve at least 80% accuracy for the task to be approved.</p>
+          <p><b>Press any key to continue.</b></p>
+        </div>
+      `,
+            choices: 'ALL_KEYS'
+        };
+
+        const bobInstructions = {
+            type: jsPsychHtmlKeyboardResponse,
+            stimulus: `
+        <div class="center">
+          <img src="${FACE_IMAGE_PAIRS[0].R}" style="width: 150px; height: auto; margin-bottom: 20px;"> 
+          <p>This is Bob. Bob is checking the tree to see if it moves.</p>
+          <p>Sometimes Bob takes a nap. When Bob is wearing his black sleep mask, he is asleep and not paying attention to anything.</p>
+          <p>Please ignore Bob (whether he is awake or asleep) and the tree. They are not part of your task. Just focus on the moving stars.</p>
+          <p><b>Press any key to continue.</b></p>
+        </div>
+      `,
+            choices: 'ALL_KEYS'
+        };
+
+        // MODIFIED: Build main experimental trials with balanced conditions
+        const experimentalSpecs = [];
+        const trialsPerCondition = 30; // 120 total trials
+
+        for (let i = 0; i < trialsPerCondition; i++) {
+            experimentalSpecs.push({ eyesOpen: true, congruent: true, faceOnLeft: Math.random() < 0.5 });
+            experimentalSpecs.push({ eyesOpen: true, congruent: false, faceOnLeft: Math.random() < 0.5 });
+            experimentalSpecs.push({ eyesOpen: false, congruent: true, faceOnLeft: Math.random() < 0.5 });
+            experimentalSpecs.push({ eyesOpen: false, congruent: false, faceOnLeft: Math.random() < 0.5 });
+        }
+
+        // Fisher-Yates shuffle
+        for (let i = experimentalSpecs.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [experimentalSpecs[i], experimentalSpecs[j]] = [experimentalSpecs[j], experimentalSpecs[i]];
+        }
+
+        // Create trials with forced congruency
+        // Create trials with forced congruency and breaks
+        const experimentalTrials = [];
+        experimentalSpecs.forEach((spec, index) => {
+            experimentalTrials.push(experimentalTrial({
+                faceOnLeft: spec.faceOnLeft,
+                eyesOpen: spec.eyesOpen,
+                forceCongruent: spec.congruent
+            }));
+
+            // Add break every 30 trials
+            if ((index + 1) % 30 === 0 && (index + 1) < experimentalSpecs.length) {
+                experimentalTrials.push({
+                    type: jsPsychHtmlKeyboardResponse,
+                    stimulus: `
+                        <div class="center">
+                            <h2>Break Time</h2>
+                            <p>You have done ${index + 1} out of ${experimentalSpecs.length} trials.</p>
+                            <p>Feel free to take a moment.</p>
+                            <br>
+                            <p><b>Press any key to continue</b></p>
+                        </div>
+                    `,
+                    choices: 'ALL_KEYS'
+                });
+            }
+        });
+
+        // Add trials to timeline
+        timeline.push({ timeline: practiceTrials });
+        timeline.push(practiceCheck);
+        timeline.push({
+            timeline: [practiceSuccess, bobInstructions],
+            conditional_function: () => {
+                const data = jsPsych.data.get();
+                const practiceData = data.filter({ phase: 'practice' });
+                const n = practiceData.count();
+                const correct = practiceData.filter({ correct: true }).count();
+                const accuracy = n > 0 ? correct / n : 0;
+                return accuracy >= 0.8;
+            }
+        });
+        timeline.push({ timeline: experimentalTrials });
+
+        // Final results
+        timeline.push({
+            type: jsPsychHtmlKeyboardResponse,
+            choices: 'NO_KEYS',
+            trial_duration: 0,
+            stimulus: '',
+            on_load: () => {
+                showResultsAndMenu();
+            }
+        });
+
+        // MODIFIED: Updated showResultsAndMenu function
+        async function showResultsAndMenu() {
+            cleanup();
+
+            const data = jsPsych.data.get();
+            const tests = data.filter({ phase: 'test' });
+            const practiceData = data.filter({ phase: 'practice' }); // Add this line
+            const n = tests.count();
+            const acc = n ? Math.round(tests.filter({ correct: true }).count() / n * 100) : 0;
+            const meanRt = Math.round(tests.select('rt').mean() || 0);
+
+            // Build session metadata
+            const ua = navigator.userAgent || '';
+            const isWindows = /Windows/i.test(ua);
+            const isMac = /Macintosh|Mac OS X/i.test(ua);
+            const isLinux = /Linux/i.test(ua);
+            const osName = isWindows ? 'Windows' : isMac ? 'Mac' : isLinux ? 'Linux' : 'Unknown';
+            const browserName = /Edg\//.test(ua) ? 'Edge' : /Chrome\//.test(ua) ? 'Chrome' : /Firefox\//.test(ua) ? 'Firefox' : /Safari\//.test(ua) ? 'Safari' : 'Unknown';
+            const screenResolution = `${window.screen.width}x${window.screen.height}`;
+            const browserViewport = `${window.innerWidth}x${window.innerHeight}`;
+
+            // MODIFIED: Add trial counter for main trials
+            let trialCounter = 0;
+            const trialsMinimal = tests.values().map(t => ({
+                trial_number: trialCounter++, // Add sequential numbering starting from 0
+                trial_index: t.trial_index,
+                rt: t.rt,
+                correct: t.correct,
+                response: (typeof t.response === 'string') ? (t.response.toLowerCase().includes('left') ? 'ArrowLeft' : 'ArrowRight') : t.response,
+                congruent: t.congruent,
+                eyesOpen: t.eyesOpen,
+                faceOnLeft: t.faceOnLeft,
+                impliedDirection: t.impliedDirection,
+                testDirection: t.testDirection
+            }));
+
+            // ADDED: Practice trials data
+            const practiceTrialsData = practiceData.values().map((t, idx) => ({
+                trial_number: idx,
+                rt: t.rt,
+                correct: t.correct,
+                direction: t.direction
+            }));
+
+            const payload = {
+                experiment: 'rdk-face-1',
+                UUID: sessionUUID,
+                data: {
+                    session: {
+                        experiment_version: '1.5',
+                        treatment: 'faces',
+                        file_version: '1.5',
+                        totalTrials: n,
+                        session_group: 'default',
+                        browserData: {
+                            os: osName,
+                            browser: browserName,
+                            screenResolution: screenResolution,
+                            browserViewport: browserViewport
+                        },
+                        calibration: {
+                            monitorWidthCm: monitorWidthCm,
+                            viewingDistanceCm: viewingDistanceCm,
+                            pixelsPerDegree: Math.round((pixelsPerDegree || 50) * 10) / 10
+                        },
+                        parameters: {
+                            coherence: coherence,
+                            apertureDeg: apertureDeg,
+                            dotSpeedDegPerSec: dotSpeedDegPerSec,
+                            lifetimeMs: lifetimeMs,
+                            fixationDurationMs: fixationDurationMs,
+                            faceDurationMs: faceDurationMs,
+                            testDurationMs: testDurationMs
+                        },
+                        mturk: {
+                            assignmentId: MTURK.assignmentId,
+                            workerId: MTURK.workerId,
+                            hitId: MTURK.hitId
+                        },
+                        timing: {
+                            startTime: startTime.toISOString(),
+                            endTime: new Date().toISOString(),
+                            totalElapsedTimeMs: new Date() - startTime
+                        }
+                    },
+                    trials: trialsMinimal,
+                    practice: {  // ADDED: Practice section
+                        trials: practiceTrialsData,
+                        meanRT: Math.round(practiceData.select('rt').mean() || 0),
+                        accuracy: practiceData.count() > 0 ?
+                            Math.round(practiceData.filter({ correct: true }).count() / practiceData.count() * 100) : 0
+                    }
+                }
+            };
+
+            // IMPORTANT: Data is sent to server regardless of accuracy
+            let uploadResult = await sendDataToServer(payload, { timeoutMs: 8000, maxRetries: 2 });
+            let saveMsg = uploadResult.ok ? 'Saved to server.' : `Save failed (${uploadResult.status} ${uploadResult.statusText}).`;
+
+            const container = document.createElement('div');
+            container.className = 'center';
+
+            // Check accuracy and show appropriate content
+            if (acc >= 80) {
+                // SUCCESS: Build Google Form URL with parameters
+                const hasUuidEntry = typeof GOOGLE_FORM_ENTRY_ID === 'string' && GOOGLE_FORM_ENTRY_ID.trim().length > 0;
+                const params = new URLSearchParams();
+                params.set('usp', 'pp_url');
+
+                // Add UUID if entry ID is configured
+                if (hasUuidEntry) {
+                    params.set(`entry.${GOOGLE_FORM_ENTRY_ID}`, sessionUUID);
+                }
+
+                // Add MTurk parameters if entry IDs are configured
+                if (GOOGLE_FORM_ASSIGNMENT_ENTRY_ID && GOOGLE_FORM_ASSIGNMENT_ENTRY_ID.trim().length > 0) {
+                    params.set(`entry.${GOOGLE_FORM_ASSIGNMENT_ENTRY_ID}`, MTURK.assignmentId || '');
+                }
+                if (GOOGLE_FORM_WORKER_ENTRY_ID && GOOGLE_FORM_WORKER_ENTRY_ID.trim().length > 0) {
+                    params.set(`entry.${GOOGLE_FORM_WORKER_ENTRY_ID}`, MTURK.workerId || '');
+                }
+                if (GOOGLE_FORM_HIT_ENTRY_ID && GOOGLE_FORM_HIT_ENTRY_ID.trim().length > 0) {
+                    params.set(`entry.${GOOGLE_FORM_HIT_ENTRY_ID}`, MTURK.hitId || '');
+                }
+
+                const formUrl = `${GOOGLE_FORM_BASE_URL}?${params.toString()}`;
+
+                container.innerHTML = `
+          <h2 style="margin-bottom: 16px;">Experiment Complete</h2>
+          <p>Your overall accuracy was <strong>${acc}%</strong>.</p>
+          <p id="upload-status" style="margin-bottom: 16px;">${saveMsg}</p>
+          <p style="margin-bottom: 24px;">Please click the button below to open the final form and complete the experiment.</p>
+          <p><a id="btn-form" href="${formUrl}" target="_blank" rel="noopener noreferrer" style="display:inline-block; padding:10px 16px; background:#222; color:#fff; text-decoration:none; border-radius:6px;">Open Form</a></p>
+          ${hasUuidEntry ? '' : '<p style="margin-top:20px; font-size:14px; color:#ddd;">Note: Configure GOOGLE_FORM_ENTRY_ID in the script to prefill the UUID in your form.</p>'}
+        `;
+
+                document.body.innerHTML = '';
+                document.body.appendChild(container);
+
+                // Optional: auto-redirect to form after successful upload
+                if (uploadResult.ok && acc >= 80) {
+                    setTimeout(() => {
+                        window.location.href = formUrl;
+                    }, 2000); // 2 second delay to allow user to see the success message
+                }
+
+            } else {
+                // FAILURE: Accuracy is less than 80% - NO FORM SHOWN
+                container.innerHTML = `
+          <h2 style="margin-bottom: 16px;">Experiment Incomplete</h2>
+          <p>Your overall accuracy was <strong>${acc}%</strong>.</p>
+          <p>As stated in the instructions, an accuracy of 80% or higher is required to complete the experiment.</p>
+          <p>Your data has been saved, but you will not be redirected to the completion form.</p>
+          <p id="upload-status" style="margin-top: 20px;">${saveMsg}</p>
+        `;
+
+                document.body.innerHTML = '';
+                document.body.appendChild(container);
+            }
+        }
+
+        // Initialize canvas on startup
+        initGlobalCanvas();
+
+        // Preload face/tree images then start experiment
+        const INSTR_IMAGES_URLS = [
+            INSTR_IMAGES.stare,
+            INSTR_IMAGES.stars
+        ];
+
+        const imgsToPreload = FACE_IMAGE_PAIRS.reduce((acc, p) => {
+            if (p.L) acc.push(p.L);
+            if (p.R) acc.push(p.R);
+            if (p.L_blindfold) acc.push(p.L_blindfold);
+            if (p.R_blindfold) acc.push(p.R_blindfold);
+            return acc;
+        }, []).concat([TREE_IMAGE]).concat(INSTR_IMAGES_URLS).filter(Boolean);
+
+        preloadImages(imgsToPreload).then(() => {
+            // (Candidate selection loop removed)
+            console.log('Using tree image:', TREE_IMAGE);
+
+            // Check how many face images loaded
+            let numFacesLoaded = FACE_IMAGE_PAIRS.reduce((acc, p) => acc + (preloadedImgs[p.L] ? 1 : 0) + (preloadedImgs[p.R] ? 1 : 0), 0);
+            if (numFacesLoaded === 0) {
+                console.error('No face images loaded. The experiment will use SVG fallbacks. Check FACE_IMAGE_DIR and filenames.');
+                const warn = document.createElement('div');
+                warn.style.position = 'fixed';
+                warn.style.left = '10px';
+                warn.style.top = '10px';
+                warn.style.padding = '8px 12px';
+                warn.style.background = '#ffdddd';
+                warn.style.color = '#660000';
+                warn.style.zIndex = 9999;
+                warn.innerText = 'Warning: face images not loaded — using SVG fallbacks.';
+                document.body.appendChild(warn);
+            }
+
+            jsPsych.run(timeline);
+        }).catch((e) => {
+            console.warn('Image preload encountered an error:', e);
+            // If preload fails, run experiment anyway
+            jsPsych.run(timeline);
+        });
+    </script>
+
+</body>
+
+</html>
