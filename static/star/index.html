@@ -149,7 +149,7 @@
 
         // Configure Google Form prefill - UPDATED WITH MTURK FORM URL
         // Base form URL (params will be appended automatically). UUID will be added to entry.766586855
-        const GOOGLE_FORM_BASE_URL = 'https://docs.google.com/forms/d/e/1FAIpQLSetUbx3GaRBXk5yOJ2JehjL2t78A2PlY7FpPqwpBPOMAfWlvA/viewform';
+        const GOOGLE_FORM_BASE_URL = 'https://docs.google.com/forms/d/e/1FAIpQLSddjE-l1eZgp-yAWNMY9F4uq-5z9t3Dw3TgU6LTHFRrr9p-Yw/viewform';
         const GOOGLE_FORM_ENTRY_ID = '766586855'; // Same entry ID as provided in your URL
         // Optional: set entry IDs for MTurk fields if you have corresponding questions in the form
         const GOOGLE_FORM_ASSIGNMENT_ENTRY_ID = ''; // Update these if your new form has these fields
@@ -662,11 +662,18 @@
                     function makeDot(isCoherent) {
                         const dot = {
                             ...randInAperture(),
-                            ageSec: 0,
+                            ageSec: Math.random() * lifetimeSec,
                             isCoherent
                         };
-                        dot.vx = coherentVx;
-                        dot.vy = coherentVy;
+                        if (isCoherent) {
+                            dot.vx = coherentVx;
+                            dot.vy = coherentVy;
+                        } else {
+                            // Random direction for noise dots
+                            const angle = Math.random() * 2 * Math.PI;
+                            dot.vx = Math.cos(angle) * dotSpeedPxPerSec;
+                            dot.vy = Math.sin(angle) * dotSpeedPxPerSec;
+                        }
                         return dot;
                     }
 
@@ -700,8 +707,16 @@
                         dot.x = p.x;
                         dot.y = p.y;
                         dot.ageSec = 0;
-                        dot.vx = coherentVx;
-                        dot.vy = coherentVy;
+
+                        if (dot.isCoherent) {
+                            dot.vx = coherentVx;
+                            dot.vy = coherentVy;
+                        } else {
+                            // New random direction on respawn
+                            const angle = Math.random() * 2 * Math.PI;
+                            dot.vx = Math.cos(angle) * dotSpeedPxPerSec;
+                            dot.vy = Math.sin(angle) * dotSpeedPxPerSec;
+                        }
                     }
 
                     function drawAllDots() {
@@ -727,21 +742,15 @@
                     function updateSet(activeSetIdx, dtSec) {
                         const set = sets[activeSetIdx];
                         for (const d of set) {
-                            if (d.isCoherent) {
-                                d.x += d.vx * dtSec;
-                                d.y += d.vy * dtSec;
-                            } else {
-                                const p = randInAperture();
-                                d.x = p.x;
-                                d.y = p.y;
-                            }
+                            // Move all dots linearly according to their velocity
+                            d.x += d.vx * dtSec;
+                            d.y += d.vy * dtSec;
 
-                            if (d.isCoherent) {
-                                while (d.x < leftBound) d.x += aperturePx;
-                                while (d.x >= rightBound) d.x -= aperturePx;
-                                while (d.y < topBound) d.y += aperturePx;
-                                while (d.y >= bottomBound) d.y -= aperturePx;
-                            }
+                            // Wrap around for ALL dots (both coherent and incoherent)
+                            while (d.x < leftBound) d.x += aperturePx;
+                            while (d.x >= rightBound) d.x -= aperturePx;
+                            while (d.y < topBound) d.y += aperturePx;
+                            while (d.y >= bottomBound) d.y -= aperturePx;
 
                             d.ageSec += dtSec * numSets;
                             if (d.ageSec >= lifetimeSec) {
