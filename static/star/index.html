@@ -138,6 +138,7 @@
     <script src="https://unpkg.com/jspsych@latest/dist/index.browser.js"></script>
     <script src="https://unpkg.com/@jspsych/plugin-html-keyboard-response@latest/dist/index.browser.js"></script>
     <script src="https://unpkg.com/@jspsych/plugin-html-button-response@latest/dist/index.browser.js"></script>
+    <script src="https://unpkg.com/@jspsych/plugin-survey-text@latest/dist/index.browser.js"></script>
 </head>
 
 <body>
@@ -168,36 +169,9 @@
             sessionId: getParam('SESSION_ID')
         };
 
-        // --- NEW: Preview/Testing Mode Detection ---
-        function checkPreviewMode() {
-            // If PROLIFIC_PID is missing, assume we are in testing/preview mode
-            const isTesting = !PROLIFIC.prolificPid;
-
-            if (isTesting) {
-                // Show a non-blocking modal/alert
-                const warningDiv = document.createElement('div');
-                warningDiv.style.position = 'fixed';
-                warningDiv.style.top = '0';
-                warningDiv.style.left = '0';
-                warningDiv.style.width = '100%';
-                warningDiv.style.zIndex = '99999'; // On top of everything
-                warningDiv.style.background = 'rgba(255, 165, 0, 0.9)'; // Orange background
-                warningDiv.style.color = '#000';
-                warningDiv.style.padding = '15px';
-                warningDiv.style.textAlign = 'center';
-                warningDiv.style.fontSize = '18px';
-                warningDiv.style.fontWeight = 'bold';
-                warningDiv.style.boxShadow = '0 2px 10px rgba(0,0,0,0.3)';
-                warningDiv.innerHTML = `
-                    <div style="max-width: 800px; margin: 0 auto; display: flex; align-items: center; justify-content: space-between;">
-                        <span>⚠️ TESTING MODE: No Prolific ID found. Data may not be linked to your account.</span>
-                        <button onclick="this.parentElement.parentElement.remove()" style="margin-left: 20px; padding: 5px 15px; border: 2px solid #000; background: transparent; cursor: pointer; font-weight: bold;">✕ Dismiss</button>
-                    </div>
-                `;
-                document.body.appendChild(warningDiv);
-            }
-        }
-        checkPreviewMode();
+        // --- NEW: Remove Preview/Testing Mode Warning (User Request) ---
+        // function checkPreviewMode() { ... } // Removed
+        // checkPreviewMode();
 
         // Use default value like original code for proper scale
         let pixelsPerDegree = null; // Will default to 50 in the code, matching original
@@ -515,7 +489,30 @@
             choices: 'ALL_KEYS'
         };
 
-        timeline.push(instructions, practiceInstructions);
+        // --- NEW: Manual ID Input Trial ---
+        const participantIdTrial = {
+            type: jsPsychSurveyText,
+            questions: [
+                {
+                    prompt: "Please enter your Prolific ID:",
+                    name: 'prolific_id',
+                    // Prefill if ID is in URL
+                    value: PROLIFIC.prolificPid || '',
+                    required: true
+                }
+            ],
+            button_label: 'Continue',
+            on_finish: function (data) {
+                // Update the global PROLIFIC object with the manually entered ID
+                const responses = data.response; // jsPsych v7 returns object of responses
+                if (responses && responses.prolific_id) {
+                    PROLIFIC.prolificPid = responses.prolific_id.trim();
+                    console.log("Prolific ID updated to:", PROLIFIC.prolificPid);
+                }
+            }
+        };
+
+        timeline.push(participantIdTrial, instructions, practiceInstructions);
 
         // Fixation trial
         function fixationTrial({ width = 800, height = 800 } = {}) {
