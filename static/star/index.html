@@ -949,23 +949,20 @@
         <div class="center">
           <img src="${FACE_IMAGE_PAIRS[0].R}" style="width: 150px; height: auto; margin-bottom: 20px;"> 
           <p>This is Bob. Bob is checking the tree to see if it moves.</p>
-          <p>Sometimes Bob takes a nap. When Bob is wearing his black sleep mask, he is asleep and not paying attention to anything.</p>
-          <p>Please ignore Bob (whether he is awake or asleep) and the tree. They are not part of your task. Just focus on the moving stars.</p>
+          <p>Please ignore Bob and the tree. They are not part of your task. Just focus on the moving stars.</p>
           <p><b>Press any key to continue.</b></p>
         </div>
       `,
             choices: 'ALL_KEYS'
         };
 
-        // MODIFIED: Build main experimental trials with balanced conditions
+        // MODIFIED: Build main experimental trials with balanced conditions (NO BLINDFOLD)
         const experimentalSpecs = [];
-        const trialsPerCondition = 30; // 120 total trials
+        const trialsPerCondition = 60; // 120 total trials (60 congruent, 60 inconguent)
 
         for (let i = 0; i < trialsPerCondition; i++) {
             experimentalSpecs.push({ eyesOpen: true, congruent: true, faceOnLeft: Math.random() < 0.5 });
             experimentalSpecs.push({ eyesOpen: true, congruent: false, faceOnLeft: Math.random() < 0.5 });
-            experimentalSpecs.push({ eyesOpen: false, congruent: true, faceOnLeft: Math.random() < 0.5 });
-            experimentalSpecs.push({ eyesOpen: false, congruent: false, faceOnLeft: Math.random() < 0.5 });
         }
 
         // Fisher-Yates shuffle
