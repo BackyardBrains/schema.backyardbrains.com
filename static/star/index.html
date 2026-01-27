@@ -147,35 +147,34 @@
         // --- NEW: Capture Start Time ---
         const startTime = new Date();
 
-        // Configure Google Form prefill - UPDATED WITH MTURK FORM URL
+        // Configure Google Form prefill - UPDATED FOR PROLIFIC
         // Base form URL (params will be appended automatically). UUID will be added to entry.766586855
         const GOOGLE_FORM_BASE_URL = 'https://docs.google.com/forms/d/e/1FAIpQLSddjE-l1eZgp-yAWNMY9F4uq-5z9t3Dw3TgU6LTHFRrr9p-Yw/viewform';
         const GOOGLE_FORM_ENTRY_ID = '766586855'; // Same entry ID as provided in your URL
-        // Optional: set entry IDs for MTurk fields if you have corresponding questions in the form
-        const GOOGLE_FORM_ASSIGNMENT_ENTRY_ID = ''; // Update these if your new form has these fields
-        const GOOGLE_FORM_WORKER_ENTRY_ID = '';
-        const GOOGLE_FORM_HIT_ENTRY_ID = '';
 
-        // Capture MTurk params from query string
+        // Form field for Prolific ID (update this with your actual form entry ID if you have one specifically for Prolific ID)
+        // If you are using the same form field that was used for WorkerID, put that ID here.
+        const GOOGLE_FORM_PROLIFIC_ID_ENTRY_ID = '200625206';
+
+        // Capture Prolific params from query string
         function getParam(name) {
             const m = new URLSearchParams(location.search).get(name);
             return m ? decodeURIComponent(m) : '';
         }
-        const MTURK = {
-            assignmentId: getParam('assignmentId'),
-            workerId: getParam('workerId'),
-            hitId: getParam('hitId')
+
+        const PROLIFIC = {
+            prolificPid: getParam('PROLIFIC_PID'),
+            studyId: getParam('STUDY_ID'),
+            sessionId: getParam('SESSION_ID')
         };
 
-        // --- NEW: Preview Mode Detection ---
+        // --- NEW: Preview/Testing Mode Detection ---
         function checkPreviewMode() {
-            // Preview mode if explicit ASSIGNMENT_ID_NOT_AVAILABLE or if IDs are missing
-            const isPreview = (MTURK.assignmentId === 'ASSIGNMENT_ID_NOT_AVAILABLE') ||
-                (!MTURK.workerId && !MTURK.hitId && !MTURK.assignmentId);
+            // If PROLIFIC_PID is missing, assume we are in testing/preview mode
+            const isTesting = !PROLIFIC.prolificPid;
 
-            if (isPreview) {
-                // Show a non-blocking modal/alert using Bootstrap (already linked)
-                // We'll inject a simple overlay
+            if (isTesting) {
+                // Show a non-blocking modal/alert
                 const warningDiv = document.createElement('div');
                 warningDiv.style.position = 'fixed';
                 warningDiv.style.top = '0';
@@ -191,7 +190,7 @@
                 warningDiv.style.boxShadow = '0 2px 10px rgba(0,0,0,0.3)';
                 warningDiv.innerHTML = `
                     <div style="max-width: 800px; margin: 0 auto; display: flex; align-items: center; justify-content: space-between;">
-                        <span>⚠️ PREVIEW MODE: You must ACCEPT the HIT to receive payment. Practice trials are enabled.</span>
+                        <span>⚠️ TESTING MODE: No Prolific ID found. Data may not be linked to your account.</span>
                         <button onclick="this.parentElement.parentElement.remove()" style="margin-left: 20px; padding: 5px 15px; border: 2px solid #000; background: transparent; cursor: pointer; font-weight: bold;">✕ Dismiss</button>
                     </div>
                 `;
@@ -1104,10 +1103,10 @@
                             faceDurationMs: faceDurationMs,
                             testDurationMs: testDurationMs
                         },
-                        mturk: {
-                            assignmentId: MTURK.assignmentId,
-                            workerId: MTURK.workerId,
-                            hitId: MTURK.hitId
+                        prolific: {
+                            prolificPid: PROLIFIC.prolificPid,
+                            studyId: PROLIFIC.studyId,
+                            sessionId: PROLIFIC.sessionId
                         },
                         timing: {
                             startTime: startTime.toISOString(),
@@ -1144,15 +1143,9 @@
                     params.set(`entry.${GOOGLE_FORM_ENTRY_ID}`, sessionUUID);
                 }
 
-                // Add MTurk parameters if entry IDs are configured
-                if (GOOGLE_FORM_ASSIGNMENT_ENTRY_ID && GOOGLE_FORM_ASSIGNMENT_ENTRY_ID.trim().length > 0) {
-                    params.set(`entry.${GOOGLE_FORM_ASSIGNMENT_ENTRY_ID}`, MTURK.assignmentId || '');
-                }
-                if (GOOGLE_FORM_WORKER_ENTRY_ID && GOOGLE_FORM_WORKER_ENTRY_ID.trim().length > 0) {
-                    params.set(`entry.${GOOGLE_FORM_WORKER_ENTRY_ID}`, MTURK.workerId || '');
-                }
-                if (GOOGLE_FORM_HIT_ENTRY_ID && GOOGLE_FORM_HIT_ENTRY_ID.trim().length > 0) {
-                    params.set(`entry.${GOOGLE_FORM_HIT_ENTRY_ID}`, MTURK.hitId || '');
+                // Add Prolific parameters if entry IDs are configured
+                if (GOOGLE_FORM_PROLIFIC_ID_ENTRY_ID && GOOGLE_FORM_PROLIFIC_ID_ENTRY_ID.trim().length > 0) {
+                    params.set(`entry.${GOOGLE_FORM_PROLIFIC_ID_ENTRY_ID}`, PROLIFIC.prolificPid || '');
                 }
 
                 const formUrl = `${GOOGLE_FORM_BASE_URL}?${params.toString()}`;
@@ -1164,6 +1157,7 @@
           <p style="margin-bottom: 24px;">Please click the button below to open the final form and complete the experiment.</p>
           <p><a id="btn-form" href="${formUrl}" target="_blank" rel="noopener noreferrer" style="display:inline-block; padding:10px 16px; background:#222; color:#fff; text-decoration:none; border-radius:6px;">Open Form</a></p>
           ${hasUuidEntry ? '' : '<p style="margin-top:20px; font-size:14px; color:#ddd;">Note: Configure GOOGLE_FORM_ENTRY_ID in the script to prefill the UUID in your form.</p>'}
+          ${GOOGLE_FORM_PROLIFIC_ID_ENTRY_ID ? '' : '<p style="margin-top:5px; font-size:14px; color:#ddd;">Note: Configure GOOGLE_FORM_PROLIFIC_ID_ENTRY_ID in the script to prefill your Prolific ID.</p>'}
         `;
 
                 document.body.innerHTML = '';
