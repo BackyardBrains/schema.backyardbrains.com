@@ -442,6 +442,7 @@
               <div style="color:#ddd; margin-top:6px;">Maintain your gaze, and focus on the stars</div>
             </div>
           </div>
+          <p>Please look in the middle of the screen. You should ignore the face and the tree as they are not part of the game.</p>
           <p>When you notice the star direction, quickly press the LEFT or RIGHT arrow key to indicate the where the stars are moving.</p>
           <p>We will start with a few practice trials to help you get familiar with the game.</p>
           
@@ -1046,21 +1047,7 @@
             }
         };
 
-        const bobInstructions = {
-            type: jsPsychHtmlKeyboardResponse,
-            stimulus: `
-        <div class="center">
-          <div style="display: flex; justify-content: center; gap: 20px;">
-              <img src="${FACE_IMAGE_PAIRS[0].R}" style="width: 150px; height: auto; margin-bottom: 20px;">
-              <img src="${FACE_IMAGE_PAIRS[0].R_blindfold}" style="width: 150px; height: auto; margin-bottom: 20px;">
-          </div> 
-          <p>This is Bob. Bob is checking the tree. Sometimes he will be looking at it, and other times he will be wearing a blindfold.</p>
-          <p>Please ignore Bob and the tree. They are not part of your task. Just focus on the moving stars.</p>
-          <p><b>Press any key to continue.</b></p>
-        </div>
-      `,
-            choices: 'ALL_KEYS'
-        };
+
 
         // MODIFIED: Build main experimental trials with balanced conditions (MIXED)
         const experimentalSpecs = [];
@@ -1160,7 +1147,6 @@
 
         // Add trials to timeline - NEW STRUCTURE
         timeline.push(practiceLoopNode);
-        timeline.push(bobInstructions);
         timeline.push({ timeline: experimentalTrials });
 
         // Final results
