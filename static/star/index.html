@@ -72,6 +72,9 @@
             display: flex;
             justify-content: center;
             align-items: center;
+            /* NEW: Strictly shifts the element down 75px without changing size */
+            position: relative; 
+            top: 75px; 
         }
 
         /* Responsive image styling */
@@ -223,6 +226,7 @@
                 // Blindfold versions
                 L_blindfold: "https://raw.githubusercontent.com/BackyardBrains/schema.backyardbrains.com/main/static/star/img/BlindfoldDrawingLeft.png",
 
+                // R_blindfold versions
                 R_blindfold: "https://raw.githubusercontent.com/BackyardBrains/schema.backyardbrains.com/main/static/star/img/BlindfoldDrawingRight.png"
             }
             // Add more pairs here if you upload additional identities
@@ -632,8 +636,8 @@
             const apertureHalf = Math.floor(aperturePx / 2);
             const centerX = Math.floor(width / 2);
 
-            // CHANGED: Shift centerY UP by 100px to move dots slightly upwards
-            const centerY = Math.floor(height / 2) - 75;
+            // CHANGED: Snap back to true vertical center to match fixation and the lowered images
+            const centerY = Math.floor(height / 2);
 
             const leftBound = centerX - apertureHalf;
             const rightBound = centerX + apertureHalf;
