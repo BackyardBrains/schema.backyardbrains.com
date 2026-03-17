@@ -1,9 +1,8 @@
 const config = {
     experiment_name: 'threat',
     experiment_version: '2.2',
-    datafile_version: '1.5',
-    cohort: 'MTURK2601'
-  };
+    datafile_version: '1.5'
+};
 
 const translations = {
     en: {
@@ -27,8 +26,8 @@ const translations = {
         // Add all other text content here in Serbian
         gametitle: "Eksperiment tačke prevrtanja",
         welcome1: "Hvala što učestvujete u eksperimentu tačke prevrtanja tube! Vaš zadatak je da odredite tačan položaj (najmanji ugao) iz koga virtuelna tuba neċe moċi da se vrati u vertikalan položaj, već će pasti.",
-        welcome2:"Tuba je postavljena na stolu, a smer nagiba označen je strelicom. Koristite tastere sa strelicama levo i desno kako biste promenili ugao tube. Kada odredite kritičnu tačku tj. položaj u kome mislite da će tuba pasti, pritisnite razmak  (space bar).",
-        welcome3:"Vaša preciznost u pronalaženju ove delikatne ravnoteže biće ključna za uspeh eksperimenta. Pogledajte video za više detalja. Srećno!",
+        welcome2: "Tuba je postavljena na stolu, a smer nagiba označen je strelicom. Koristite tastere sa strelicama levo i desno kako biste promenili ugao tube. Kada odredite kritičnu tačku tj. položaj u kome mislite da će tuba pasti, pritisnite razmak  (space bar).",
+        welcome3: "Vaša preciznost u pronalaženju ove delikatne ravnoteže biće ključna za uspeh eksperimenta. Pogledajte video za više detalja. Srećno!",
         startExp: "Počni eksperiment",
         gameinstr1: "Pronađite tačku pada tube! Koristite tastere sa strelicama levo i desno da promenite ugao tube u označenom pravcu.",
         gameinstr2: "Kada odredite tačku prevrtanja, pritisnite taster <span class='space-bar'>razmak</span>.",
@@ -71,19 +70,19 @@ class TubeExperiment extends Experiment {
         this.game = document.getElementById('gamesection');
         this.formsection = document.getElementById('formsection');
         this.formbutton = document.getElementById('formbutton');
-    
-        
+
+
         this.tubeTypes = [
-            {width: '24', height: '130', faceAngle: '-9'}, // normal
-            {width: '48', height: '130', faceAngle: '-8'}, // fat
-            {width: '24', height: '65', faceAngle: '0'}, // short
-            {width: '48', height: '65', faceAngle: '1'}, // short and fat
+            { width: '24', height: '130', faceAngle: '-9' }, // normal
+            { width: '48', height: '130', faceAngle: '-8' }, // fat
+            { width: '24', height: '65', faceAngle: '0' }, // short
+            { width: '48', height: '65', faceAngle: '1' }, // short and fat
         ];
 
         this.button = document.getElementById('button');
         this.buttontext = document.getElementById('buttontext');
-        
-        
+
+
         //removed from HTML
         //    <rect id="button" x="900" y="192" width="100" height="40" fill="green" />
         //    <text id="buttontext" class="no-select" x="915" y="215" fill="white" font-size="15px" >Next</text>
@@ -91,8 +90,8 @@ class TubeExperiment extends Experiment {
         // Event listener for click event on the button
         //this.button.addEventListener('click', () => tubeExp.endTrial());
         //this.buttontext.addEventListener('click', () => tubeExp.endTrial());
-    
-    
+
+
         this.trialIndex = 0;
         this.tubeTypeIndex, this.arrowDirection, this.faceSide;
         this.currentAngle = 0; // Initialize current angle of line
@@ -100,16 +99,16 @@ class TubeExperiment extends Experiment {
 
         // Event listeners for keydown event to rotate the line
         window.addEventListener('keydown', (event) => {
-            
-            switch(event.key) {
+
+            switch (event.key) {
                 case 'ArrowLeft':
-                case 'f': 
-                this.tube.style.display = 'none'; 
+                case 'f':
+                    this.tube.style.display = 'none';
                     this.currentAngle = (this.currentAngle <= -180) ? -180 : this.currentAngle - 1;
                     break;
                 case 'ArrowRight':
                 case 'j':
-                    this.tube.style.display = 'none'; 
+                    this.tube.style.display = 'none';
                     this.currentAngle = (this.currentAngle >= 180) ? 180 : this.currentAngle + 1;
                     break;
                 case ' ':
@@ -121,72 +120,72 @@ class TubeExperiment extends Experiment {
 
         this.currentLanguage = getLanguage(); // Determine the current language
         this.setFormUrl(); // Set the appropriate form URL based on the language
-    
+
     }
-  
+
     setFormUrl() {
         this.FORM_URL = (this.currentLanguage === 'rs') ? this.FORM_URL_rs : this.FORM_URL_en;
     }
     generateTrials() {
-        for(let i = 0; i < this.tubeTypes.length; i++) {
-            for(let arrowdirection of ['left', 'right']) {
-                for(let faceSide of ['left', 'right']) {
-                    for(let faceType of this.faceTypes) {
-                        this.trialtypes.push({tubeTypeIndex: i, arrowDirection: arrowdirection, faceSide: faceSide, faceType: faceType });
+        for (let i = 0; i < this.tubeTypes.length; i++) {
+            for (let arrowdirection of ['left', 'right']) {
+                for (let faceSide of ['left', 'right']) {
+                    for (let faceType of this.faceTypes) {
+                        this.trialtypes.push({ tubeTypeIndex: i, arrowDirection: arrowdirection, faceSide: faceSide, faceType: faceType });
                     }
                 }
             }
         }
-    
+
         // Shuffle trials array
         this.trialtypes.sort(() => Math.random() - 0.5);
     }
-    
+
     startTrial() {
         this.tubeTypeIndex = this.trialtypes[this.trialIndex].tubeTypeIndex;
         this.arrowDirection = this.trialtypes[this.trialIndex].arrowDirection;
         this.faceSide = this.trialtypes[this.trialIndex].faceSide;
         this.faceType = this.trialtypes[this.trialIndex].faceType;
-    
+
         this.tube.setAttribute('width', this.tubeTypes[this.tubeTypeIndex].width);
         this.tube.setAttribute('height', this.tubeTypes[this.tubeTypeIndex].height);
 
         //hide the faces
-        this.rightface.style.display = 'none'; 
-        this.leftface.style.display = 'none'; 
+        this.rightface.style.display = 'none';
+        this.leftface.style.display = 'none';
 
         if (this.faceSide == 'left') {
-            this.leftface.setAttribute("xlink:href", "img/" + this.faceSide + "_" + this.image_name +  "_" + this.faceType + ".png");
-            this.leftface.setAttribute('transform', 'rotate(' +  this.tubeTypes[this.tubeTypeIndex].faceAngle + ', 100, 200)');
-            this.leftface.style.display = ''; 
+            this.leftface.setAttribute("xlink:href", "img/" + this.faceSide + "_" + this.image_name + "_" + this.faceType + ".png");
+            this.leftface.setAttribute('transform', 'rotate(' + this.tubeTypes[this.tubeTypeIndex].faceAngle + ', 100, 200)');
+            this.leftface.style.display = '';
         } else {
-            this.rightface.setAttribute("xlink:href", "img/" + this.faceSide + "_" + this.image_name +  "_" + this.faceType + ".png");
+            this.rightface.setAttribute("xlink:href", "img/" + this.faceSide + "_" + this.image_name + "_" + this.faceType + ".png");
             //rightface.setAttribute('transform', 'translate(1023, 0) scale(-1, 1) translate(-1023, 0)');
-            this.rightface.setAttribute('transform', 'rotate(' +  (-1 * this.tubeTypes[this.tubeTypeIndex].faceAngle).toString() + ', 923, 200)');
-            this.rightface.style.display = ''; 
+            this.rightface.setAttribute('transform', 'rotate(' + (-1 * this.tubeTypes[this.tubeTypeIndex].faceAngle).toString() + ', 923, 200)');
+            this.rightface.style.display = '';
         }
-         
+
         // update tube's x and y position to keep it centered on the platform
         let originalWidth = 24;
         let newWidth = parseInt(this.tube.getAttribute('width'));
         let originalX = 502; // original center of tube
         let newX = originalX - (newWidth - originalWidth) / 2;
         this.tube.setAttribute('x', newX);
-    
+
         let platformY = 160;
         let newHeight = parseInt(this.tube.getAttribute('height'));
         let newY = platformY - newHeight;
         this.tube.setAttribute('y', newY);
-    
-        this.tube.style.display = ''; 
-    
+
+        this.tube.style.display = '';
+
         this.currentAngle = 0; // reset line's angle at the start of each trial
         this.line.setAttribute('transform', `rotate(${this.currentAngle}, 514, 163)`);
         this.arrow.setAttribute('transform', (this.currentDirection != this.arrowDirection) ? 'rotate(180, 523, 210)' : '');
         this.trialStartTime = Date.now();
 
     }
-  
+
     endTrial() {
 
         let trialLatency = Date.now() - this.trialStartTime;
@@ -200,14 +199,14 @@ class TubeExperiment extends Experiment {
             endAngle: this.currentAngle,
             latency: trialLatency
         };
-    
+
         this.trials.push(trialResult);
 
         if (this.faceSide == 'left') {
-            this.leftface.style.display = 'none'; 
-            this.leftface.setAttribute('transform', 'rotate(' + (-1 * this.tubeTypes[this.tubeTypeIndex].faceAngle).toString()  + ', 200, 200)');
+            this.leftface.style.display = 'none';
+            this.leftface.setAttribute('transform', 'rotate(' + (-1 * this.tubeTypes[this.tubeTypeIndex].faceAngle).toString() + ', 200, 200)');
         } else {
-            this.rightface.style.display = 'none'; 
+            this.rightface.style.display = 'none';
             this.rightface.setAttribute('transform', 'rotate(' + this.tubeTypes[this.tubeTypeIndex].faceAngle + ', 200, 200)');
         }
 
@@ -217,7 +216,7 @@ class TubeExperiment extends Experiment {
         } else {
 
             this.game.style.display = 'none';
-            this.formsection.style.display = ''; 
+            this.formsection.style.display = '';
 
             this.saveTrialData();
 
@@ -225,30 +224,32 @@ class TubeExperiment extends Experiment {
             //let trialDataJSON = JSON.stringify(trialData);
             //console.log(trialDataJSON);
 
-                             
+
             this.formbutton.onclick = () => {
                 location.href = this.FORM_URL + this.UUID;
             };
 
         }
     }
-  
+
     saveTrialData() {
         // save trial data
-        let data = {session: this.session, 
-            trials: this.trials };
-        sendDataToServer(data, this.UUID, this.experimentName); 
+        let data = {
+            session: this.session,
+            trials: this.trials
+        };
+        sendDataToServer(data, this.UUID, this.experimentName);
 
     }
-  
-  }
+
+}
 
 
 function updatePageContent(lang) {
 
     console.log("Language set to: ", lang); // Debugging line
     console.log("Translations for language: ", translations[lang]); // Debugging line
-    
+
     document.getElementById('gametitle').innerText = translations[lang].gametitle;
     document.getElementById('enterPassword').placeholder = translations[lang].enterPassword;
     document.getElementById('welcome1').innerText = translations[lang].welcome1;
@@ -281,7 +282,7 @@ function preloadImages(imageUrls) {
     return Promise.all(loadPromises);
 }
 
-window.onload = function() {
+window.onload = function () {
     const tubeExp = new TubeExperiment();
 
     const faceImageUrls = [];
@@ -290,12 +291,11 @@ window.onload = function() {
             faceImageUrls.push(`img/${side}_${tubeExp.image_name}_${faceId}.png`);
         });
     });
-    
+
     preloadImages(faceImageUrls).then(() => {
         const sessionGroup = getQueryParam('SG'); // Get session_group from URL
-        
+
         tubeExp.session = {
-            cohort: config.cohort,
             session_group: sessionGroup || config.cohort,
             experiment_version: config.experiment_version,
             file_version: config.datafile_version,
@@ -305,7 +305,7 @@ window.onload = function() {
             mturk: tubeExp.mturk
         };
         tubeExp.UUID = generateUUID();
-        
+
         // Generate trials and start the first one
         tubeExp.generateTrials();
         tubeExp.startTrial();
@@ -313,10 +313,10 @@ window.onload = function() {
         console.error("Error loading images: ", error);
         // Handle image loading errors here
     });
-    
+
     const lang = getLanguage(); // You need to define getLanguage() to read the 'lang' URL parameter
     updatePageContent(lang); // And define updatePageContent() to update the page's content
-    
+
 }
 
 function getQueryParam(param) {
@@ -334,7 +334,7 @@ document.addEventListener('DOMContentLoaded', function () {
         passwordSection.style.display = 'block';
     }
 
-    submitPassword.addEventListener('click', function() {
+    submitPassword.addEventListener('click', function () {
         if (passwordInput.value === access_control) {
             // Password is correct, hide the initial instruction section and show the game section
             document.getElementById('passwordSection').style.display = 'none';
