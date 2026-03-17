@@ -1,7 +1,8 @@
 const config = {
     experiment_name: 'threat',
-    experiment_version: '2.1',
-    datafile_version: '1.4'
+    experiment_version: '2.2',
+    datafile_version: '1.5',
+    cohort: 'MTURK2601'
   };
 
 const translations = {
@@ -53,7 +54,15 @@ class TubeExperiment extends Experiment {
         this.FORM_URL_en = 'https://docs.google.com/forms/d/e/1FAIpQLSdVnyscX7YdUES8dmo_rGz_gHUzL8hfcY0gLi5zf7c9VZsvKA/viewform?usp=pp_url&entry.766586855=';
         this.FORM_URL_rs = 'https://docs.google.com/forms/d/e/1FAIpQLSc0P46iTLHyFHEJDGxZaqMF7k76JOuXgk1ZMRhqHNBxXyfKtA/viewform?usp=pp_url&entry.766586855=';
         this.image_name = 'threatlevel';
-        this.faceTypes = ['ID030', 'ID015'];
+        this.faceTypes = ['ID015', 'ID017'];
+        this.mturk = {
+            assignmentId: getQueryParam('assignmentId'),
+            workerId: getQueryParam('workerId'),
+            hitId: getQueryParam('hitId'),
+            hitTypeId: getQueryParam('hitTypeId'),
+            turkSubmitTo: getQueryParam('turkSubmitTo'),
+            clientId: getQueryParam('clientId') || getQueryParam('client_id') || getQueryParam('hitClientId')
+        };
         this.tube = document.getElementById('tube');
         this.line = document.querySelector('line');
         this.arrow = document.getElementById('arrow');
@@ -286,11 +295,14 @@ window.onload = function() {
         const sessionGroup = getQueryParam('SG'); // Get session_group from URL
         
         tubeExp.session = {
-            session_group: sessionGroup,
+            cohort: config.cohort,
+            session_group: sessionGroup || config.cohort,
             experiment_version: config.experiment_version,
             file_version: config.datafile_version,
             browserData: getBrowserData(),
-            tubeTypes: tubeExp.tubeTypes
+            tubeTypes: tubeExp.tubeTypes,
+            faceTypes: tubeExp.faceTypes,
+            mturk: tubeExp.mturk
         };
         tubeExp.UUID = generateUUID();
         
