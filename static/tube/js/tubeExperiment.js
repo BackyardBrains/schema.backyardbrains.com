@@ -1,6 +1,6 @@
 const config = {
     experiment_name: 'threat',
-    experiment_version: '2.2',
+    experiment_version: '2.3',
     datafile_version: '1.5',
     earlyExit: {
         minTrialsForCheck: 10,
@@ -194,6 +194,14 @@ class TubeExperiment extends Experiment {
             trialIndex: this.trialIndex,
             ...decision
         };
+
+        try {
+            // Set a flag in localStorage to prevent the user from simply refreshing the page to retry
+            localStorage.setItem('tubeExperiment_failedEngagement', 'true');
+        } catch (e) {
+            console.warn("Could not write to localStorage", e);
+        }
+
         this.saveTrialData();
         alert(translations[this.currentLanguage].earlyExitMessage);
         this.game.style.display = 'none';
@@ -367,6 +375,21 @@ function preloadImages(imageUrls) {
 }
 
 window.onload = function () {
+    const lang = getLanguage();
+    try {
+        if (localStorage.getItem('tubeExperiment_failedEngagement') === 'true') {
+            updatePageContent(lang);
+            alert(translations[lang].earlyExitMessage);
+
+            // Hide all potential sections so the game doesn't show
+            ['gamesection', 'formsection', 'initialInstructionSection', 'passwordSection'].forEach(id => {
+                const el = document.getElementById(id);
+                if (el) el.style.display = 'none';
+            });
+            return;
+        }
+    } catch (e) { }
+
     const tubeExp = new TubeExperiment();
 
     const faceImageUrls = [];
@@ -398,7 +421,7 @@ window.onload = function () {
         // Handle image loading errors here
     });
 
-    const lang = getLanguage(); // You need to define getLanguage() to read the 'lang' URL parameter
+    lang = getLanguage(); // You need to define getLanguage() to read the 'lang' URL parameter
     updatePageContent(lang); // And define updatePageContent() to update the page's content
 
 }
