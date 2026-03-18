@@ -592,12 +592,13 @@ def _list_files(pattern=None, ext=None, sort='date', order='desc',
     key = {"date":"mtime","name":"name","size":"size"}.get(sort, "mtime")
     reverse = (order == 'desc')
     files.sort(key=lambda x: x[key], reverse=reverse)
-    return files[int(offset): int(offset)+int(limit)]
+    total_count = len(files)
+    return files[int(offset): int(offset)+int(limit)], total_count
 
 @app.get('/api/uploads')
 def api_uploads():
     q = request.args
-    files = _list_files(
+    files, total_count = _list_files(
         pattern=q.get('pattern'),
         ext=q.get('ext'),
         sort=q.get('sort','date'),
@@ -617,10 +618,10 @@ def api_uploads():
         )
         html = f"""<!doctype html><meta charset="utf-8"><title>Uploads</title>
         <style>body{{font-family:system-ui,Arial}} table{{border-collapse:collapse}} td,th{{padding:6px 10px;border-bottom:1px solid #ddd}}</style>
-        <h1>Uploads</h1>
+        <h1>Uploads ({total_count} total)</h1>
         <table><thead><tr><th>Name</th><th>Size</th><th>Modified</th></tr></thead><tbody>{rows}</tbody></table>"""
         return Response(html, mimetype="text/html")
-    return jsonify({"count": len(files), "files": files})
+    return jsonify({"count": len(files), "total_count": total_count, "files": files})
 
 # ---- RESULTS SPA & API ----
 @app.get('/results')
@@ -641,7 +642,7 @@ def results_assets(filename):
 @require_results_scope('read:results')
 def results_list():
     q = request.args
-    files = _list_files(
+    files, total_count = _list_files(
         pattern=q.get('pattern'),
         ext=q.get('ext', '.json'),
         sort=q.get('sort', 'date'),
@@ -653,7 +654,7 @@ def results_list():
         since=q.get('since'),
         until=q.get('until'),
     )
-    return jsonify({"count": len(files), "files": files})
+    return jsonify({"count": len(files), "total_count": total_count, "files": files})
 
 
 def _safe_join_uploads(name: str) -> str:
@@ -691,7 +692,7 @@ def results_file(name):
 def results_zip():
     q = request.args
     max_files = int(q.get('max_files', 500))
-    files = _list_files(
+    files, total_count = _list_files(
         pattern=q.get('pattern'),
         ext=q.get('ext', '.json'),
         sort=q.get('sort', 'date'),
