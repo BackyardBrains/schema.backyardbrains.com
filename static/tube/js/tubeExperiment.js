@@ -1,7 +1,16 @@
 const config = {
     experiment_name: 'threat',
     experiment_version: '2.2',
-    datafile_version: '1.5'
+    datafile_version: '1.5',
+    earlyExit: {
+        minTrialsForCheck: 10,
+        maxZeroPct: 80,
+        minAngleSd: 2,
+        minMedianRtMs: 1200,
+        maxFastRtPct: 80,
+        maxWrongDirPct: 60,
+        flagsNeeded: 2
+    }
 };
 
 const translations = {
@@ -12,13 +21,14 @@ const translations = {
         gametitle: "The Tipping Point Game",
         welcome1: "Welcome to the Tube Tilt Experiment! Your task is to determine the 'tipping point' at which a virtual tube will fall over. Think carefully about the exact point where a tipped tube transitions from going straight back up again to falling down. We want to know the smallest angle in which it fall over. See video for more details.",
         welcome2: "The tube will be sitting on a table, and the direction of the tilt is indicated by an arrow. Use the left and right arrow keys to adjust the tilt, and press the space bar when you believe you've reached this critical angle.",
-        welcome3: "Your precision in finding this delicate balance will be key to the experiment's success. Good luck!",
+        welcome3: "Your precision in finding this delicate balance will be key to the experiment's success. Good luck! Important quality check: the first 10 rounds are checked for active play.",
         startExp: "Start Experiment",
         gameinstr1: "Find the Tipping Point (smallest angle to tip)! Use the left and right arrow keys to tilt the tube in the direction indicated. The faces are looking at the color of the tube, and can be ignored.",
         gameinstr2: "When you think you have found the tipping point, press  <span class='space-bar'>SPACE BAR</span>",
         surveyHeader: "Part 2: Survey",
         surveyText: "Thank you for playing. You will now click the link below to fill out a few questions about the game you just played.",
-        continueToSurvey: "Continue to Survey"
+        continueToSurvey: "Continue to Survey",
+        earlyExitMessage: "Your session ended early because your first responses suggested low engagement with the task."
     },
     rs: {
         testVerification: "Provera Testa",
@@ -27,13 +37,14 @@ const translations = {
         gametitle: "Eksperiment tačke prevrtanja",
         welcome1: "Hvala što učestvujete u eksperimentu tačke prevrtanja tube! Vaš zadatak je da odredite tačan položaj (najmanji ugao) iz koga virtuelna tuba neċe moċi da se vrati u vertikalan položaj, već će pasti.",
         welcome2: "Tuba je postavljena na stolu, a smer nagiba označen je strelicom. Koristite tastere sa strelicama levo i desno kako biste promenili ugao tube. Kada odredite kritičnu tačku tj. položaj u kome mislite da će tuba pasti, pritisnite razmak  (space bar).",
-        welcome3: "Vaša preciznost u pronalaženju ove delikatne ravnoteže biće ključna za uspeh eksperimenta. Pogledajte video za više detalja. Srećno!",
+        welcome3: "Vaša preciznost u pronalaženju ove delikatne ravnoteže biće ključna za uspeh eksperimenta. Pogledajte video za više detalja. Srećno! Važna provera kvaliteta: prvih 10 rundi se proverava zbog aktivnog učestvovanja.",
         startExp: "Počni eksperiment",
         gameinstr1: "Pronađite tačku pada tube! Koristite tastere sa strelicama levo i desno da promenite ugao tube u označenom pravcu.",
         gameinstr2: "Kada odredite tačku prevrtanja, pritisnite taster <span class='space-bar'>razmak</span>.",
         surveyHeader: "Deo 2: Anketa",
         surveyText: "Hvala što ste učestvovali u eksperimentu. Kliknite na link i  odgovorite na nekoliko pitanja o eksperimentu.",
-        continueToSurvey: "Nastavite ka Anketi"
+        continueToSurvey: "Nastavite ka Anketi",
+        earlyExitMessage: "Sesija je završena ranije jer prvi odgovori ukazuju na slabu angažovanost u zadatku."
     }
 };
 
@@ -70,6 +81,8 @@ class TubeExperiment extends Experiment {
         this.game = document.getElementById('gamesection');
         this.formsection = document.getElementById('formsection');
         this.formbutton = document.getElementById('formbutton');
+        this.earlyExitTriggered = false;
+        this.earlyExitDecision = null;
 
 
         this.tubeTypes = [
@@ -99,6 +112,9 @@ class TubeExperiment extends Experiment {
 
         // Event listeners for keydown event to rotate the line
         window.addEventListener('keydown', (event) => {
+            if (this.earlyExitTriggered) {
+                return;
+            }
 
             switch (event.key) {
                 case 'ArrowLeft':
@@ -121,6 +137,67 @@ class TubeExperiment extends Experiment {
         this.currentLanguage = getLanguage(); // Determine the current language
         this.setFormUrl(); // Set the appropriate form URL based on the language
 
+    }
+
+    median(values) {
+        if (!values.length) {
+            return NaN;
+        }
+        const sorted = [...values].sort((a, b) => a - b);
+        const middle = Math.floor(sorted.length / 2);
+        if (sorted.length % 2) {
+            return sorted[middle];
+        }
+        return (sorted[middle - 1] + sorted[middle]) / 2;
+    }
+
+    getEngagementDecision() {
+        const cfg = config.earlyExit;
+        const firstTrials = this.trials.slice(0, cfg.minTrialsForCheck);
+
+        if (firstTrials.length < cfg.minTrialsForCheck) {
+            return { shouldEnd: false, flags: [], metrics: {} };
+        }
+
+        const angles = firstTrials.map(trial => Number(trial.endAngle ?? 0));
+        const rts = firstTrials
+            .map(trial => Number(trial.latency ?? NaN))
+            .filter(Number.isFinite);
+
+        const zeroPct = (angles.filter(angle => angle === 0).length / angles.length) * 100;
+        const meanAngle = angles.reduce((total, angle) => total + angle, 0) / angles.length;
+        const sd = Math.sqrt(angles.reduce((acc, angle) => acc + (angle - meanAngle) ** 2, 0) / angles.length);
+        const medianRt = this.median(rts);
+        const fastRtPct = rts.length ? (rts.filter(rt => rt < 1500).length / rts.length) * 100 : 0;
+
+        const directionalTrials = firstTrials.filter(trial => trial.endAngle !== 0 && ['left', 'right'].includes(trial.arrowDirection));
+        const wrongDirection = directionalTrials.filter(trial => (trial.arrowDirection === 'left' && trial.endAngle > 0) || (trial.arrowDirection === 'right' && trial.endAngle < 0));
+        const wrongDirPct = directionalTrials.length ? (wrongDirection.length / directionalTrials.length) * 100 : 0;
+
+        const flags = [];
+        if (zeroPct >= cfg.maxZeroPct) flags.push('mostly_zero_angles');
+        if (sd < cfg.minAngleSd && zeroPct < 90) flags.push('low_angle_variability');
+        if (Number.isFinite(medianRt) && medianRt < cfg.minMedianRtMs) flags.push('very_fast_median_rt');
+        if (fastRtPct >= cfg.maxFastRtPct) flags.push('mostly_fast_rts');
+        if (wrongDirPct > cfg.maxWrongDirPct) flags.push('mostly_wrong_direction');
+
+        return {
+            shouldEnd: flags.length >= cfg.flagsNeeded,
+            flags,
+            metrics: { zeroPct, sd, medianRt, fastRtPct, wrongDirPct }
+        };
+    }
+
+    triggerEarlyExit(decision) {
+        this.earlyExitTriggered = true;
+        this.earlyExitDecision = {
+            trialIndex: this.trialIndex,
+            ...decision
+        };
+        this.saveTrialData();
+        alert(translations[this.currentLanguage].earlyExitMessage);
+        this.game.style.display = 'none';
+        this.formsection.style.display = 'none';
     }
 
     setFormUrl() {
@@ -202,6 +279,12 @@ class TubeExperiment extends Experiment {
 
         this.trials.push(trialResult);
 
+        const decision = this.getEngagementDecision();
+        if (decision.shouldEnd) {
+            this.triggerEarlyExit(decision);
+            return;
+        }
+
         if (this.faceSide == 'left') {
             this.leftface.style.display = 'none';
             this.leftface.setAttribute('transform', 'rotate(' + (-1 * this.tubeTypes[this.tubeTypeIndex].faceAngle).toString() + ', 200, 200)');
@@ -236,7 +319,8 @@ class TubeExperiment extends Experiment {
         // save trial data
         let data = {
             session: this.session,
-            trials: this.trials
+            trials: this.trials,
+            earlyExit: this.earlyExitDecision
         };
         sendDataToServer(data, this.UUID, this.experimentName);
 
