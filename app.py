@@ -691,14 +691,15 @@ def results_file(name):
 @require_results_scope('read:results')
 def results_zip():
     q = request.args
-    max_files = int(q.get('max_files', 500))
+    # Use a large max_files limit by default for zips, ignoring UI pagination
+    max_files = int(q.get('max_files', 10000))
     files, total_count = _list_files(
         pattern=q.get('pattern'),
         ext=q.get('ext', '.json'),
         sort=q.get('sort', 'date'),
         order=q.get('order', 'desc'),
-        limit=q.get('limit', 200),
-        offset=q.get('offset', 0),
+        limit=max_files,
+        offset=0,
         min_size=q.get('min_size', 0),
         max_size=q.get('max_size'),
         since=q.get('since'),
