@@ -207,8 +207,8 @@
         let monitorWidthCm = 38;
         let viewingDistanceCm = 54;
         const apertureDeg = 5;
-        const densityDotsPerDeg2 = 40;    // v1.8: 40 dots/deg² (was 16)
-        const dotDiameterDeg = 0.035;     // v1.8: slightly smaller dots (was 0.05)
+        const densityDotsPerDeg2 = 50;    // v1.8: 40 dots/deg² (was 16)
+        const dotDiameterDeg = 0.05;     // v1.8: slightly smaller dots (was 0.05)
         const dotSpeedDegPerSec = 2.0;    // v1.8: slightly faster (was 2.4)
         const lifetimeMs = 200;
         const coherence = 0.40;           // 40% coherence
@@ -1183,9 +1183,9 @@
                 UUID: sessionUUID,
                 data: {
                     session: {
-                        experiment_version: '1.8.6',
+                        experiment_version: '1.9',
                         treatment: 'faces_towards_away_catch',
-                        file_version: '1.8.6',
+                        file_version: '1.9',
                         totalTrials: n,
                         totalTrialsIncludingCatch: n + catchN,
                         conditions: {
