@@ -209,7 +209,7 @@
         const apertureDeg = 5;
         const densityDotsPerDeg2 = 40;    // v1.8: 40 dots/deg² (was 16)
         const dotDiameterDeg = 0.035;     // v1.8: slightly smaller dots (was 0.05)
-        const dotSpeedDegPerSec = 3.0;    // v1.8: slightly faster (was 2.4)
+        const dotSpeedDegPerSec = 2.0;    // v1.8: slightly faster (was 2.4)
         const lifetimeMs = 200;
         const coherence = 0.40;           // 40% coherence
         const interleavedSets = 3;
@@ -752,8 +752,8 @@
                     function updateSet(activeSetIdx, dtSec) {
                         const set = sets[activeSetIdx];
                         for (const d of set) {
-                            d.x += d.vx * dtSec;
-                            d.y += d.vy * dtSec;
+                            d.x += d.vx * (dtSec * numSets);
+                            d.y += d.vy * (dtSec * numSets);
                             while (d.x < leftBound) d.x += aperturePx;
                             while (d.x >= rightBound) d.x -= aperturePx;
                             while (d.y < topBound) d.y += aperturePx;
