@@ -40,7 +40,6 @@
             color: #fff;
         }
 
-        /* General viewport centering */
         .viewport-center {
             min-height: 100vh;
             display: flex;
@@ -49,7 +48,6 @@
             width: 100%;
         }
 
-        /* --- RESPONSIVE LAYOUT --- */
         .stimulus-flex-container {
             display: flex;
             justify-content: space-between;
@@ -60,7 +58,6 @@
             margin: 0 auto;
         }
 
-        /* Face wrapper - standard size */
         .stimulus-item-wrapper {
             width: 40%;
             display: flex;
@@ -70,25 +67,21 @@
             top: 65px;
         }
 
-        /* Tree wrapper - slightly smaller than face to make it roughly same apparent size */
         .stimulus-item-wrapper.tree-wrapper {
             width: 33%;
         }
 
-        /* Responsive image styling */
         .stimulus-img-responsive {
             width: 100%;
             height: auto;
             object-fit: contain;
         }
 
-        /* Make SVG fallbacks responsive too */
         .stimulus-item-wrapper svg {
             width: 100%;
             height: auto;
         }
 
-        /* Force jsPsych wrappers to center content vertically */
         .jspsych-display-element,
         .jspsych-content-wrapper {
             min-height: 100vh !important;
@@ -104,7 +97,6 @@
             width: 100%;
         }
 
-        /* Button styling for the start screen */
         .start-btn {
             background-color: #FFFFFF;
             border: 2px solid #000000;
@@ -139,53 +131,39 @@
 
         const startTime = new Date();
 
-        // --- v1.8.6 Advanced Data Capture ---
+        // --- Advanced Data Capture ---
         let calculatedRefreshRate = null;
         let refreshRateSamples = [];
         let lastRafTime = null;
         function measureRefreshRate(timestamp) {
-            if (!lastRafTime) {
-                lastRafTime = timestamp;
-                requestAnimationFrame(measureRefreshRate);
-                return;
-            }
+            if (!lastRafTime) { lastRafTime = timestamp; requestAnimationFrame(measureRefreshRate); return; }
             refreshRateSamples.push(timestamp - lastRafTime);
             lastRafTime = timestamp;
             if (refreshRateSamples.length < 60) {
                 requestAnimationFrame(measureRefreshRate);
             } else {
                 const sum = refreshRateSamples.reduce((a, b) => a + b, 0);
-                const avgMs = sum / refreshRateSamples.length;
-                calculatedRefreshRate = Math.round(1000 / avgMs);
+                calculatedRefreshRate = Math.round(1000 / (sum / refreshRateSamples.length));
             }
         }
         requestAnimationFrame(measureRefreshRate);
 
         const visibilityLog = [];
-        document.addEventListener('visibilitychange', () => {
-            visibilityLog.push({ event: 'visibilitychange', state: document.visibilityState, timestamp: Date.now() });
-        });
-        window.addEventListener('blur', () => {
-            visibilityLog.push({ event: 'blur', state: 'blurred', timestamp: Date.now() });
-        });
-        window.addEventListener('focus', () => {
-            visibilityLog.push({ event: 'focus', state: 'focused', timestamp: Date.now() });
-        });
+        document.addEventListener('visibilitychange', () => visibilityLog.push({ event: 'visibilitychange', state: document.visibilityState, timestamp: Date.now() }));
+        window.addEventListener('blur',  () => visibilityLog.push({ event: 'blur',  state: 'blurred', timestamp: Date.now() }));
+        window.addEventListener('focus', () => visibilityLog.push({ event: 'focus', state: 'focused', timestamp: Date.now() }));
 
         let gpuInfo = "Unknown";
         try {
-            const canvas = document.createElement('canvas');
-            const gl = canvas.getContext('webgl') || canvas.getContext('experimental-webgl');
+            const c = document.createElement('canvas');
+            const gl = c.getContext('webgl') || c.getContext('experimental-webgl');
             if (gl) {
-                const debugInfo = gl.getExtension('WEBGL_debug_renderer_info');
-                if (debugInfo) {
-                    gpuInfo = gl.getParameter(debugInfo.UNMASKED_RENDERER_WEBGL);
-                }
+                const dbg = gl.getExtension('WEBGL_debug_renderer_info');
+                if (dbg) gpuInfo = gl.getParameter(dbg.UNMASKED_RENDERER_WEBGL);
             }
         } catch (e) { }
-        // ------------------------------------
 
-        // Configure Google Form prefill - FOR PROLIFIC
+        // --- Prolific / Form ---
         const GOOGLE_FORM_BASE_URL = 'https://docs.google.com/forms/d/e/1FAIpQLSeiXmHbozDI_ANe2iJorRMzmpeTkEsnpYmWtqx6g3WhouDhvw/viewform';
         const GOOGLE_FORM_ENTRY_ID = '766586855';
         const GOOGLE_FORM_PROLIFIC_ID_ENTRY_ID = '200625206';
@@ -194,95 +172,81 @@
             const m = new URLSearchParams(location.search).get(name);
             return m ? decodeURIComponent(m) : '';
         }
-
         const PROLIFIC = {
             prolificPid: getParam('PROLIFIC_PID'),
-            studyId: getParam('STUDY_ID'),
-            sessionId: getParam('SESSION_ID')
+            studyId:     getParam('STUDY_ID'),
+            sessionId:   getParam('SESSION_ID')
         };
 
         // -----------------------------------------------------------------------
-        // RDK PARAMETERS  (v1.8 updates)
+        // RDK PARAMETERS
+        // pixelsPerDegree starts null. The virtual chinrest sets it at runtime.
+        // All PPD-dependent math in rdkTrial() lives inside on_load so it runs
+        // AFTER the chinrest has stored the real value.
         // -----------------------------------------------------------------------
-        let pixelsPerDegree = null; // set by virtual chinrest, defaults to 50
-        let monitorWidthCm = 38;
+        let pixelsPerDegree   = null;
         let viewingDistanceCm = 54;
-        const apertureDeg = 5;
+        let monitorWidthCm    = 38;
+
+        const apertureDeg        = 5;
         const densityDotsPerDeg2 = 50;
-        const dotDiameterDeg = 0.05;
-        const dotSpeedDegPerSec = 2.0;
-        const lifetimeMs = 200;
-        const coherence = 0.40;           // 40% coherence
-        const interleavedSets = 3;
+        const dotDiameterDeg     = 0.05;
+        const dotSpeedDegPerSec  = 2.0;
+        const lifetimeMs         = 200;
+        const coherence          = 0.40;
+        const interleavedSets    = 3;
 
         const fixationDurationMs = 1500;
-        const faceDurationMs = 1500;
-        const testDurationMs = 2000;
-        const catchResponseMs = 3000;     // v1.8.5: total response window for catch trials
-        const itiMinMs = 1000;
-        const itiMaxMs = 2000;
+        const faceDurationMs     = 1500;
+        const testDurationMs     = 2000;
+        const catchResponseMs    = 3000;
+        const itiMinMs           = 1000;
+        const itiMaxMs           = 2000;
 
-        let globalCanvas = null;
-        let globalCtx = null;
-        let currentRafId = null;
+        let globalCanvas     = null;
+        let globalCtx        = null;
+        let currentRafId     = null;
         let practiceAttempts = 0;
 
         const timeline = [];
 
         function generateUUID() {
-            return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function (c) {
+            return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => {
                 const r = Math.random() * 16 | 0;
-                const v = c === 'x' ? r : (r & 0x3 | 0x8);
-                return v.toString(16);
+                return (c === 'x' ? r : (r & 0x3 | 0x8)).toString(16);
             });
         }
-
         const sessionUUID = generateUUID();
 
-        // IMAGE STIMULI CONFIG
-        // No blindfold images in v1.8 - only eyes-open face looking left or right
-        const FACE_IMAGE_PAIRS = [
-            {
-                L: "https://raw.githubusercontent.com/BackyardBrains/schema.backyardbrains.com/main/static/star/img/BlankFaceLookingLeft%20(1).png",
-                R: "https://raw.githubusercontent.com/BackyardBrains/schema.backyardbrains.com/main/static/star/img/BlankFaceLookingRight%20(1).png",
-            }
-        ];
-
-        const GREEN_FACE_IMAGE_PAIRS = [
-            {
-                L: "https://raw.githubusercontent.com/BackyardBrains/schema.backyardbrains.com/main/static/star/img/BlankFaceLookingLeftGreen.png",
-                R: "https://raw.githubusercontent.com/BackyardBrains/schema.backyardbrains.com/main/static/star/img/BlankFaceLookingRightGreen.png",
-            }
-        ];
-
-        const TREE_IMAGE = "https://raw.githubusercontent.com/BackyardBrains/schema.backyardbrains.com/main/static/star/img/Tree.png";
+        // --- Images ---
+        const FACE_IMAGE_PAIRS = [{
+            L: "https://raw.githubusercontent.com/BackyardBrains/schema.backyardbrains.com/main/static/star/img/BlankFaceLookingLeft%20(1).png",
+            R: "https://raw.githubusercontent.com/BackyardBrains/schema.backyardbrains.com/main/static/star/img/BlankFaceLookingRight%20(1).png"
+        }];
+        const GREEN_FACE_IMAGE_PAIRS = [{
+            L: "https://raw.githubusercontent.com/BackyardBrains/schema.backyardbrains.com/main/static/star/img/BlankFaceLookingLeftGreen.png",
+            R: "https://raw.githubusercontent.com/BackyardBrains/schema.backyardbrains.com/main/static/star/img/BlankFaceLookingRightGreen.png"
+        }];
+        const TREE_IMAGE       = "https://raw.githubusercontent.com/BackyardBrains/schema.backyardbrains.com/main/static/star/img/Tree.png";
         const GREEN_TREE_IMAGE = "https://raw.githubusercontent.com/BackyardBrains/schema.backyardbrains.com/main/static/star/img/TreeGreen.png";
+        const INSTR_IMAGES = {
+            stare: "https://raw.githubusercontent.com/BackyardBrains/schema.backyardbrains.com/main/static/star/img/Stare_spot.png",
+            stars: "https://raw.githubusercontent.com/BackyardBrains/schema.backyardbrains.com/main/static/star/img/Starfield.png"
+        };
 
         const preloadedImgs = {};
-        const attemptLog = [];
+        const attemptLog    = [];
         const GITHUB_RAW_BASE = 'https://raw.githubusercontent.com/BackyardBrains/schema.backyardbrains.com/main';
+
         function preloadImages(list) {
-            return Promise.all(list.filter(Boolean).map(src => new Promise((resolve) => {
+            return Promise.all(list.filter(Boolean).map(src => new Promise(resolve => {
                 const img = new Image();
                 img.crossOrigin = 'anonymous';
                 let triedRemote = false;
-                let original = src;
-
-                const record = (url, status, triedRemoteFlag) => {
-                    attemptLog.push({ url, status, triedRemote: !!triedRemoteFlag });
-                };
-
-                const fail = (url) => {
-                    record(url, 'failed', triedRemote);
-                    resolve(url);
-                };
-
-                img.onload = () => {
-                    preloadedImgs[original] = img;
-                    record(img.src, 'loaded', triedRemote);
-                    resolve(original);
-                };
-
+                const original = src;
+                const record = (url, status) => attemptLog.push({ url, status, triedRemote });
+                const fail   = url => { record(url, 'failed'); resolve(url); };
+                img.onload = () => { preloadedImgs[original] = img; record(img.src, 'loaded'); resolve(original); };
                 img.onerror = () => {
                     if (!triedRemote && original.startsWith('/')) {
                         triedRemote = true;
@@ -293,12 +257,7 @@
                     }
                     fail(img.src || original);
                 };
-
-                try {
-                    img.src = src;
-                } catch (e) {
-                    fail(src);
-                }
+                try { img.src = src; } catch (e) { fail(src); }
             })));
         }
 
@@ -306,41 +265,26 @@
             const ctrl = new AbortController();
             const t = setTimeout(() => ctrl.abort(), timeoutMs);
             try {
-                let attempt = 0;
-                let lastError = null;
-                const backoff = (n) => new Promise(r => setTimeout(r, Math.min(2000, 300 * Math.pow(2, n))));
+                let attempt = 0, lastError = null;
+                const backoff = n => new Promise(r => setTimeout(r, Math.min(2000, 300 * Math.pow(2, n))));
                 while (attempt <= maxRetries) {
                     try {
-                        const res = await fetch('https://schema.backyardbrains.com/data', {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify(payload),
-                            signal: ctrl.signal
-                        });
+                        const res  = await fetch('https://schema.backyardbrains.com/data', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload), signal: ctrl.signal });
                         const text = await res.text();
                         let ok = false;
-                        try {
-                            const j = JSON.parse(text || '{}');
-                            if (j && (j.status === 'ok' || j.saved)) ok = true;
-                        } catch (e) { }
+                        try { const j = JSON.parse(text || '{}'); if (j && (j.status === 'ok' || j.saved)) ok = true; } catch (e) { }
                         if (!ok && text && text.trim() === 'OK') ok = true;
-
                         if (res.ok && ok) return { ok: true, status: res.status, statusText: res.statusText, body: text };
                         lastError = { ok: false, status: res.status, statusText: res.statusText, body: text };
-                    } catch (err) {
-                        lastError = { ok: false, status: 0, statusText: String(err), body: '' };
-                    }
-                    attempt += 1;
-                    if (attempt <= maxRetries) {
-                        await backoff(attempt - 1);
-                    }
+                    } catch (err) { lastError = { ok: false, status: 0, statusText: String(err), body: '' }; }
+                    attempt++;
+                    if (attempt <= maxRetries) await backoff(attempt - 1);
                 }
                 return lastError || { ok: false, status: 0, statusText: 'Unknown error', body: '' };
-            } finally {
-                clearTimeout(t);
-            }
+            } finally { clearTimeout(t); }
         }
 
+        // --- Canvas (original, no DPR modification) ---
         function initGlobalCanvas(width = 800, height = 800) {
             if (!globalCanvas) {
                 globalCanvas = document.createElement('canvas');
@@ -354,10 +298,7 @@
         }
 
         function cleanup() {
-            if (currentRafId) {
-                cancelAnimationFrame(currentRafId);
-                currentRafId = null;
-            }
+            if (currentRafId) { cancelAnimationFrame(currentRafId); currentRafId = null; }
         }
 
         function randInt(min, max) {
@@ -365,112 +306,103 @@
         }
 
         function generateFaceSVG(lookingRight = true) {
-            let eyeContent;
-            if (lookingRight) {
-                eyeContent = `
-        <circle cx="32" cy="35" r="7" fill="white" stroke="black" stroke-width="1"/>
-        <circle cx="36" cy="35" r="3" fill="black"/>
-        <circle cx="48" cy="35" r="7" fill="white" stroke="black" stroke-width="1"/>
-        <circle cx="52" cy="35" r="3" fill="black"/>
-      `;
-            } else {
-                eyeContent = `
-        <circle cx="32" cy="35" r="7" fill="white" stroke="black" stroke-width="1"/>
-        <circle cx="28" cy="35" r="3" fill="black"/>
-        <circle cx="48" cy="35" r="7" fill="white" stroke="black" stroke-width="1"/>
-        <circle cx="44" cy="35" r="3" fill="black"/>
-      `;
-            }
-
-            const earPath = lookingRight ?
-                'M 24 38 C 20 35, 20 45, 24 42' :
-                'M 56 38 C 60 35, 60 45, 56 42';
-
-            const nosePath = lookingRight ?
-                'M 40 40 L 42 43' :
-                'M 40 40 L 38 43';
-
-            return `
-        <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
-          <ellipse cx="40" cy="45" rx="22" ry="28" fill="white" stroke="black" stroke-width="2"/>
-          <path d="${earPath}" fill="none" stroke="black" stroke-width="1.5"/>
-          ${eyeContent}
-          <path d="${nosePath}" stroke="black" stroke-width="1"/>
-          <line x1="35" y1="52" x2="45" y2="52" stroke="black" stroke-width="1.5"/>
-          <path d="M 20 30 Q 40 20, 60 30" fill="none" stroke="black" stroke-width="1.5"/>
-        </svg>
-      `;
+            const eyeContent = lookingRight
+                ? `<circle cx="32" cy="35" r="7" fill="white" stroke="black" stroke-width="1"/>
+                   <circle cx="36" cy="35" r="3" fill="black"/>
+                   <circle cx="48" cy="35" r="7" fill="white" stroke="black" stroke-width="1"/>
+                   <circle cx="52" cy="35" r="3" fill="black"/>`
+                : `<circle cx="32" cy="35" r="7" fill="white" stroke="black" stroke-width="1"/>
+                   <circle cx="28" cy="35" r="3" fill="black"/>
+                   <circle cx="48" cy="35" r="7" fill="white" stroke="black" stroke-width="1"/>
+                   <circle cx="44" cy="35" r="3" fill="black"/>`;
+            const earPath  = lookingRight ? 'M 24 38 C 20 35, 20 45, 24 42' : 'M 56 38 C 60 35, 60 45, 56 42';
+            const nosePath = lookingRight ? 'M 40 40 L 42 43' : 'M 40 40 L 38 43';
+            return `<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+                <ellipse cx="40" cy="45" rx="22" ry="28" fill="white" stroke="black" stroke-width="2"/>
+                <path d="${earPath}" fill="none" stroke="black" stroke-width="1.5"/>
+                ${eyeContent}
+                <path d="${nosePath}" stroke="black" stroke-width="1"/>
+                <line x1="35" y1="52" x2="45" y2="52" stroke="black" stroke-width="1.5"/>
+                <path d="M 20 30 Q 40 20, 60 30" fill="none" stroke="black" stroke-width="1.5"/>
+            </svg>`;
         }
 
         function generateTreeSVG() {
-            return `
-        <svg viewBox="0 0 80 100" xmlns="http://www.w3.org/2000/svg">
-          <rect x="35" y="60" width="10" height="30" fill="white" stroke="black" stroke-width="2"/>
-          <circle cx="40" cy="50" r="20" fill="white" stroke="black" stroke-width="2"/>
-          <circle cx="30" cy="40" r="18" fill="white" stroke="black" stroke-width="2"/>
-          <circle cx="50" cy="40" r="18" fill="white" stroke="black" stroke-width="2"/>
-          <circle cx="40" cy="30" r="16" fill="white" stroke="black" stroke-width="2"/>
-        </svg>
-      `;
+            return `<svg viewBox="0 0 80 100" xmlns="http://www.w3.org/2000/svg">
+                <rect x="35" y="60" width="10" height="30" fill="white" stroke="black" stroke-width="2"/>
+                <circle cx="40" cy="50" r="20" fill="white" stroke="black" stroke-width="2"/>
+                <circle cx="30" cy="40" r="18" fill="white" stroke="black" stroke-width="2"/>
+                <circle cx="50" cy="40" r="18" fill="white" stroke="black" stroke-width="2"/>
+                <circle cx="40" cy="30" r="16" fill="white" stroke="black" stroke-width="2"/>
+            </svg>`;
         }
 
-        const INSTR_IMAGES = {
-            stare: "https://raw.githubusercontent.com/BackyardBrains/schema.backyardbrains.com/main/static/star/img/Stare_spot.png",
-            stars: "https://raw.githubusercontent.com/BackyardBrains/schema.backyardbrains.com/main/static/star/img/Starfield.png"
+        // -----------------------------------------------------------------------
+        // VIRTUAL CHINREST — runs first, sets pixelsPerDegree before any trials
+        // -----------------------------------------------------------------------
+        const chinrestTrial = {
+            type: jsPsychVirtualChinrest,
+            blindspot_reps: 3,
+            resize_units: "none",
+            on_finish: function (data) {
+                if (data.px_per_deg && data.px_per_deg > 0) pixelsPerDegree = data.px_per_deg;
+                if (data.view_dist_mm && data.view_dist_mm > 0) viewingDistanceCm = data.view_dist_mm / 10;
+            }
         };
 
         // -----------------------------------------------------------------------
-        // INSTRUCTIONS  (v1.8.5: includes catch trial explanation)
+        // SCREENS
         // -----------------------------------------------------------------------
+        const participantIdTrial = {
+            type: jsPsychSurveyText,
+            questions: [{ prompt: "Please enter your Prolific ID:", name: 'prolific_id', value: PROLIFIC.prolificPid || '', required: true }],
+            button_label: 'Continue',
+            on_finish: function (data) {
+                if (data.response && data.response.prolific_id) PROLIFIC.prolificPid = data.response.prolific_id.trim();
+            }
+        };
 
-        // Bob introduction screen - shown AFTER practice
-        const bobIntroduction = {
+        const dataRequirementWarning = {
             type: jsPsychHtmlKeyboardResponse,
-            stimulus: `
-        <div class="center">
-          <h2>Meet Bob</h2>
-          <div style="text-align:center; margin:16px 0;">
-            <img src="${FACE_IMAGE_PAIRS[0].R}" alt="Bob" style="width:180px; height:auto;">
-          </div>
-          <p>This is Bob. Bob is looking at the tree. Sometimes Bob will not be looking at the tree.</p>
-          <p>Please ignore Bob and the tree. They are not part of your task. Just focus on the moving stars.</p>
-          <p style="color: #66ff66; font-weight: bold;">However, occasionally Bob or the tree may turn GREEN. If you see this happen, press the <u>SPACEBAR</u> as fast as you can instead of the arrow keys.</p>
-          <p style="margin-top: 30px; font-weight: bold;">Press any key to continue.</p>
-        </div>
-      `,
-            choices: 'ALL_KEYS'
+            stimulus: `<div class="center">
+                <h2 style="color:#ff4444;">CRITICAL DATA REQUIREMENT</h2>
+                <p>This experiment requires sustained attention.</p>
+                <p>Your accuracy must be significantly better than chance (58%) for your data to be useful.</p>
+                <p><strong>If your accuracy falls below this threshold, your data will be automatically rejected.</strong></p>
+                <p>Please ensure you are ready to focus for the duration of the experiment.</p>
+                <p style="margin-top:30px;font-weight:bold;">Press SPACE to acknowledge and continue.</p>
+            </div>`,
+            choices: [' '],
+            post_trial_gap: 500
         };
 
         const instructions = {
             type: jsPsychHtmlKeyboardResponse,
-            stimulus: `
-        <div class="center">
-          <h2>The Starfield Game</h2>
-          <p>You job is to determine the over all direction of a moving field of stars. </p>
-          <div style="display:flex; justify-content:space-around; align-items:center; margin:12px 0;">
-            <div style="text-align:center; max-width:48%;">
-              <img src="${INSTR_IMAGES.stare}" alt="Stare dot" style="width:120px; height:auto; border:1px solid #333;">
-              <div style="color:#ddd; margin-top:6px;">Start by staring here.</div>
-            </div>
-            <div style="text-align:center; max-width:48%;">
-              <img src="${INSTR_IMAGES.stars}" alt="Starfield" style="width:120px; height:auto; border:1px solid #333;">
-              <div style="color:#ddd; margin-top:6px;">Maintain your gaze, and focus on the stars</div>
-            </div>
-          </div>
-          <p>Please look in the middle of the screen. You should ignore the face and the tree as they are not part of the game.</p>
-          <p>When you notice the star direction, quickly press the LEFT or RIGHT arrow key to indicate the where the stars are moving.</p>
-          <p style="color: #66ff66; font-weight: bold;">Important: Occasionally, the face or the tree may turn GREEN. When this happens, press the <u>SPACEBAR</u> as fast as you can instead of the arrow keys.</p>
-          <p>We will start with a few practice trials to help you get familiar with the game.</p>
-          
-          <button id="start-btn" class="start-btn">CLICK TO START &amp; ENTER FULLSCREEN</button>
-        </div>
-      `,
+            stimulus: `<div class="center">
+                <h2>The Starfield Game</h2>
+                <p>Your job is to determine the overall direction of a moving field of stars.</p>
+                <div style="display:flex;justify-content:space-around;align-items:center;margin:12px 0;">
+                    <div style="text-align:center;max-width:48%;">
+                        <img src="${INSTR_IMAGES.stare}" alt="Stare dot" style="width:120px;height:auto;border:1px solid #333;">
+                        <div style="color:#ddd;margin-top:6px;">Start by staring here.</div>
+                    </div>
+                    <div style="text-align:center;max-width:48%;">
+                        <img src="${INSTR_IMAGES.stars}" alt="Starfield" style="width:120px;height:auto;border:1px solid #333;">
+                        <div style="color:#ddd;margin-top:6px;">Maintain your gaze, and focus on the stars</div>
+                    </div>
+                </div>
+                <p>Please look in the middle of the screen. You should ignore the face and the tree as they are not part of the game.</p>
+                <p>When you notice the star direction, quickly press the LEFT or RIGHT arrow key to indicate where the stars are moving.</p>
+                <p style="color:#66ff66;font-weight:bold;">Important: Occasionally, the face or the tree may turn GREEN. When this happens, press the <u>SPACEBAR</u> as fast as you can instead of the arrow keys.</p>
+                <p>We will start with a few practice trials to help you get familiar with the game.</p>
+                <button id="start-btn" class="start-btn">CLICK TO START &amp; ENTER FULLSCREEN</button>
+            </div>`,
             choices: 'NO_KEYS',
             on_load: function () {
                 document.getElementById('start-btn').addEventListener('click', function () {
-                    var elem = document.documentElement;
+                    const elem = document.documentElement;
                     if (elem.requestFullscreen) {
-                        elem.requestFullscreen().then(() => { jsPsych.finishTrial(); }).catch(err => { jsPsych.finishTrial(); });
+                        elem.requestFullscreen().then(() => jsPsych.finishTrial()).catch(() => jsPsych.finishTrial());
                     } else if (elem.webkitRequestFullscreen) {
                         elem.webkitRequestFullscreen(); jsPsych.finishTrial();
                     } else if (elem.msRequestFullscreen) {
@@ -482,64 +414,33 @@
 
         const practiceInstructions = {
             type: jsPsychHtmlKeyboardResponse,
-            stimulus: `
-        <div class="center">
-          <h2>Practice Session</h2>
-          <p>You will now complete 10 practice trials.</p>
-          <p>Please stare at the center of the screen for each trial.</p>
-          <p>Use the LEFT and RIGHT arrow keys to indicate the perceived direction of motion.</p>
-          <p>You need to achieve at least 80% accuracy to proceed to the main experiment.</p>
-          <p>Press any key to start practice.</p>
-        </div>
-      `,
+            stimulus: `<div class="center">
+                <h2>Practice Session</h2>
+                <p>You will now complete 10 practice trials.</p>
+                <p>Please stare at the center of the screen for each trial.</p>
+                <p>Use the LEFT and RIGHT arrow keys to indicate the perceived direction of motion.</p>
+                <p>You need to achieve at least 80% accuracy to proceed to the main experiment.</p>
+                <p>Press any key to start practice.</p>
+            </div>`,
             choices: 'ALL_KEYS'
         };
 
-        const participantIdTrial = {
-            type: jsPsychSurveyText,
-            questions: [
-                { prompt: "Please enter your Prolific ID:", name: 'prolific_id', value: PROLIFIC.prolificPid || '', required: true }
-            ],
-            button_label: 'Continue',
-            on_finish: function (data) {
-                const responses = data.response;
-                if (responses && responses.prolific_id) {
-                    PROLIFIC.prolificPid = responses.prolific_id.trim();
-                }
-            }
-        };
-
-        const dataRequirementWarning = {
+        const bobIntroduction = {
             type: jsPsychHtmlKeyboardResponse,
-            stimulus: `
-        <div class="center">
-          <h2 style="color: #ff4444;">CRITICAL DATA REQUIREMENT</h2>
-          <p>This experiment requires sustained attention.</p>
-          <p>Your accuracy must be significantly better than chance (58%) for your data to be useful.</p>
-          <p><strong>If your accuracy falls below this threshold, your data will be automatically rejected.</strong></p>
-          <p>Please ensure you are ready to focus for the duration of the experiment.</p>
-          <p style="margin-top: 30px; font-weight: bold;">Press SPACE to acknowledge and continue.</p>
-        </div>
-      `,
-            choices: [' '],
-            post_trial_gap: 500
+            stimulus: `<div class="center">
+                <h2>Meet Bob</h2>
+                <div style="text-align:center;margin:16px 0;">
+                    <img src="${FACE_IMAGE_PAIRS[0].R}" alt="Bob" style="width:180px;height:auto;">
+                </div>
+                <p>This is Bob. Bob is looking at the tree. Sometimes Bob will not be looking at the tree.</p>
+                <p>Please ignore Bob and the tree. They are not part of your task. Just focus on the moving stars.</p>
+                <p style="color:#66ff66;font-weight:bold;">However, occasionally Bob or the tree may turn GREEN. If you see this happen, press the <u>SPACEBAR</u> as fast as you can instead of the arrow keys.</p>
+                <p style="margin-top:30px;font-weight:bold;">Press any key to continue.</p>
+            </div>`,
+            choices: 'ALL_KEYS'
         };
 
-        // -----------------------------------------------------------------------
-        // VIRTUAL CHINREST — calculates pixelsPerDegree per participant
-        // -----------------------------------------------------------------------
-        const chinrestTrial = {
-            type: jsPsychVirtualChinrest,
-            blindspot_reps: 3,
-            resize_units: "none",
-            on_finish: function (data) {
-                if (data.px_per_deg && data.px_per_deg > 0) {
-                    pixelsPerDegree = data.px_per_deg;
-                    viewingDistanceCm = data.view_dist_mm / 10;
-                }
-            }
-        };
-
+        // Timeline order: chinrest first, then screens, then practice, then experiment
         timeline.push(chinrestTrial);
         timeline.push(participantIdTrial, instructions, dataRequirementWarning, practiceInstructions);
 
@@ -551,20 +452,16 @@
                 type: jsPsychHtmlKeyboardResponse,
                 choices: 'NO_KEYS',
                 trial_duration: fixationDurationMs,
-                stimulus: () => {
-                    const canvas = initGlobalCanvas(width, height);
-                    return `<div class="viewport-center">${canvas.outerHTML}</div>`;
-                },
+                stimulus: () => `<div class="viewport-center">${initGlobalCanvas(width, height).outerHTML}</div>`,
                 on_load: () => {
                     cleanup();
                     const canvas = document.getElementById('rdk-canvas');
                     if (!canvas) return;
                     const ctx = canvas.getContext('2d');
-                    const ppd = pixelsPerDegree || 50;
+                    const ppd    = pixelsPerDegree || 50;
                     const radius = Math.max(1, Math.round(0.25 * ppd));
-                    const cx = Math.floor(width / 2);
-                    const cy = Math.floor(height / 2);
-
+                    const cx     = Math.floor(width / 2);
+                    const cy     = Math.floor(height / 2);
                     ctx.fillStyle = '#808080';
                     ctx.fillRect(0, 0, width, height);
                     ctx.fillStyle = '#000000';
@@ -577,11 +474,6 @@
 
         // -----------------------------------------------------------------------
         // FACE-TREE STIMULUS
-        // gazeTowards = true  => face looks towards the tree
-        // gazeTowards = false => face looks away from the tree
-        // colorTarget = null  => normal trial (no color change)
-        // colorTarget = 'face' => face turns green (catch trial)
-        // colorTarget = 'tree' => tree turns green (catch trial)
         // -----------------------------------------------------------------------
         function faceTreeStimulus({ faceOnLeft = true, gazeTowards = true, colorTarget = null } = {}) {
             return {
@@ -590,56 +482,47 @@
                 trial_duration: colorTarget ? catchResponseMs : faceDurationMs,
                 response_ends_trial: !!colorTarget,
                 stimulus: () => {
-                    const pairIndex = Math.floor(Math.random() * FACE_IMAGE_PAIRS.length);
-                    const pair = (colorTarget === 'face') ? GREEN_FACE_IMAGE_PAIRS[pairIndex] : FACE_IMAGE_PAIRS[pairIndex];
-
-                    // If face is on left and gazing towards tree => looking right
-                    // If face is on right and gazing towards tree => looking left
+                    const pairIndex    = Math.floor(Math.random() * FACE_IMAGE_PAIRS.length);
+                    const pair         = (colorTarget === 'face') ? GREEN_FACE_IMAGE_PAIRS[pairIndex] : FACE_IMAGE_PAIRS[pairIndex];
                     const lookingRight = faceOnLeft ? gazeTowards : !gazeTowards;
-                    const faceSrc = lookingRight ? pair.R : pair.L;
-                    const treeSrc = (colorTarget === 'tree') ? GREEN_TREE_IMAGE : TREE_IMAGE;
+                    const faceSrc      = lookingRight ? pair.R : pair.L;
+                    const treeSrc      = (colorTarget === 'tree') ? GREEN_TREE_IMAGE : TREE_IMAGE;
 
-                    const faceContent = (preloadedImgs[faceSrc]) ?
-                        `<img class="stimulus-img-responsive" src="${faceSrc}" alt="Face">` :
-                        generateFaceSVG(lookingRight);
+                    const faceContent = preloadedImgs[faceSrc]
+                        ? `<img class="stimulus-img-responsive" src="${faceSrc}" alt="Face">`
+                        : generateFaceSVG(lookingRight);
+                    const treeContent = (treeSrc && preloadedImgs[treeSrc])
+                        ? `<img class="stimulus-img-responsive" src="${treeSrc}" alt="Tree">`
+                        : generateTreeSVG();
 
-                    const treeContent = (treeSrc && preloadedImgs[treeSrc]) ?
-                        `<img class="stimulus-img-responsive" src="${treeSrc}" alt="Tree">` :
-                        generateTreeSVG();
-
-                    // v1.8: tree-wrapper is slightly smaller than face-wrapper
-                    // v1.8.6: uses specific green images instead of wrappers class
-                    const faceWrapper = `<div class="stimulus-item-wrapper">${faceContent}</div>`;
-                    const treeWrapper = `<div class="stimulus-item-wrapper tree-wrapper">${treeContent}</div>`;
-
-                    const leftElement = faceOnLeft ? faceWrapper : treeWrapper;
+                    const faceWrapper  = `<div class="stimulus-item-wrapper">${faceContent}</div>`;
+                    const treeWrapper  = `<div class="stimulus-item-wrapper tree-wrapper">${treeContent}</div>`;
+                    const leftElement  = faceOnLeft ? faceWrapper : treeWrapper;
                     const rightElement = faceOnLeft ? treeWrapper : faceWrapper;
 
-                    return `
-            <div class="viewport-center">
-              <div class="stimulus-flex-container">
-                ${leftElement}
-                ${rightElement}
-              </div>
-            </div>
-          `;
+                    return `<div class="viewport-center"><div class="stimulus-flex-container">${leftElement}${rightElement}</div></div>`;
                 },
                 on_finish: (data) => {
-                    data.phase = colorTarget ? 'catch' : 'face-tree-stimulus';
-                    data.faceOnLeft = faceOnLeft;
-                    data.gazeTowards = gazeTowards;
+                    data.phase         = colorTarget ? 'catch' : 'face-tree-stimulus';
+                    data.faceOnLeft    = faceOnLeft;
+                    data.gazeTowards   = gazeTowards;
                     data.gazeCondition = gazeTowards ? 'towards' : 'away';
                     data.impliedDirection = faceOnLeft ? 0 : 180;
                     if (colorTarget) {
                         data.colorTarget = colorTarget;
-                        data.correct = jsPsych.pluginAPI.compareKeys(data.response, ' ');
+                        data.correct     = jsPsych.pluginAPI.compareKeys(data.response, ' ');
                     }
                 }
             };
         }
 
         // -----------------------------------------------------------------------
-        // RDK TRIAL  (v1.9: interleaved set position fix, Graziano params restored)
+        // RDK TRIAL
+        // Key fixes:
+        // 1. All PPD-dependent calculations are inside on_load (runtime, not
+        //    build time) so they use the chinrest-measured pixelsPerDegree.
+        // 2. Position update multiplied by numSets to correct the interleaved-
+        //    set speed bug: d.x += d.vx * (dtSec * numSets)
         // -----------------------------------------------------------------------
         function rdkTrial({
             width = 800,
@@ -648,25 +531,6 @@
             durationMs = 2000,
             numSets = interleavedSets
         } = {}) {
-            const ppd = pixelsPerDegree || 50;
-            const aperturePx = Math.round(apertureDeg * ppd);
-            const apertureHalf = Math.floor(aperturePx / 2);
-            const centerX = Math.floor(width / 2);
-
-            // Shift slightly up to align with face/tree images
-            const centerY = Math.floor(height / 2);
-
-            const leftBound = centerX - apertureHalf;
-            const rightBound = centerX + apertureHalf;
-            const topBound = centerY - apertureHalf;
-            const bottomBound = centerY + apertureHalf;
-
-            const numDots = Math.max(50, Math.round(densityDotsPerDeg2 * apertureDeg * apertureDeg));
-            const coherentCount = Math.round(numDots * coherence);
-            const dotRadius = Math.max(1, (dotDiameterDeg * ppd) / 2);
-            const dotSpeedPxPerSec = dotSpeedDegPerSec * ppd;
-            const lifetimeSec = lifetimeMs / 1000;
-
             let frameDeltas = [];
 
             return {
@@ -674,36 +538,42 @@
                 choices: ['ArrowLeft', 'ArrowRight'],
                 trial_duration: durationMs,
                 response_ends_trial: true,
-                stimulus: () => {
-                    const canvas = initGlobalCanvas(width, height);
-                    return `<div class="viewport-center">${canvas.outerHTML}</div>`;
-                },
+                stimulus: () => `<div class="viewport-center">${initGlobalCanvas(width, height).outerHTML}</div>`,
                 on_load: () => {
                     cleanup();
+
+                    // All PPD-dependent values computed here at runtime
+                    const ppd              = pixelsPerDegree || 50;
+                    const aperturePx       = Math.round(apertureDeg * ppd);
+                    const apertureHalf     = Math.floor(aperturePx / 2);
+                    const centerX          = Math.floor(width / 2);
+                    const centerY          = Math.floor(height / 2);
+                    const leftBound        = centerX - apertureHalf;
+                    const rightBound       = centerX + apertureHalf;
+                    const topBound         = centerY - apertureHalf;
+                    const bottomBound      = centerY + apertureHalf;
+                    const numDots          = Math.max(50, Math.round(densityDotsPerDeg2 * apertureDeg * apertureDeg));
+                    const coherentCount    = Math.round(numDots * coherence);
+                    const dotRadius        = Math.max(1, (dotDiameterDeg * ppd) / 2);
+                    const dotSpeedPxPerSec = dotSpeedDegPerSec * ppd;
+                    const lifetimeSec      = lifetimeMs / 1000;
+
                     const canvas = document.getElementById('rdk-canvas');
                     if (!canvas) return;
                     const ctx = canvas.getContext('2d');
 
-                    const radians = directionDeg * Math.PI / 180;
+                    const radians    = directionDeg * Math.PI / 180;
                     const coherentVx = Math.cos(radians) * dotSpeedPxPerSec;
                     const coherentVy = Math.sin(radians) * dotSpeedPxPerSec;
 
                     function randInAperture() {
-                        return {
-                            x: leftBound + Math.random() * aperturePx,
-                            y: topBound + Math.random() * aperturePx
-                        };
+                        return { x: leftBound + Math.random() * aperturePx, y: topBound + Math.random() * aperturePx };
                     }
 
                     function makeDot(isCoherent) {
-                        const dot = {
-                            ...randInAperture(),
-                            ageSec: Math.random() * lifetimeSec,
-                            isCoherent
-                        };
+                        const dot = { ...randInAperture(), ageSec: Math.random() * lifetimeSec, isCoherent };
                         if (isCoherent) {
-                            dot.vx = coherentVx;
-                            dot.vy = coherentVy;
+                            dot.vx = coherentVx; dot.vy = coherentVy;
                         } else {
                             const angle = Math.random() * 2 * Math.PI;
                             dot.vx = Math.cos(angle) * dotSpeedPxPerSec;
@@ -712,39 +582,25 @@
                         return dot;
                     }
 
-                    const sets = [];
-                    const dotsPerSet = Math.floor(numDots / numSets);
+                    const sets           = [];
+                    const dotsPerSet     = Math.floor(numDots / numSets);
                     const coherentPerSet = Math.floor(coherentCount / numSets);
 
                     for (let s = 0; s < numSets; s++) {
                         const dots = [];
-                        for (let i = 0; i < coherentPerSet; i++) {
-                            dots.push(makeDot(true));
-                        }
-                        for (let i = coherentPerSet; i < dotsPerSet; i++) {
-                            dots.push(makeDot(false));
-                        }
+                        for (let i = 0; i < coherentPerSet; i++) dots.push(makeDot(true));
+                        for (let i = coherentPerSet; i < dotsPerSet; i++) dots.push(makeDot(false));
                         sets.push(dots);
                     }
 
-                    let remaining = numDots - sets.reduce((sum, set) => sum + set.length, 0);
-                    let remainingCoherent = coherentCount - sets.reduce((sum, set) => sum + set.filter(d => d.isCoherent).length, 0);
-
-                    for (let i = 0; i < remaining; i++) {
-                        const isCoherent = i < remainingCoherent;
-                        sets[i % numSets].push(makeDot(isCoherent));
-                    }
+                    const remaining         = numDots - sets.reduce((sum, s) => sum + s.length, 0);
+                    const remainingCoherent = coherentCount - sets.reduce((sum, s) => sum + s.filter(d => d.isCoherent).length, 0);
+                    for (let i = 0; i < remaining; i++) sets[i % numSets].push(makeDot(i < remainingCoherent));
 
                     function respawn(dot) {
-                        const p = randInAperture();
-                        dot.x = p.x;
-                        dot.y = p.y;
-                        dot.ageSec = 0;
-
-                        if (dot.isCoherent) {
-                            dot.vx = coherentVx;
-                            dot.vy = coherentVy;
-                        } else {
+                        const p = randInAperture(); dot.x = p.x; dot.y = p.y; dot.ageSec = 0;
+                        if (dot.isCoherent) { dot.vx = coherentVx; dot.vy = coherentVy; }
+                        else {
                             const angle = Math.random() * 2 * Math.PI;
                             dot.vx = Math.cos(angle) * dotSpeedPxPerSec;
                             dot.vy = Math.sin(angle) * dotSpeedPxPerSec;
@@ -754,162 +610,121 @@
                     function drawAllDots() {
                         ctx.fillStyle = '#808080';
                         ctx.fillRect(0, 0, width, height);
-                        // v1.8: NO border/outline around the RDK aperture
                         ctx.fillStyle = '#000000';
                         const dotSize = Math.max(1, Math.round(dotRadius * 2));
                         ctx.beginPath();
-                        for (const set of sets) {
-                            for (const d of set) {
+                        for (const set of sets)
+                            for (const d of set)
                                 ctx.rect(Math.floor(d.x - dotRadius), Math.floor(d.y - dotRadius), dotSize, dotSize);
-                            }
-                        }
                         ctx.fill();
                     }
 
-                    function updateSet(activeSetIdx, dtSec) {
-                        const set = sets[activeSetIdx];
-                        for (const d of set) {
+                    function updateSet(idx, dtSec) {
+                        for (const d of sets[idx]) {
+                            // Multiply by numSets: each set is only updated every numSets frames,
+                            // so we compensate to achieve the correct physical speed.
                             d.x += d.vx * (dtSec * numSets);
                             d.y += d.vy * (dtSec * numSets);
-                            while (d.x < leftBound) d.x += aperturePx;
-                            while (d.x >= rightBound) d.x -= aperturePx;
-                            while (d.y < topBound) d.y += aperturePx;
+                            while (d.x < leftBound)   d.x += aperturePx;
+                            while (d.x >= rightBound)  d.x -= aperturePx;
+                            while (d.y < topBound)     d.y += aperturePx;
                             while (d.y >= bottomBound) d.y -= aperturePx;
                             d.ageSec += dtSec * numSets;
-                            if (d.ageSec >= lifetimeSec) {
-                                respawn(d);
-                            }
+                            if (d.ageSec >= lifetimeSec) respawn(d);
                         }
                     }
 
-                    let start = null;
-                    let frame = 0;
-                    let lastTs = null;
-                    const targetFps = 60;
-                    const frameDuration = 1000 / targetFps;
-
+                    let start = null, frame = 0, lastTs = null;
+                    const frameDuration = 1000 / 60;
                     frameDeltas = [];
 
                     function step(ts) {
                         if (start === null) start = ts;
                         const elapsed = ts - start;
-
-                        if (lastTs !== null) {
-                            frameDeltas.push(ts - lastTs);
-                        }
-
-                        if (elapsed >= durationMs) {
-                            cleanup();
-                            return;
-                        }
-                        const dtMs = lastTs == null ? frameDuration : (ts - lastTs);
+                        if (lastTs !== null) frameDeltas.push(ts - lastTs);
+                        if (elapsed >= durationMs) { cleanup(); return; }
+                        const dtSec = (lastTs == null ? frameDuration : (ts - lastTs)) / 1000;
                         lastTs = ts;
-                        const dtSec = dtMs / 1000;
-                        const activeSetIdx = frame % numSets;
-                        updateSet(activeSetIdx, dtSec);
+                        updateSet(frame % numSets, dtSec);
                         drawAllDots();
-                        frame += 1;
+                        frame++;
                         currentRafId = requestAnimationFrame(step);
                     }
                     currentRafId = requestAnimationFrame(step);
                 },
                 on_finish: (data) => {
                     cleanup();
-                    const correctKey = directionDeg === 0 ? 'arrowright' : 'arrowleft';
-                    data.correct = jsPsych.pluginAPI.compareKeys(data.response, correctKey);
-                    data.direction = directionDeg;
-                    data.coherence = coherence;
-                    data.lifetimeMs = lifetimeMs;
-                    data.numSets = numSets;
+                    data.correct     = jsPsych.pluginAPI.compareKeys(data.response, directionDeg === 0 ? 'arrowright' : 'arrowleft');
+                    data.direction   = directionDeg;
+                    data.coherence   = coherence;
+                    data.lifetimeMs  = lifetimeMs;
+                    data.numSets     = numSets;
                     data.apertureDeg = apertureDeg;
-                    data.ppd = pixelsPerDegree || 50;
+                    data.ppd         = pixelsPerDegree || 50;
 
                     if (frameDeltas.length > 0) {
-                        const sum = frameDeltas.reduce((a, b) => a + b, 0);
-                        const avgMs = sum / frameDeltas.length;
-                        data.avgFps = Math.round(1000 / avgMs);
-                        data.minFps = Math.round(1000 / Math.max(...frameDeltas));
-                        data.maxFps = Math.round(1000 / Math.min(...frameDeltas));
+                        const sum        = frameDeltas.reduce((a, b) => a + b, 0);
+                        data.avgFps      = Math.round(1000 / (sum / frameDeltas.length));
+                        data.minFps      = Math.round(1000 / Math.max(...frameDeltas));
+                        data.maxFps      = Math.round(1000 / Math.min(...frameDeltas));
                         data.totalFrames = frameDeltas.length;
-                        data.frameRates = data.avgFps;
+                        data.frameRates  = data.avgFps;
                     } else {
-                        data.avgFps = null;
-                        data.frameRates = null;
+                        data.avgFps = data.frameRates = null;
                     }
                 }
             };
         }
 
         // -----------------------------------------------------------------------
-        // PRACTICE TRIAL (no face/tree)
+        // PRACTICE TRIAL
         // -----------------------------------------------------------------------
         function practiceTrial({ directionDeg = 180 }) {
-            const itiMs = randInt(itiMinMs, itiMaxMs);
-            const tooSlowScreen = {
-                type: jsPsychHtmlKeyboardResponse,
-                choices: 'NO_KEYS',
-                trial_duration: 1500,
-                stimulus: `<div class="center"><h3>Too Slow!</h3><p>Please respond faster.</p></div>`
-            };
-
-            const baseTest = rdkTrial({ directionDeg: directionDeg, durationMs: testDurationMs });
+            const itiMs       = randInt(itiMinMs, itiMaxMs);
+            const tooSlowScreen = { type: jsPsychHtmlKeyboardResponse, choices: 'NO_KEYS', trial_duration: 1500, stimulus: `<div class="center"><h3>Too Slow!</h3><p>Please respond faster.</p></div>` };
+            const baseTest    = rdkTrial({ directionDeg, durationMs: testDurationMs });
             const test = {
                 ...baseTest,
                 on_finish: (data) => {
                     if (baseTest.on_finish) baseTest.on_finish(data);
-                    const correctKey = directionDeg === 0 ? 'arrowright' : 'arrowleft';
-                    data.correct = jsPsych.pluginAPI.compareKeys(data.response, correctKey);
-                    data.phase = 'practice';
+                    data.correct   = jsPsych.pluginAPI.compareKeys(data.response, directionDeg === 0 ? 'arrowright' : 'arrowleft');
+                    data.phase     = 'practice';
                     data.direction = directionDeg;
                 }
             };
-
             return {
                 timeline: [
                     { type: jsPsychHtmlKeyboardResponse, choices: 'NO_KEYS', trial_duration: itiMs, stimulus: '', on_load: cleanup },
                     fixationTrial(),
                     { timeline: [test], conditional_function: () => true },
-                    {
-                        timeline: [tooSlowScreen], conditional_function: () => {
-                            const last = jsPsych.data.get().last(1).values()[0];
-                            return (typeof last.response === 'undefined' || last.response === null);
-                        }
-                    }
+                    { timeline: [tooSlowScreen], conditional_function: () => { const l = jsPsych.data.get().last(1).values()[0]; return typeof l.response === 'undefined' || l.response === null; } }
                 ]
             };
         }
 
         // -----------------------------------------------------------------------
-        // EXPERIMENTAL TRIAL (normal RDK trial)
-        // gazeTowards: true = face looks at tree, false = face looks away from tree
+        // EXPERIMENTAL TRIAL
         // -----------------------------------------------------------------------
         function experimentalTrial({ faceOnLeft, gazeTowards, forceCongruent = null }) {
             const impliedDirection = faceOnLeft ? 0 : 180;
-            const congruent = forceCongruent !== null ? forceCongruent : Math.random() < 0.5;
-            const testDirection = congruent ? impliedDirection : (impliedDirection === 0 ? 180 : 0);
-            const itiMs = randInt(itiMinMs, itiMaxMs);
+            const congruent        = forceCongruent !== null ? forceCongruent : Math.random() < 0.5;
+            const testDirection    = congruent ? impliedDirection : (impliedDirection === 0 ? 180 : 0);
+            const itiMs            = randInt(itiMinMs, itiMaxMs);
 
-            const tooSlowScreen = {
-                type: jsPsychHtmlKeyboardResponse,
-                choices: 'NO_KEYS',
-                trial_duration: 1500,
-                stimulus: `<div class="center"><h3>Too Slow!</h3><p>Please respond faster.</p></div>`
-            };
-
-            const baseTest = rdkTrial({ directionDeg: testDirection, durationMs: testDurationMs });
+            const tooSlowScreen = { type: jsPsychHtmlKeyboardResponse, choices: 'NO_KEYS', trial_duration: 1500, stimulus: `<div class="center"><h3>Too Slow!</h3><p>Please respond faster.</p></div>` };
+            const baseTest      = rdkTrial({ directionDeg: testDirection, durationMs: testDurationMs });
             const test = {
                 ...baseTest,
                 on_finish: (data) => {
                     if (baseTest.on_finish) baseTest.on_finish(data);
-                    const correctKey = testDirection === 0 ? 'arrowright' : 'arrowleft';
-                    data.correct = jsPsych.pluginAPI.compareKeys(data.response, correctKey);
-                    data.phase = 'test';
-                    data.congruent = congruent;
-                    data.gazeTowards = gazeTowards;
-                    data.gazeCondition = gazeTowards ? 'towards' : 'away'; // human-readable
-                    data.faceOnLeft = faceOnLeft;
+                    data.correct          = jsPsych.pluginAPI.compareKeys(data.response, testDirection === 0 ? 'arrowright' : 'arrowleft');
+                    data.phase            = 'test';
+                    data.congruent        = congruent;
+                    data.gazeTowards      = gazeTowards;
+                    data.gazeCondition    = gazeTowards ? 'towards' : 'away';
+                    data.faceOnLeft       = faceOnLeft;
                     data.impliedDirection = impliedDirection;
-                    data.testDirection = testDirection;
+                    data.testDirection    = testDirection;
                 }
             };
 
@@ -917,30 +732,22 @@
                 timeline: [
                     { type: jsPsychHtmlKeyboardResponse, choices: 'NO_KEYS', trial_duration: itiMs, stimulus: '', on_load: cleanup },
                     fixationTrial(),
-                    faceTreeStimulus({ faceOnLeft: faceOnLeft, gazeTowards: gazeTowards }),
+                    faceTreeStimulus({ faceOnLeft, gazeTowards }),
                     { timeline: [test], conditional_function: () => true },
-                    {
-                        timeline: [tooSlowScreen], conditional_function: () => {
-                            const last = jsPsych.data.get().last(1).values()[0];
-                            return (typeof last.response === 'undefined' || last.response === null);
-                        }
-                    }
+                    { timeline: [tooSlowScreen], conditional_function: () => { const l = jsPsych.data.get().last(1).values()[0]; return typeof l.response === 'undefined' || l.response === null; } }
                 ]
             };
         }
 
         // -----------------------------------------------------------------------
-        // CATCH TRIAL (v1.8.5)
-        // Face or tree turns green; subject presses Spacebar. No RDK follows.
+        // CATCH TRIAL
         // -----------------------------------------------------------------------
         function catchTrial({ faceOnLeft, gazeTowards, colorTarget = 'face' }) {
-            const itiMs = randInt(itiMinMs, itiMaxMs);
-
             return {
                 timeline: [
-                    { type: jsPsychHtmlKeyboardResponse, choices: 'NO_KEYS', trial_duration: itiMs, stimulus: '', on_load: cleanup },
+                    { type: jsPsychHtmlKeyboardResponse, choices: 'NO_KEYS', trial_duration: randInt(itiMinMs, itiMaxMs), stimulus: '', on_load: cleanup },
                     fixationTrial(),
-                    faceTreeStimulus({ faceOnLeft: faceOnLeft, gazeTowards: gazeTowards, colorTarget: colorTarget })
+                    faceTreeStimulus({ faceOnLeft, gazeTowards, colorTarget })
                 ]
             };
         }
@@ -951,63 +758,38 @@
         const practiceFeedback = {
             type: jsPsychHtmlKeyboardResponse,
             stimulus: function () {
-                const data = jsPsych.data.get();
-                const lastTrials = data.filter({ phase: 'practice' }).last(10);
-                const correct = lastTrials.filter({ correct: true }).count();
-                const accuracy = correct / 10;
-
-                if (accuracy >= 0.8) {
-                    return `<div class="center"><h2>Practice Session Complete</h2><p>Great job! Your accuracy was ${Math.round(accuracy * 100)}% (${correct}/10).</p><p>You have successfully completed the practice session.</p><p><b>Press any key to proceed to the main game.</b></p></div>`;
-                } else {
-                    if (practiceAttempts >= 2) {
-                        return `<div class="center"><h2 style="color:red">Practice Session Failed</h2><p>Your accuracy was only ${Math.round(accuracy * 100)}% (${correct}/10).</p><p>You have failed the practice session 3 times.</p><p>Unfortunately, you are not eligible to continue with the main experiment.</p><p>experiment terminated</p></div>`;
-                    }
-                    return `<div class="center"><h2>Practice Session Failed</h2><p>Your accuracy was only ${Math.round(accuracy * 100)}% (${correct}/10).</p><p>You need at least 80% accuracy to proceed.</p><p>Please try again.</p><br><button class="start-btn" id="retry-btn">CLICK TO TRY AGAIN</button></div>`;
-                }
+                const lastTrials = jsPsych.data.get().filter({ phase: 'practice' }).last(10);
+                const correct    = lastTrials.filter({ correct: true }).count();
+                const accuracy   = correct / 10;
+                if (accuracy >= 0.8) return `<div class="center"><h2>Practice Session Complete</h2><p>Great job! Your accuracy was ${Math.round(accuracy * 100)}% (${correct}/10).</p><p><b>Press any key to proceed to the main game.</b></p></div>`;
+                if (practiceAttempts >= 2) return `<div class="center"><h2 style="color:red">Practice Session Failed</h2><p>Your accuracy was only ${Math.round(accuracy * 100)}% (${correct}/10).</p><p>You have failed the practice session 3 times. Unfortunately you are not eligible to continue.</p></div>`;
+                return `<div class="center"><h2>Practice Session Failed</h2><p>Your accuracy was only ${Math.round(accuracy * 100)}% (${correct}/10).</p><p>You need at least 80% accuracy to proceed.</p><br><button class="start-btn" id="retry-btn">CLICK TO TRY AGAIN</button></div>`;
             },
             choices: function () {
-                const data = jsPsych.data.get();
-                const lastTrials = data.filter({ phase: 'practice' }).last(10);
-                const accuracy = lastTrials.filter({ correct: true }).count() / 10;
+                const accuracy = jsPsych.data.get().filter({ phase: 'practice' }).last(10).filter({ correct: true }).count() / 10;
                 if (accuracy < 0.8 && practiceAttempts >= 2) return 'NO_KEYS';
-                return (accuracy >= 0.8) ? 'ALL_KEYS' : 'NO_KEYS';
+                return accuracy >= 0.8 ? 'ALL_KEYS' : 'NO_KEYS';
             },
             on_load: function () {
-                const data = jsPsych.data.get();
-                const lastTrials = data.filter({ phase: 'practice' }).last(10);
-                const accuracy = lastTrials.filter({ correct: true }).count() / 10;
+                const accuracy = jsPsych.data.get().filter({ phase: 'practice' }).last(10).filter({ correct: true }).count() / 10;
                 if (accuracy < 0.8) {
                     practiceAttempts++;
-                    if (practiceAttempts >= 3) {
-                        jsPsych.endExperiment('Practice failed 3 times.');
-                    } else {
-                        const btn = document.getElementById('retry-btn');
-                        if (btn) {
-                            btn.addEventListener('click', function () { jsPsych.finishTrial(); });
-                        }
-                    }
+                    if (practiceAttempts >= 3) { jsPsych.endExperiment('Practice failed 3 times.'); }
+                    else { const btn = document.getElementById('retry-btn'); if (btn) btn.addEventListener('click', () => jsPsych.finishTrial()); }
                 }
             }
         };
 
         function generatePracticeBlock() {
             const block = [];
-            for (let i = 0; i < 10; i++) {
-                const direction = Math.random() < 0.5 ? 0 : 180;
-                block.push(practiceTrial({ directionDeg: direction }));
-            }
+            for (let i = 0; i < 10; i++) block.push(practiceTrial({ directionDeg: Math.random() < 0.5 ? 0 : 180 }));
             return block;
         }
 
         const practiceLoopNode = {
-            timeline: [
-                { timeline: generatePracticeBlock() },
-                practiceFeedback
-            ],
+            timeline: [{ timeline: generatePracticeBlock() }, practiceFeedback],
             loop_function: function () {
-                const data = jsPsych.data.get();
-                const lastTrials = data.filter({ phase: 'practice' }).last(10);
-                const accuracy = lastTrials.filter({ correct: true }).count() / 10;
+                const accuracy = jsPsych.data.get().filter({ phase: 'practice' }).last(10).filter({ correct: true }).count() / 10;
                 if (practiceAttempts >= 3) return false;
                 return accuracy < 0.8;
             }
@@ -1015,24 +797,17 @@
 
         // -----------------------------------------------------------------------
         // EXPERIMENTAL + CATCH TRIAL LIST
-        // v1.8.5: 120 normal trials + 12 catch trials = 132 total
-        // Normal: 60 gaze-towards + 60 gaze-away, each 50/50 congruent
-        // Catch: 6 face-green + 6 tree-green, random gaze/side
+        // 120 normal trials (30 per condition) + 12 catch = 132 total
         // -----------------------------------------------------------------------
-        const allTrialSpecs = [];
-        const trialsPerCondition = 30; // 30 x 4 = 120 normal trials
+        const allTrialSpecs      = [];
+        const trialsPerCondition = 30;
 
         for (let i = 0; i < trialsPerCondition; i++) {
-            // Gaze-Towards trials
-            allTrialSpecs.push({ type: 'normal', gazeTowards: true, congruent: true, faceOnLeft: Math.random() < 0.5 });
-            allTrialSpecs.push({ type: 'normal', gazeTowards: true, congruent: false, faceOnLeft: Math.random() < 0.5 });
-
-            // Gaze-Away trials
-            allTrialSpecs.push({ type: 'normal', gazeTowards: false, congruent: true, faceOnLeft: Math.random() < 0.5 });
+            allTrialSpecs.push({ type: 'normal', gazeTowards: true,  congruent: true,  faceOnLeft: Math.random() < 0.5 });
+            allTrialSpecs.push({ type: 'normal', gazeTowards: true,  congruent: false, faceOnLeft: Math.random() < 0.5 });
+            allTrialSpecs.push({ type: 'normal', gazeTowards: false, congruent: true,  faceOnLeft: Math.random() < 0.5 });
             allTrialSpecs.push({ type: 'normal', gazeTowards: false, congruent: false, faceOnLeft: Math.random() < 0.5 });
         }
-
-        // Add 12 catch trials: 6 face-green, 6 tree-green
         for (let i = 0; i < 6; i++) {
             allTrialSpecs.push({ type: 'catch', colorTarget: 'face', gazeTowards: Math.random() < 0.5, faceOnLeft: Math.random() < 0.5 });
             allTrialSpecs.push({ type: 'catch', colorTarget: 'tree', gazeTowards: Math.random() < 0.5, faceOnLeft: Math.random() < 0.5 });
@@ -1044,60 +819,42 @@
             [allTrialSpecs[i], allTrialSpecs[j]] = [allTrialSpecs[j], allTrialSpecs[i]];
         }
 
-        const totalTrialCount = allTrialSpecs.length; // 132
-
+        const totalTrialCount   = allTrialSpecs.length;
         const experimentalTrials = [];
-        let trialIdx = 0;
+
         allTrialSpecs.forEach((spec, index) => {
             if (spec.type === 'catch') {
-                experimentalTrials.push(catchTrial({
-                    faceOnLeft: spec.faceOnLeft,
-                    gazeTowards: spec.gazeTowards,
-                    colorTarget: spec.colorTarget
-                }));
+                experimentalTrials.push(catchTrial({ faceOnLeft: spec.faceOnLeft, gazeTowards: spec.gazeTowards, colorTarget: spec.colorTarget }));
             } else {
-                experimentalTrials.push(experimentalTrial({
-                    faceOnLeft: spec.faceOnLeft,
-                    gazeTowards: spec.gazeTowards,
-                    forceCongruent: spec.congruent
-                }));
+                experimentalTrials.push(experimentalTrial({ faceOnLeft: spec.faceOnLeft, gazeTowards: spec.gazeTowards, forceCongruent: spec.congruent }));
             }
 
-            // Break screen every 33 trials (roughly 4 breaks: at 33, 66, 99)
             if ((index + 1) % 33 === 0 && (index + 1) < totalTrialCount) {
                 experimentalTrials.push({
                     type: jsPsychHtmlKeyboardResponse,
                     stimulus: function () {
-                        // Count how many test trials have been completed so far
-                        const data = jsPsych.data.get();
-                        const testTrials = data.filter({ phase: 'test' });
-                        const testCount = testTrials.count();
-
+                        const testTrials = jsPsych.data.get().filter({ phase: 'test' });
+                        const testCount  = testTrials.count();
                         if (index + 1 === 33 && testCount > 0) {
                             const incorrectCount = testTrials.filter({ correct: false }).count();
-
                             if (incorrectCount >= Math.round(testCount * 0.6)) {
                                 const accuracy = Math.round(((testCount - incorrectCount) / testCount) * 100);
-                                return `<div class="center"><h2 style="color: #ff6666;">Warning: Low Accuracy</h2><p>Your accuracy so far was <b>${accuracy}%</b>.</p><p>This suggests your accuracy is below chance, and thus is too low for this study.</p><br><p>If you continue and finish with this accuracy, your submission will be <b>REJECTED</b>. A rejection will permanently damage your Prolific Score.</p><p>We recommend you stop now and "Return" this submission on Prolific.</p><br><div style="text-align: left; display: inline-block; background: #333; padding: 15px; border-radius: 8px;"><p style="margin:5px 0;">If you <b>Return now</b>: You get no money, but your account stays safe.</p><p style="margin:5px 0;">If you <b>Continue and fail</b>: You get no money, and you get a Rejection strike.</p></div><br><br><p>Press <b>'Escape'</b> to close this window and Return the study on Prolific.</p><p>Press <b>'Space'</b> to Continue (At your own risk).</p></div>`;
+                                return `<div class="center"><h2 style="color:#ff6666;">Warning: Low Accuracy</h2><p>Your accuracy so far was <b>${accuracy}%</b>.</p><p>This is too low for this study. If you continue with this accuracy your submission will be <b>REJECTED</b>.</p><br><p>Press <b>'Escape'</b> to Return the study on Prolific.</p><p>Press <b>'Space'</b> to Continue (at your own risk).</p></div>`;
                             }
                         }
-                        return `<div class="center"><h2>Break Time</h2><p>You have done ${index + 1} out of ${totalTrialCount} trials.</p><p>Feel free to take a moment.</p><br><p><b>Press any key to continue</b></p></div>`;
+                        return `<div class="center"><h2>Break Time</h2><p>You have completed ${index + 1} out of ${totalTrialCount} trials.</p><p>Feel free to take a moment.</p><br><p><b>Press any key to continue.</b></p></div>`;
                     },
                     choices: function () {
                         if (index + 1 === 33) {
-                            const data = jsPsych.data.get();
-                            const testTrials = data.filter({ phase: 'test' });
-                            const testCount = testTrials.count();
-                            if (testCount > 0) {
-                                const incorrectCount = testTrials.filter({ correct: false }).count();
-                                if (incorrectCount >= Math.round(testCount * 0.6)) return ['Escape', ' '];
-                            }
+                            const tt = jsPsych.data.get().filter({ phase: 'test' });
+                            const tc = tt.count();
+                            if (tc > 0 && tt.filter({ correct: false }).count() >= Math.round(tc * 0.6)) return ['Escape', ' '];
                         }
                         return 'ALL_KEYS';
                     },
                     on_finish: function (data) {
                         if (jsPsych.pluginAPI.compareKeys(data.response, 'Escape')) {
-                            jsPsych.endExperiment('Participant chose to Return execution.');
+                            jsPsych.endExperiment('Participant returned.');
                             document.body.innerHTML = '<div class="center"><h2>Study Returned</h2><p>Please close this tab and return the study on Prolific.</p></div>';
                         }
                     }
@@ -1108,91 +865,62 @@
         timeline.push(practiceLoopNode);
         timeline.push(bobIntroduction);
         timeline.push({ timeline: experimentalTrials });
-
-        timeline.push({
-            type: jsPsychHtmlKeyboardResponse,
-            choices: 'NO_KEYS',
-            trial_duration: 0,
-            stimulus: '',
-            on_load: () => {
-                showResultsAndMenu();
-            }
-        });
+        timeline.push({ type: jsPsychHtmlKeyboardResponse, choices: 'NO_KEYS', trial_duration: 0, stimulus: '', on_load: () => showResultsAndMenu() });
 
         // -----------------------------------------------------------------------
-        // DATA CAPTURE & END SCREEN (v1.8.5: includes catch trial data)
+        // DATA CAPTURE & END SCREEN
         // -----------------------------------------------------------------------
         async function showResultsAndMenu() {
             cleanup();
-
-            const data = jsPsych.data.get();
-            const tests = data.filter({ phase: 'test' });
-            const catchData = data.filter({ phase: 'catch' });
+            const data         = jsPsych.data.get();
+            const tests        = data.filter({ phase: 'test' });
+            const catchData    = data.filter({ phase: 'catch' });
             const practiceData = data.filter({ phase: 'practice' });
-            const n = tests.count();
+            const n   = tests.count();
             const acc = n ? Math.round(tests.filter({ correct: true }).count() / n * 100) : 0;
 
-            // Catch trial stats
-            const catchN = catchData.count();
+            const catchN       = catchData.count();
             const catchCorrect = catchData.filter({ correct: true }).count();
-            const catchAcc = catchN ? Math.round(catchCorrect / catchN * 100) : 0;
-            const catchRTs = catchData.filter({ correct: true }).select('rt').values.filter(v => v !== null);
-            const catchMeanRT = catchRTs.length > 0 ? Math.round(catchRTs.reduce((a, b) => a + b, 0) / catchRTs.length) : 0;
+            const catchAcc     = catchN ? Math.round(catchCorrect / catchN * 100) : 0;
+            const catchRTs     = catchData.filter({ correct: true }).select('rt').values.filter(v => v !== null);
+            const catchMeanRT  = catchRTs.length > 0 ? Math.round(catchRTs.reduce((a, b) => a + b, 0) / catchRTs.length) : 0;
 
-            const ua = navigator.userAgent || '';
-            const isWindows = /Windows/i.test(ua);
-            const isMac = /Macintosh|Mac OS X/i.test(ua);
-            const isLinux = /Linux/i.test(ua);
-            const osName = isWindows ? 'Windows' : isMac ? 'Mac' : isLinux ? 'Linux' : 'Unknown';
+            const ua          = navigator.userAgent || '';
+            const osName      = /Windows/i.test(ua) ? 'Windows' : /Macintosh|Mac OS X/i.test(ua) ? 'Mac' : /Linux/i.test(ua) ? 'Linux' : 'Unknown';
             const browserName = /Edg\//.test(ua) ? 'Edge' : /Chrome\//.test(ua) ? 'Chrome' : /Firefox\//.test(ua) ? 'Firefox' : /Safari\//.test(ua) ? 'Safari' : 'Unknown';
-            const screenResolution = `${window.screen.width}x${window.screen.height}`;
-            const browserViewport = `${window.innerWidth}x${window.innerHeight}`;
 
-            // Summary stats per gaze condition
             const towardsTrials = tests.filter({ gazeTowards: true });
-            const awayTrials = tests.filter({ gazeTowards: false });
+            const awayTrials    = tests.filter({ gazeTowards: false });
             const towardsN = towardsTrials.count();
-            const awayN = awayTrials.count();
-            const towardsAcc = towardsN ? Math.round(towardsTrials.filter({ correct: true }).count() / towardsN * 100) : 0;
-            const awayAcc = awayN ? Math.round(awayTrials.filter({ correct: true }).count() / awayN * 100) : 0;
+            const awayN    = awayTrials.count();
 
             let trialCounter = 0;
             const trialsMinimal = tests.values().map(t => ({
-                trial_number: trialCounter++,
-                trial_index: t.trial_index,
-                rt: t.rt,
-                correct: t.correct,
-                response: (typeof t.response === 'string') ? (t.response.toLowerCase().includes('left') ? 'ArrowLeft' : 'ArrowRight') : t.response,
-                congruent: t.congruent,
-                gazeTowards: t.gazeTowards,
-                gazeCondition: t.gazeCondition,
-                faceOnLeft: t.faceOnLeft,
+                trial_number:     trialCounter++,
+                trial_index:      t.trial_index,
+                rt:               t.rt,
+                correct:          t.correct,
+                response:         typeof t.response === 'string' ? (t.response.toLowerCase().includes('left') ? 'ArrowLeft' : 'ArrowRight') : t.response,
+                congruent:        t.congruent,
+                gazeTowards:      t.gazeTowards,
+                gazeCondition:    t.gazeCondition,
+                faceOnLeft:       t.faceOnLeft,
                 impliedDirection: t.impliedDirection,
-                testDirection: t.testDirection,
-                avgFps: t.avgFps,
-                minFps: t.minFps,
-                maxFps: t.maxFps,
-                totalFrames: t.totalFrames,
-                frameRates: t.frameRates
+                testDirection:    t.testDirection,
+                avgFps:           t.avgFps,
+                minFps:           t.minFps,
+                maxFps:           t.maxFps,
+                totalFrames:      t.totalFrames,
+                frameRates:       t.frameRates
             }));
 
-            // Catch trial data
             const catchTrialsData = catchData.values().map((t, idx) => ({
-                trial_number: idx,
-                trial_index: t.trial_index,
-                rt: t.rt,
-                correct: t.correct,
-                colorTarget: t.colorTarget,
-                gazeTowards: t.gazeTowards,
-                gazeCondition: t.gazeCondition,
-                faceOnLeft: t.faceOnLeft
+                trial_number: idx, trial_index: t.trial_index, rt: t.rt, correct: t.correct,
+                colorTarget: t.colorTarget, gazeTowards: t.gazeTowards, gazeCondition: t.gazeCondition, faceOnLeft: t.faceOnLeft
             }));
 
             const practiceTrialsData = practiceData.values().map((t, idx) => ({
-                trial_number: idx,
-                rt: t.rt,
-                correct: t.correct,
-                direction: t.direction
+                trial_number: idx, rt: t.rt, correct: t.correct, direction: t.direction
             }));
 
             const payload = {
@@ -1200,138 +928,92 @@
                 UUID: sessionUUID,
                 data: {
                     session: {
-                        experiment_version: '1.9',
+                        experiment_version: '1.9.2',
                         treatment: 'faces_towards_away_catch',
-                        file_version: '1.9',
+                        file_version: '1.9.2',
                         totalTrials: n,
                         totalTrialsIncludingCatch: n + catchN,
                         conditions: {
-                            gazeTowardsCount: towardsN,
-                            gazeAwayCount: awayN,
-                            gazeTowardsAccuracy: towardsAcc,
-                            gazeAwayAccuracy: awayAcc
+                            gazeTowardsCount:    towardsN,
+                            gazeAwayCount:       awayN,
+                            gazeTowardsAccuracy: towardsN ? Math.round(towardsTrials.filter({ correct: true }).count() / towardsN * 100) : 0,
+                            gazeAwayAccuracy:    awayN    ? Math.round(awayTrials.filter({ correct: true }).count()    / awayN    * 100) : 0
                         },
                         session_group: 'default',
                         browserData: {
-                            os: osName,
-                            browser: browserName,
-                            screenResolution: screenResolution,
-                            browserViewport: browserViewport,
-                            devicePixelRatio: window.devicePixelRatio || 1,
-                            colorDepth: window.screen ? window.screen.colorDepth : null,
+                            os: osName, browser: browserName,
+                            screenResolution:    `${window.screen.width}x${window.screen.height}`,
+                            browserViewport:     `${window.innerWidth}x${window.innerHeight}`,
+                            devicePixelRatio:    window.devicePixelRatio || 1,
+                            colorDepth:          window.screen ? window.screen.colorDepth : null,
                             hardwareConcurrency: navigator.hardwareConcurrency || "Unknown",
-                            deviceMemory: navigator.deviceMemory || "Unknown",
-                            gpuRenderer: gpuInfo,
+                            deviceMemory:        navigator.deviceMemory || "Unknown",
+                            gpuRenderer:         gpuInfo,
                             measuredRefreshRateHz: calculatedRefreshRate
                         },
-                        attention: {
-                            visibilityEvents: visibilityLog
-                        },
+                        attention:   { visibilityEvents: visibilityLog },
                         calibration: {
-                            monitorWidthCm: monitorWidthCm,
-                            viewingDistanceCm: viewingDistanceCm,
+                            monitorWidthCm,
+                            viewingDistanceCm,
                             pixelsPerDegree: Math.round((pixelsPerDegree || 50) * 10) / 10
                         },
                         parameters: {
-                            coherence: coherence,
-                            apertureDeg: apertureDeg,
-                            densityDotsPerDeg2: densityDotsPerDeg2,
-                            dotDiameterDeg: dotDiameterDeg,
-                            dotSpeedDegPerSec: dotSpeedDegPerSec,
-                            lifetimeMs: lifetimeMs,
-                            fixationDurationMs: fixationDurationMs,
-                            faceDurationMs: faceDurationMs,
-                            testDurationMs: testDurationMs,
-                            catchResponseMs: catchResponseMs
+                            coherence, apertureDeg, densityDotsPerDeg2, dotDiameterDeg, dotSpeedDegPerSec,
+                            lifetimeMs, fixationDurationMs, faceDurationMs, testDurationMs, catchResponseMs
                         },
-                        prolific: {
-                            prolificPid: PROLIFIC.prolificPid,
-                            studyId: PROLIFIC.studyId,
-                            sessionId: PROLIFIC.sessionId
-                        },
+                        prolific: { prolificPid: PROLIFIC.prolificPid, studyId: PROLIFIC.studyId, sessionId: PROLIFIC.sessionId },
                         timing: {
                             startTime: startTime.toISOString(),
-                            endTime: new Date().toISOString(),
+                            endTime:   new Date().toISOString(),
                             totalElapsedTimeMs: new Date() - startTime
                         }
                     },
                     trials: trialsMinimal,
-                    catch: {
-                        total: catchN,
-                        correct: catchCorrect,
-                        accuracy: catchAcc,
-                        meanRT: catchMeanRT,
-                        trials: catchTrialsData
-                    },
+                    catch: { total: catchN, correct: catchCorrect, accuracy: catchAcc, meanRT: catchMeanRT, trials: catchTrialsData },
                     practice: {
-                        trials: practiceTrialsData,
-                        meanRT: Math.round(practiceData.select('rt').mean() || 0),
-                        accuracy: practiceData.count() > 0 ?
-                            Math.round(practiceData.filter({ correct: true }).count() / practiceData.count() * 100) : 0
+                        trials:   practiceTrialsData,
+                        meanRT:   Math.round(practiceData.select('rt').mean() || 0),
+                        accuracy: practiceData.count() > 0 ? Math.round(practiceData.filter({ correct: true }).count() / practiceData.count() * 100) : 0
                     }
                 }
             };
 
-            let uploadResult = await sendDataToServer(payload, { timeoutMs: 8000, maxRetries: 2 });
-            let saveMsg = uploadResult.ok ? 'Saved to server.' : `Save failed (${uploadResult.status} ${uploadResult.statusText}).`;
+            const uploadResult = await sendDataToServer(payload, { timeoutMs: 8000, maxRetries: 2 });
+            const saveMsg = uploadResult.ok ? 'Saved to server.' : `Save failed (${uploadResult.status} ${uploadResult.statusText}).`;
+
+            const params = new URLSearchParams();
+            params.set('usp', 'pp_url');
+            if (GOOGLE_FORM_ENTRY_ID) params.set(`entry.${GOOGLE_FORM_ENTRY_ID}`, sessionUUID);
+            if (GOOGLE_FORM_PROLIFIC_ID_ENTRY_ID) params.set(`entry.${GOOGLE_FORM_PROLIFIC_ID_ENTRY_ID}`, PROLIFIC.prolificPid || '');
+            const formUrl = `${GOOGLE_FORM_BASE_URL}?${params.toString()}`;
 
             const container = document.createElement('div');
             container.className = 'center';
-
-            const hasUuidEntry = typeof GOOGLE_FORM_ENTRY_ID === 'string' && GOOGLE_FORM_ENTRY_ID.trim().length > 0;
-            const params = new URLSearchParams();
-            params.set('usp', 'pp_url');
-
-            if (hasUuidEntry) {
-                params.set(`entry.${GOOGLE_FORM_ENTRY_ID}`, sessionUUID);
-            }
-            if (GOOGLE_FORM_PROLIFIC_ID_ENTRY_ID && GOOGLE_FORM_PROLIFIC_ID_ENTRY_ID.trim().length > 0) {
-                params.set(`entry.${GOOGLE_FORM_PROLIFIC_ID_ENTRY_ID}`, PROLIFIC.prolificPid || '');
-            }
-
-            const formUrl = `${GOOGLE_FORM_BASE_URL}?${params.toString()}`;
-
             container.innerHTML = `
-      <h2 style="margin-bottom: 16px;">Experiment Complete</h2>
-      <p>Your overall accuracy was <strong>${acc}%</strong>.</p>
-      <p id="upload-status" style="margin-bottom: 16px;">${saveMsg}</p>
-      <p style="margin-bottom: 24px;">Please click the button below to open the final form and complete the experiment.</p>
-      <p><a id="btn-form" href="${formUrl}" target="_blank" rel="noopener noreferrer" style="display:inline-block; padding:10px 16px; background:#222; color:#fff; text-decoration:none; border-radius:6px;">Open Form</a></p>
-    `;
-
+                <h2 style="margin-bottom:16px;">Experiment Complete</h2>
+                <p>Your overall accuracy was <strong>${acc}%</strong>.</p>
+                <p id="upload-status" style="margin-bottom:16px;">${saveMsg}</p>
+                <p style="margin-bottom:24px;">Please click the button below to open the final form and complete the experiment.</p>
+                <p><a href="${formUrl}" target="_blank" rel="noopener noreferrer" style="display:inline-block;padding:10px 16px;background:#222;color:#fff;text-decoration:none;border-radius:6px;">Open Form</a></p>`;
             document.body.innerHTML = '';
             document.body.appendChild(container);
-
-            if (uploadResult.ok) {
-                setTimeout(() => {
-                    window.location.href = formUrl;
-                }, 2000);
-            }
+            if (uploadResult.ok) setTimeout(() => { window.location.href = formUrl; }, 2000);
         }
 
+        // --- Boot ---
         initGlobalCanvas();
 
-        const INSTR_IMAGES_URLS = [
-            INSTR_IMAGES.stare,
-            INSTR_IMAGES.stars
-        ];
-
-        const imgsToPreload = [...FACE_IMAGE_PAIRS, ...GREEN_FACE_IMAGE_PAIRS].reduce((acc, p) => {
-            if (p.L) acc.push(p.L);
-            if (p.R) acc.push(p.R);
-            return acc;
-        }, []).concat([TREE_IMAGE, GREEN_TREE_IMAGE]).concat(INSTR_IMAGES_URLS).filter(Boolean);
+        const imgsToPreload = [...FACE_IMAGE_PAIRS, ...GREEN_FACE_IMAGE_PAIRS]
+            .reduce((acc, p) => { if (p.L) acc.push(p.L); if (p.R) acc.push(p.R); return acc; }, [])
+            .concat([TREE_IMAGE, GREEN_TREE_IMAGE, INSTR_IMAGES.stare, INSTR_IMAGES.stars])
+            .filter(Boolean);
 
         preloadImages(imgsToPreload).then(() => {
-            let numFacesLoaded = FACE_IMAGE_PAIRS.reduce((acc, p) => acc + (preloadedImgs[p.L] ? 1 : 0) + (preloadedImgs[p.R] ? 1 : 0), 0);
-            if (numFacesLoaded === 0) {
-                console.error('No face images loaded. The experiment will use SVG fallbacks.');
-            }
+            const numFacesLoaded = FACE_IMAGE_PAIRS.reduce((acc, p) => acc + (preloadedImgs[p.L] ? 1 : 0) + (preloadedImgs[p.R] ? 1 : 0), 0);
+            if (numFacesLoaded === 0) console.error('No face images loaded. SVG fallbacks will be used.');
             jsPsych.run(timeline);
-        }).catch((e) => {
-            jsPsych.run(timeline);
-        });
+        }).catch(() => jsPsych.run(timeline));
+
     </script>
 </body>
-
 </html>
