@@ -625,6 +625,7 @@
                     data.gazeTowards = gazeTowards;
                     data.gazeCondition = gazeTowards ? 'towards' : 'away';
                     data.impliedDirection = faceOnLeft ? 0 : 180;
+                    data.condition = condition;
                     if (colorTarget) {
                         data.colorTarget = colorTarget;
                         data.correct = jsPsych.pluginAPI.compareKeys(data.response, ' ');
@@ -1153,6 +1154,13 @@
             const towardsAcc = towardsN ? Math.round(towardsTrials.filter({ correct: true }).count() / towardsN * 100) : 0;
             const awayAcc = awayN ? Math.round(awayTrials.filter({ correct: true }).count() / awayN * 100) : 0;
 
+            const blindfoldTrials = tests.filter({ condition: 'blindfold' });
+            const normalFaceTrials = tests.filter({ condition: 'normalFace' });
+            const blindfoldN = blindfoldTrials.count();
+            const normalFaceN = normalFaceTrials.count();
+            const blindfoldAcc = blindfoldN ? Math.round(blindfoldTrials.filter({ correct: true }).count() / blindfoldN * 100) : 0;
+            const normalFaceAcc = normalFaceN ? Math.round(normalFaceTrials.filter({ correct: true }).count() / normalFaceN * 100) : 0;
+
             let trialCounter = 0;
             const trialsMinimal = tests.values().map(t => ({
                 trial_number: trialCounter++,
@@ -1166,6 +1174,7 @@
                 faceOnLeft: t.faceOnLeft,
                 impliedDirection: t.impliedDirection,
                 testDirection: t.testDirection,
+                condition: t.condition,
                 avgFps: t.avgFps,
                 minFps: t.minFps,
                 maxFps: t.maxFps,
@@ -1179,10 +1188,13 @@
                 trial_index: t.trial_index,
                 rt: t.rt,
                 correct: t.correct,
+                response: t.response,
                 colorTarget: t.colorTarget,
+                impliedDirection: t.impliedDirection,
                 gazeTowards: t.gazeTowards,
                 gazeCondition: t.gazeCondition,
-                faceOnLeft: t.faceOnLeft
+                faceOnLeft: t.faceOnLeft,
+                condition: t.condition
             }));
 
             const practiceTrialsData = practiceData.values().map((t, idx) => ({
@@ -1197,16 +1209,20 @@
                 UUID: sessionUUID,
                 data: {
                     session: {
-                        experiment_version: '1.10',
+                        experiment_version: '1.9',
                         treatment: 'blindfold_centered_catch',
-                        file_version: '1.10',
+                        file_version: '1.9',
                         totalTrials: n,
                         totalTrialsIncludingCatch: n + catchN,
                         conditions: {
                             gazeTowardsCount: towardsN,
                             gazeAwayCount: awayN,
                             gazeTowardsAccuracy: towardsAcc,
-                            gazeAwayAccuracy: awayAcc
+                            gazeAwayAccuracy: awayAcc,
+                            blindfoldCount: blindfoldN,
+                            normalFaceCount: normalFaceN,
+                            blindfoldAccuracy: blindfoldAcc,
+                            normalFaceAccuracy: normalFaceAcc
                         },
                         session_group: 'default',
                         browserData: {
@@ -1239,7 +1255,8 @@
                             fixationDurationMs: fixationDurationMs,
                             faceDurationMs: faceDurationMs,
                             testDurationMs: testDurationMs,
-                            catchResponseMs: catchResponseMs
+                            catchResponseMs: catchResponseMs,
+                            interleavedSets: interleavedSets
                         },
                         prolific: {
                             prolificPid: PROLIFIC.prolificPid,
@@ -1264,7 +1281,8 @@
                         trials: practiceTrialsData,
                         meanRT: Math.round(practiceData.select('rt').mean() || 0),
                         accuracy: practiceData.count() > 0 ?
-                            Math.round(practiceData.filter({ correct: true }).count() / practiceData.count() * 100) : 0
+                            Math.round(practiceData.filter({ correct: true }).count() / practiceData.count() * 100) : 0,
+                        practiceAttempts: practiceAttempts
                     }
                 }
             };
