@@ -67,7 +67,8 @@
             justify-content: center;
             align-items: center;
             position: relative;
-            top: 65px;
+            top: 30px;
+            /* SHIFTED UP ABOVE MIDLINE */
         }
 
         /* Tree wrapper - slightly smaller than face to make it roughly same apparent size */
@@ -138,6 +139,48 @@
 
         const startTime = new Date();
 
+        // --- EXPERIMENT CONFIGURATION ---
+        // Change these variables to alter the experiment settings
+        const EXPERIMENT_TRIAL_TYPE = "Eyes Open"; // Options: "Eyes Open", "Blindfolded", "Away", "Open and Away", "Open and Blindfolded"
+        const TRIALS_PER_CONDITION = 40; // Number of trials per condition. 
+        // Note: 2 Conditions for Open, Blindfolded, Away. 4 Conditions for Open & Blindfolded or Open & Away.
+        const CATCH_TRIALS_COUNT = 5;  // Number of catch trials
+        const TRIALS_PER_BREAK = 40; // Number of trials between every Break 
+
+        const SHOW_BOB_STORY = true; // If false, the "Meet Bob" card is skipped
+        const CUSTOM_BOB_STORY = "";   // If left blank (""), the story text is generated automatically. 
+        // If you type something here, it overrides the story text.
+        // --------------------------------
+
+        let EXPERIMENT_CONDITIONS = [];
+        let EXPERIMENT_GAZE_TOWARDS = [];
+
+        switch (EXPERIMENT_TRIAL_TYPE) {
+            case "Eyes Open":
+                EXPERIMENT_CONDITIONS = ['normalFace'];
+                EXPERIMENT_GAZE_TOWARDS = [true];
+                break;
+            case "Blindfolded":
+                EXPERIMENT_CONDITIONS = ['blindfold'];
+                EXPERIMENT_GAZE_TOWARDS = [true];
+                break;
+            case "Away":
+                EXPERIMENT_CONDITIONS = ['normalFace'];
+                EXPERIMENT_GAZE_TOWARDS = [false];
+                break;
+            case "Open and Away":
+                EXPERIMENT_CONDITIONS = ['normalFace'];
+                EXPERIMENT_GAZE_TOWARDS = [true, false];
+                break;
+            case "Open and Blindfolded":
+                EXPERIMENT_CONDITIONS = ['normalFace', 'blindfold'];
+                EXPERIMENT_GAZE_TOWARDS = [true];
+                break;
+            default:
+                EXPERIMENT_CONDITIONS = ['normalFace', 'blindfold'];
+                EXPERIMENT_GAZE_TOWARDS = [true];
+        }
+
         // --- v1.8.6 Advanced Data Capture ---
         let calculatedRefreshRate = null;
         let refreshRateSamples = [];
@@ -201,23 +244,23 @@
         };
 
         // -----------------------------------------------------------------------
-        // RDK PARAMETERS  (v1.8 updates)
+        // RDK PARAMETERS 
         // -----------------------------------------------------------------------
         let pixelsPerDegree = null; // defaults to 50
         let monitorWidthCm = 38;
         let viewingDistanceCm = 54;
         const apertureDeg = 5;
-        const densityDotsPerDeg2 = 50;    // v1.8: 40 dots/deg² (was 16)
-        const dotDiameterDeg = 0.05;     // v1.8: slightly smaller dots (was 0.05)
-        const dotSpeedDegPerSec = 2.0;    // v1.8: slightly faster (was 2.4)
+        const densityDotsPerDeg2 = 50;    // Set to 50 dots/deg2
+        const dotDiameterDeg = 0.05;
+        const dotSpeedDegPerSec = 1.4;    // Changed to 1.4 deg/sec
         const lifetimeMs = 200;
-        const coherence = 0.40;           // 40% coherence
+        const coherence = 0.40;
         const interleavedSets = 3;
 
         const fixationDurationMs = 1500;
         const faceDurationMs = 1500;
         const testDurationMs = 2000;
-        const catchResponseMs = 3000;     // v1.8.5: total response window for catch trials
+        const catchResponseMs = 3000;
         const itiMinMs = 1000;
         const itiMaxMs = 2000;
 
@@ -429,15 +472,37 @@
         // -----------------------------------------------------------------------
 
         // Bob introduction screen - shown AFTER practice
+        let bobIntroImg = BLINDFOLD_FACE_IMAGE_PAIRS[0].R;
+        let defaultBobDesc = "Bob is blindfolded and is facing the center.";
+
+        if (EXPERIMENT_TRIAL_TYPE === "Eyes Open") {
+            bobIntroImg = NORMAL_FACE_IMAGE_PAIRS[0].R;
+            defaultBobDesc = "Bob is watching and is facing the center.";
+        } else if (EXPERIMENT_TRIAL_TYPE === "Away") {
+            bobIntroImg = NORMAL_FACE_IMAGE_PAIRS[0].R;
+            defaultBobDesc = "Bob is facing away from the center.";
+        } else if (EXPERIMENT_TRIAL_TYPE === "Open and Away") {
+            bobIntroImg = NORMAL_FACE_IMAGE_PAIRS[0].R;
+            defaultBobDesc = "Bob will sometimes be facing the center and sometimes facing away.";
+        } else if (EXPERIMENT_TRIAL_TYPE === "Open and Blindfolded") {
+            bobIntroImg = NORMAL_FACE_IMAGE_PAIRS[0].R;
+            defaultBobDesc = "Bob will sometimes be blindfolded and sometimes watching, but he is facing the center.";
+        } else if (EXPERIMENT_TRIAL_TYPE === "Blindfolded") {
+            bobIntroImg = BLINDFOLD_FACE_IMAGE_PAIRS[0].R;
+            defaultBobDesc = "Bob is blindfolded and is facing the center.";
+        }
+
+        let bobIntroDesc = CUSTOM_BOB_STORY !== "" ? CUSTOM_BOB_STORY : defaultBobDesc;
+
         const bobIntroduction = {
             type: jsPsychHtmlKeyboardResponse,
             stimulus: `
         <div class="center">
           <h2>Meet Bob</h2>
           <div style="text-align:center; margin:16px 0;">
-            <img src="${BLINDFOLD_FACE_IMAGE_PAIRS[0].R}" alt="Bob" style="width:180px; height:auto;">
+            <img src="${bobIntroImg}" alt="Bob" style="width:180px; height:auto;">
           </div>
-          <p>This is Bob. Bob is blindfolded and is facing the center.</p>
+          <p>This is Bob. ${bobIntroDesc}</p>
           <p>Please ignore Bob and the tree. They are not part of your task. Just focus on the moving stars.</p>
           <p style="color: #66ff66; font-weight: bold;">However, occasionally Bob or the tree may turn GREEN. If you see this happen, press the <u>SPACEBAR</u> as fast as you can instead of the arrow keys.</p>
           <p style="margin-top: 30px; font-weight: bold;">Press any key to continue.</p>
@@ -566,11 +631,6 @@
 
         // -----------------------------------------------------------------------
         // FACE-TREE STIMULUS
-        // gazeTowards = true  => face looks towards the tree
-        // gazeTowards = false => face looks away from the tree
-        // colorTarget = null  => normal trial (no color change)
-        // colorTarget = 'face' => face turns green (catch trial)
-        // colorTarget = 'tree' => tree turns green (catch trial)
         // -----------------------------------------------------------------------
         function faceTreeStimulus({ faceOnLeft = true, gazeTowards = true, colorTarget = null, condition = 'blindfold' } = {}) {
             return {
@@ -588,8 +648,6 @@
                         pair = BLINDFOLD_FACE_IMAGE_PAIRS[0];
                     }
 
-                    // If face is on left and gazing towards tree => looking right
-                    // If face is on right and gazing towards tree => looking left
                     const lookingRight = faceOnLeft ? gazeTowards : !gazeTowards;
                     const faceSrc = lookingRight ? pair.R : pair.L;
                     const treeSrc = (colorTarget === 'tree') ? GREEN_TREE_IMAGE : TREE_IMAGE;
@@ -602,8 +660,6 @@
                         `<img class="stimulus-img-responsive" src="${treeSrc}" alt="Tree">` :
                         generateTreeSVG();
 
-                    // v1.8: tree-wrapper is slightly smaller than face-wrapper
-                    // v1.8.6: uses specific green images instead of wrappers class
                     const faceWrapper = `<div class="stimulus-item-wrapper">${faceContent}</div>`;
                     const treeWrapper = `<div class="stimulus-item-wrapper tree-wrapper">${treeContent}</div>`;
 
@@ -635,7 +691,7 @@
         }
 
         // -----------------------------------------------------------------------
-        // RDK TRIAL  (v1.8: no border, smaller/faster dots, density=40)
+        // RDK TRIAL 
         // -----------------------------------------------------------------------
         function rdkTrial({
             width = 800,
@@ -647,18 +703,22 @@
             const ppd = pixelsPerDegree || 50;
             const aperturePx = Math.round(apertureDeg * ppd);
             const apertureHalf = Math.floor(aperturePx / 2);
+
             const centerX = Math.floor(width / 2);
 
-            // Shift slightly up to align with face/tree images
-            const centerY = Math.floor(height / 2);
+            // SHIFT RDK UP: The gaze and RDK pass ABOVE the center fixation point
+            const centerY = Math.floor(height / 2) - 30;
 
             const leftBound = centerX - apertureHalf;
             const rightBound = centerX + apertureHalf;
             const topBound = centerY - apertureHalf;
             const bottomBound = centerY + apertureHalf;
 
-            const numDots = Math.max(50, Math.round(densityDotsPerDeg2 * apertureDeg * apertureDeg));
+            // True Interleaving: Multiply total dots by numSets so each frame shows the correct density
+            const baseNumDots = Math.max(50, Math.round(densityDotsPerDeg2 * apertureDeg * apertureDeg));
+            const numDots = baseNumDots * numSets;
             const coherentCount = Math.round(numDots * coherence);
+
             const dotRadius = Math.max(1, (dotDiameterDeg * ppd) / 2);
             const dotSpeedPxPerSec = dotSpeedDegPerSec * ppd;
             const lifetimeSec = lifetimeMs / 1000;
@@ -747,17 +807,17 @@
                         }
                     }
 
-                    function drawAllDots() {
+                    // NEW DRAWING LOGIC: Only draw the active cohort
+                    function drawActiveDots(activeSetIdx) {
                         ctx.fillStyle = '#808080';
                         ctx.fillRect(0, 0, width, height);
-                        // v1.8: NO border/outline around the RDK aperture
                         ctx.fillStyle = '#000000';
                         const dotSize = Math.max(1, Math.round(dotRadius * 2));
                         ctx.beginPath();
-                        for (const set of sets) {
-                            for (const d of set) {
-                                ctx.rect(Math.floor(d.x - dotRadius), Math.floor(d.y - dotRadius), dotSize, dotSize);
-                            }
+
+                        const activeSet = sets[activeSetIdx];
+                        for (const d of activeSet) {
+                            ctx.rect(Math.floor(d.x - dotRadius), Math.floor(d.y - dotRadius), dotSize, dotSize);
                         }
                         ctx.fill();
                     }
@@ -801,9 +861,12 @@
                         const dtMs = lastTs == null ? frameDuration : (ts - lastTs);
                         lastTs = ts;
                         const dtSec = dtMs / 1000;
+
+                        // TRUE INTERLEAVING: Update and draw only one cohort per frame
                         const activeSetIdx = frame % numSets;
                         updateSet(activeSetIdx, dtSec);
-                        drawAllDots();
+                        drawActiveDots(activeSetIdx);
+
                         frame += 1;
                         currentRafId = requestAnimationFrame(step);
                     }
@@ -877,7 +940,6 @@
 
         // -----------------------------------------------------------------------
         // EXPERIMENTAL TRIAL (normal RDK trial)
-        // gazeTowards: true = face looks at tree, false = face looks away from tree
         // -----------------------------------------------------------------------
         function experimentalTrial({ faceOnLeft, gazeTowards, forceCongruent = null, condition = 'blindfold' }) {
             const impliedDirection = faceOnLeft ? 0 : 180;
@@ -927,8 +989,7 @@
         }
 
         // -----------------------------------------------------------------------
-        // CATCH TRIAL (v1.8.5)
-        // Face or tree turns green; subject presses Spacebar. No RDK follows.
+        // CATCH TRIAL 
         // -----------------------------------------------------------------------
         function catchTrial({ faceOnLeft, gazeTowards, colorTarget = 'face', condition = 'blindfold' }) {
             const itiMs = randInt(itiMinMs, itiMaxMs);
@@ -1012,25 +1073,39 @@
 
         // -----------------------------------------------------------------------
         // EXPERIMENTAL + CATCH TRIAL LIST
-        // v1.9 adjusted: 70 normal trials + 5 catch trials = 75 total
-        // Normal: 35 blindfold, 35 normalFace
-        // Catch: 5 random condition and target
         // -----------------------------------------------------------------------
         const allTrialSpecs = [];
 
-        // 35 Blindfold and 35 Normal Face -> 70 test trials total
-        for (let i = 0; i < 35; i++) {
-            allTrialSpecs.push({ type: 'normal', condition: 'blindfold', gazeTowards: true, congruent: Math.random() < 0.5, faceOnLeft: Math.random() < 0.5 });
-            allTrialSpecs.push({ type: 'normal', condition: 'normalFace', gazeTowards: true, congruent: Math.random() < 0.5, faceOnLeft: Math.random() < 0.5 });
+        const congruencies = [true, false];
+        const facePositions = [true, false];
+
+        const trialsPerSpecificCombo = Math.max(1, Math.round(TRIALS_PER_CONDITION / 2));
+
+        for (let condition of EXPERIMENT_CONDITIONS) {
+            for (let gazeTowards of EXPERIMENT_GAZE_TOWARDS) {
+                for (let congruent of congruencies) {
+                    for (let faceOnLeft of facePositions) {
+                        for (let i = 0; i < trialsPerSpecificCombo; i++) {
+                            allTrialSpecs.push({
+                                type: 'normal',
+                                condition: condition,
+                                gazeTowards: gazeTowards,
+                                congruent: congruent,
+                                faceOnLeft: faceOnLeft
+                            });
+                        }
+                    }
+                }
+            }
         }
 
-        // Add 5 catch trials
-        for (let i = 0; i < 5; i++) {
+        // Add catch trials
+        for (let i = 0; i < CATCH_TRIALS_COUNT; i++) {
             allTrialSpecs.push({
                 type: 'catch',
-                condition: Math.random() < 0.5 ? 'blindfold' : 'normalFace',
+                condition: EXPERIMENT_CONDITIONS[Math.floor(Math.random() * EXPERIMENT_CONDITIONS.length)],
                 colorTarget: Math.random() < 0.5 ? 'face' : 'tree',
-                gazeTowards: true,
+                gazeTowards: EXPERIMENT_GAZE_TOWARDS[Math.floor(Math.random() * EXPERIMENT_GAZE_TOWARDS.length)],
                 faceOnLeft: Math.random() < 0.5
             });
         }
@@ -1041,7 +1116,7 @@
             [allTrialSpecs[i], allTrialSpecs[j]] = [allTrialSpecs[j], allTrialSpecs[i]];
         }
 
-        const totalTrialCount = allTrialSpecs.length; // 75
+        const totalTrialCount = allTrialSpecs.length;
 
         const experimentalTrials = [];
         allTrialSpecs.forEach((spec, index) => {
@@ -1061,7 +1136,6 @@
                 }));
             }
 
-            // Warning at trial 15 (if incorrectCount >= 7)
             if (index + 1 === 15) {
                 experimentalTrials.push({
                     timeline: [{
@@ -1091,8 +1165,8 @@
                 });
             }
 
-            // Break screen after 35 trials
-            if (index + 1 === 35) {
+            // Check if it's time for a break (but don't put a break on the very last trial)
+            if ((index + 1) % TRIALS_PER_BREAK === 0 && (index + 1) < totalTrialCount) {
                 experimentalTrials.push({
                     type: jsPsychHtmlKeyboardResponse,
                     stimulus: function () {
@@ -1104,7 +1178,9 @@
         });
 
         timeline.push(practiceLoopNode);
-        timeline.push(bobIntroduction);
+        if (SHOW_BOB_STORY) {
+            timeline.push(bobIntroduction);
+        }
         timeline.push({ timeline: experimentalTrials });
 
         timeline.push({
@@ -1118,7 +1194,7 @@
         });
 
         // -----------------------------------------------------------------------
-        // DATA CAPTURE & END SCREEN (v1.8.5: includes catch trial data)
+        // DATA CAPTURE & END SCREEN
         // -----------------------------------------------------------------------
         async function showResultsAndMenu() {
             cleanup();
@@ -1130,7 +1206,6 @@
             const n = tests.count();
             const acc = n ? Math.round(tests.filter({ correct: true }).count() / n * 100) : 0;
 
-            // Catch trial stats
             const catchN = catchData.count();
             const catchCorrect = catchData.filter({ correct: true }).count();
             const catchAcc = catchN ? Math.round(catchCorrect / catchN * 100) : 0;
@@ -1146,7 +1221,6 @@
             const screenResolution = `${window.screen.width}x${window.screen.height}`;
             const browserViewport = `${window.innerWidth}x${window.innerHeight}`;
 
-            // Summary stats per gaze condition
             const towardsTrials = tests.filter({ gazeTowards: true });
             const awayTrials = tests.filter({ gazeTowards: false });
             const towardsN = towardsTrials.count();
@@ -1182,7 +1256,6 @@
                 frameRates: t.frameRates
             }));
 
-            // Catch trial data
             const catchTrialsData = catchData.values().map((t, idx) => ({
                 trial_number: idx,
                 trial_index: t.trial_index,
@@ -1209,9 +1282,9 @@
                 UUID: sessionUUID,
                 data: {
                     session: {
-                        experiment_version: '1.10',
-                        treatment: 'blindfold_centered_catch',
-                        file_version: '1.10',
+                        experiment_version: '1.11',
+                        treatment: EXPERIMENT_TRIAL_TYPE,
+                        file_version: '1.11',
                         totalTrials: n,
                         totalTrialsIncludingCatch: n + catchN,
                         conditions: {
@@ -1256,7 +1329,10 @@
                             faceDurationMs: faceDurationMs,
                             testDurationMs: testDurationMs,
                             catchResponseMs: catchResponseMs,
-                            interleavedSets: interleavedSets
+                            interleavedSets: interleavedSets,
+                            facePositionRelativeToFixation: "above",
+                            bobStory: bobIntroDesc,
+                            showBobStory: SHOW_BOB_STORY
                         },
                         prolific: {
                             prolificPid: PROLIFIC.prolificPid,
