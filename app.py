@@ -786,6 +786,17 @@ def _load_rhi_temp_records():
     return records
 
 
+def _clear_rhi_temp_records():
+    path = _rhi_temp_path()
+    if os.path.exists(path):
+        os.remove(path)
+        dir_fd = os.open(_rhi_temp_dir(), os.O_DIRECTORY)
+        try:
+            os.fsync(dir_fd)
+        finally:
+            os.close(dir_fd)
+
+
 def _summarize_rhi_temp(records):
     participants = sorted({r.get('participant_id') for r in records if r.get('participant_id')})
     sites = sorted({r.get('site') for r in records if r.get('site')})
@@ -1075,6 +1086,19 @@ def rhi_temp_data():
     records = _load_rhi_temp_records()
     return jsonify({
         'status': 'ok',
+        'records': records,
+        'summary': _summarize_rhi_temp(records),
+    })
+
+
+@app.post('/api/research/rhi-temp/clear')
+@require_results_auth
+def rhi_temp_clear():
+    _clear_rhi_temp_records()
+    records = []
+    return jsonify({
+        'status': 'ok',
+        'cleared': True,
         'records': records,
         'summary': _summarize_rhi_temp(records),
     })

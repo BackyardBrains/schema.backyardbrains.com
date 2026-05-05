@@ -150,6 +150,31 @@
   font-size: 13px;
 }
 
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.danger-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin: 12px 0 4px 0;
+  padding: 8px 14px;
+  border: 1px solid #ffd0c4;
+  border-radius: 8px;
+  background: #fff5f2;
+  color: #a83216;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.danger-btn:hover {
+  background: #ffe7e0;
+}
+
 .form-card form {
   display: grid;
   gap: 14px;

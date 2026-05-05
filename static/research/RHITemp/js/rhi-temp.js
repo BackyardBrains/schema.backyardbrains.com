@@ -10,8 +10,10 @@
 
   const els = {
     stats: document.getElementById('stats'),
+    clearData: document.getElementById('clearData'),
     recordsBody: document.getElementById('recordsBody'),
     status: document.getElementById('status'),
+    showIndividualDifference: document.getElementById('showIndividualDifference'),
     differenceSite: document.getElementById('differenceSite'),
     showAllValues: document.getElementById('showAllValues'),
     scatterSite: document.getElementById('scatterSite'),
@@ -72,6 +74,68 @@
     });
   }
 
+  function summarizeValues(values) {
+    const clean = values.map(Number).filter(value => Number.isFinite(value));
+    if (!clean.length) return null;
+    const mean = clean.reduce((sum, value) => sum + value, 0) / clean.length;
+    const variance = clean.length > 1
+      ? clean.reduce((sum, value) => sum + Math.pow(value - mean, 2), 0) / (clean.length - 1)
+      : 0;
+    const sd = Math.sqrt(variance);
+    return { mean, sd, n: clean.length, low: mean - sd, high: mean + sd };
+  }
+
+  function individualDifferences(selectedSite) {
+    const grouped = new Map();
+    for (const record of state.records) {
+      if (selectedSite !== 'all' && record.site !== selectedSite) continue;
+      if (!CONDITIONS.includes(record.condition)) continue;
+      const key = [record.participant_id, record.site, record.timepoint, record.condition].join('|');
+      if (!grouped.has(key)) {
+        grouped.set(key, {
+          participant_id: record.participant_id,
+          site: record.site,
+          timepoint: record.timepoint,
+          condition: record.condition,
+          values: []
+        });
+      }
+      grouped.get(key).values.push(Number(record.temperature));
+    }
+
+    const means = new Map();
+    for (const [key, group] of grouped.entries()) {
+      const summary = summarizeValues(group.values);
+      if (summary) means.set(key, { ...group, temperature: summary.mean });
+    }
+
+    const rows = [];
+    const participants = [...new Set(state.records.map(record => record.participant_id).filter(Boolean))].sort();
+    const sites = selectedSite === 'all'
+      ? [...new Set(state.records.map(record => record.site).filter(Boolean))].sort()
+      : [selectedSite];
+    const timepoints = sortedTimepoints(state.records.map(record => record.timepoint));
+    for (const participant of participants) {
+      for (const site of sites) {
+        for (const timepoint of timepoints) {
+          const base = [participant, site, timepoint];
+          const control = means.get([...base, 'control'].join('|'));
+          const rhi = means.get([...base, 'rhi'].join('|'));
+          if (!control || !rhi) continue;
+          const label = selectedSite === 'all' ? `${formatSite(site)} ${timepoint || 'time ?'}` : timepoint || 'time ?';
+          rows.push({
+            participant_id: participant,
+            site,
+            timepoint,
+            label,
+            difference: rhi.temperature - control.temperature
+          });
+        }
+      }
+    }
+    return rows;
+  }
+
   function updateStats() {
     const summary = state.summary || {};
     els.stats.textContent = [
@@ -123,33 +187,62 @@
 
   function renderDifferenceChart() {
     const selectedSite = els.differenceSite ? els.differenceSite.value : 'all';
+    const showIndividuals = Boolean(els.showIndividualDifference && els.showIndividualDifference.checked);
     const rows = ((state.summary && state.summary.mean_difference) || [])
       .filter(row => selectedSite === 'all' || row.site === selectedSite)
       .sort((a, b) => (timeRank(a.timepoint) - timeRank(b.timepoint)) || a.site.localeCompare(b.site));
     const labels = rows.map(row => selectedSite === 'all' ? `${formatSite(row.site)} ${row.timepoint || 'time ?'}` : row.timepoint || 'time ?');
     const values = rows.map(row => row.mean_difference);
     const colors = rows.map(row => siteColors[row.site] || '#ff805f');
+    const datasets = [{
+      label: 'Group mean RHI - Control',
+      data: values,
+      backgroundColor: colors,
+      borderColor: '#000000',
+      borderWidth: 1
+    }];
+
+    if (showIndividuals) {
+      datasets.push({
+        type: 'scatter',
+        label: 'Individual RHI - Control',
+        data: individualDifferences(selectedSite).map(row => ({
+          x: row.label,
+          y: row.difference,
+          participant: row.participant_id,
+          site: row.site,
+          timepoint: row.timepoint
+        })),
+        pointRadius: 4,
+        pointHoverRadius: 6,
+        pointBackgroundColor: '#ffffff',
+        pointBorderColor: '#000000',
+        pointBorderWidth: 1.2
+      });
+    }
 
     if (state.differenceChart) state.differenceChart.destroy();
     state.differenceChart = new Chart(els.differenceCanvas, {
       type: 'bar',
       data: {
         labels,
-        datasets: [{
-          label: 'Mean RHI - Control',
-          data: values,
-          backgroundColor: colors,
-          borderColor: '#000000',
-          borderWidth: 1
-        }]
+        datasets
       },
       options: {
         responsive: true,
         plugins: {
-          legend: { display: false },
+          legend: { display: showIndividuals },
           tooltip: {
             callbacks: {
+              label(context) {
+                if (context.dataset.type === 'scatter') {
+                  const point = context.raw || {};
+                  return `${point.participant || 'participant ?'}: ${context.parsed.y.toFixed(2)}`;
+                }
+                return `${context.dataset.label}: ${context.parsed.y.toFixed(2)}`;
+              },
               afterLabel(context) {
+                if (context.dataset.type === 'scatter') return '';
                 const row = rows[context.dataIndex];
                 return row ? `n = ${row.n}` : '';
               }
@@ -196,6 +289,10 @@
     const participants = [...new Set(rows.map(row => row.participant_id).filter(Boolean))].sort();
     const participantIndex = new Map(participants.map((participant, index) => [participant, index + 1]));
     const siteOffset = showAllValues ? { wrist: -0.16, index: 0, pinky: 0.16 } : {};
+    const summaryX = {
+      control: participants.length + 1,
+      rhi: participants.length + 2
+    };
     const datasets = CONDITIONS.map(condition => ({
       label: condition === 'control' ? 'Control' : 'RHI',
       data: rows
@@ -215,6 +312,36 @@
       showLine: false
     }));
 
+    for (const condition of CONDITIONS) {
+      const summary = summarizeValues(rows
+        .filter(row => row.condition === condition)
+        .map(row => row.temperature));
+      if (!summary) continue;
+      const label = condition === 'control' ? 'Control mean +/- SD' : 'RHI mean +/- SD';
+      const x = summaryX[condition];
+      datasets.push({
+        label,
+        data: [{ x, y: summary.low }, { x, y: summary.high }],
+        borderColor: '#000000',
+        borderWidth: 1.5,
+        pointRadius: 0,
+        showLine: true,
+        type: 'line',
+        summary
+      });
+      datasets.push({
+        label: condition === 'control' ? 'Control average' : 'RHI average',
+        data: [{ x, y: summary.mean, summary: true, condition, n: summary.n, sd: summary.sd }],
+        pointRadius: 9,
+        pointHoverRadius: 11,
+        pointStyle: 'rectRounded',
+        pointBackgroundColor: condition === 'control' ? '#000000' : '#ffffff',
+        pointBorderColor: '#000000',
+        pointBorderWidth: 1.5,
+        showLine: false
+      });
+    }
+
     if (state.scatterChart) state.scatterChart.destroy();
     state.scatterChart = new Chart(els.scatterCanvas, {
       type: 'scatter',
@@ -228,6 +355,14 @@
             callbacks: {
               label(context) {
                 const point = context.raw || {};
+                if (point.summary) {
+                  const name = point.condition === 'control' ? 'Control average' : 'RHI average';
+                  return `${name}: ${context.parsed.y.toFixed(2)} (SD ${point.sd.toFixed(2)}, n=${point.n})`;
+                }
+                if (context.dataset.summary) {
+                  const summary = context.dataset.summary;
+                  return `${context.dataset.label}: ${summary.mean.toFixed(2)} +/- ${summary.sd.toFixed(2)}`;
+                }
                 const detail = showAllValues ? `${formatSite(point.site)} ${point.timepoint || ''}` : 'average';
                 return `${context.dataset.label}: ${point.participant || 'participant ?'} ${detail} ${context.parsed.y.toFixed(2)}`;
               }
@@ -237,10 +372,12 @@
         scales: {
           x: {
             min: 0,
-            max: Math.max(participants.length + 1, 2),
+            max: Math.max(participants.length + 3, 3),
             ticks: {
               stepSize: 1,
               callback(value) {
+                if (value === participants.length + 1) return 'Avg C';
+                if (value === participants.length + 2) return 'Avg R';
                 return participants[value - 1] || '';
               }
             },
@@ -398,11 +535,32 @@
     setStatus(`Imported ${data.imported || 0} temperature readings${tab} through the Google Sheets API.`);
   }
 
+  async function clearData() {
+    const ok = window.confirm('Clear all locally stored RHI temperature records? This cannot be undone.');
+    if (!ok) return;
+    setStatus('Clearing data...');
+    const res = await fetch('/api/research/rhi-temp/clear', {
+      method: 'POST',
+      credentials: 'same-origin'
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      setStatus(data.error || 'Clear data failed', true);
+      return;
+    }
+    state.records = data.records || [];
+    state.summary = data.summary || {};
+    renderAll();
+    setStatus('Cleared local RHI temperature data. You can reimport from Google Sheets now.');
+  }
+
   function attach() {
+    if (els.clearData) els.clearData.addEventListener('click', clearData);
     if (els.entryForm) els.entryForm.addEventListener('submit', submitEntry);
     if (els.sheetImportForm) els.sheetImportForm.addEventListener('submit', importSheet);
     if (els.importForm) els.importForm.addEventListener('submit', importCsv);
     if (els.differenceSite) els.differenceSite.addEventListener('change', renderDifferenceChart);
+    if (els.showIndividualDifference) els.showIndividualDifference.addEventListener('change', renderDifferenceChart);
     if (els.showAllValues) els.showAllValues.addEventListener('change', renderScatterChart);
     if (els.scatterSite) els.scatterSite.addEventListener('change', renderScatterChart);
     if (els.scatterTime) els.scatterTime.addEventListener('change', renderScatterChart);

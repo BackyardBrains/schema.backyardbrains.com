@@ -26,7 +26,10 @@
     <h1>RHI Temperature Research</h1>
     <p class="lede">Collect and review wrist, index, and pinky temperatures for RHI and control conditions.</p>
     <div id="stats" class="stats">Loading data...</div>
-    <a id="exportCsv" class="download" href="/api/research/rhi-temp/export.csv" download>Export CSV</a>
+    <div class="header-actions">
+      <a id="exportCsv" class="download" href="/api/research/rhi-temp/export.csv" download>Export CSV</a>
+      <button id="clearData" class="danger-btn" type="button">Clear Data</button>
+    </div>
     <hr>
   </header>
 
@@ -43,12 +46,18 @@
             <p class="eyebrow">Plot 1</p>
             <h2>Mean Difference: RHI - Control</h2>
           </div>
-          <label class="inline-control">
-            Site
-            <select id="differenceSite">
-              <option value="all">All sites</option>
-            </select>
-          </label>
+          <div class="filter-row">
+            <label class="check-control">
+              <input id="showIndividualDifference" type="checkbox">
+              Show individuals
+            </label>
+            <label class="inline-control">
+              Site
+              <select id="differenceSite">
+                <option value="all">All sites</option>
+              </select>
+            </label>
+          </div>
         </div>
         <canvas id="differenceChart" height="260"></canvas>
       </article>
