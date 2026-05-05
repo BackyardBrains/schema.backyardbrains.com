@@ -487,19 +487,21 @@
     for (const record of recent) {
       const tr = document.createElement('tr');
       const participant = document.createElement('td');
+      const session = document.createElement('td');
       const condition = document.createElement('td');
       const site = document.createElement('td');
       const timepoint = document.createElement('td');
       const temperature = document.createElement('td');
       const source = document.createElement('td');
       participant.textContent = record.participant_id || '';
+      session.textContent = record.session || '';
       condition.textContent = record.condition || '';
       site.textContent = record.site || '';
       timepoint.textContent = record.timepoint || '';
       temperature.textContent = Number(record.temperature).toFixed(2);
       temperature.className = 'num';
       source.textContent = record.source || '';
-      tr.append(participant, condition, site, timepoint, temperature, source);
+      tr.append(participant, session, condition, site, timepoint, temperature, source);
       els.recordsBody.appendChild(tr);
     }
   }
@@ -532,6 +534,7 @@
     }
     return {
       participant_id: data.get('participant_id'),
+      session: data.get('session'),
       timepoint: data.get('timepoint'),
       notes: data.get('notes'),
       readings

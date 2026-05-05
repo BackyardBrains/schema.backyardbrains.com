@@ -642,7 +642,7 @@ def api_uploads():
 RHI_TEMP_SITES = ('wrist', 'index', 'pinky')
 RHI_TEMP_CONDITIONS = ('control', 'rhi')
 RHI_TEMP_CSV_FIELDS = (
-    'participant_id', 'condition', 'site', 'timepoint', 'temperature',
+    'participant_id', 'session', 'condition', 'site', 'timepoint', 'temperature',
     'notes', 'source', 'collector', 'created_at'
 )
 
@@ -735,10 +735,11 @@ def _extract_timepoint(*values):
 
 
 def _new_rhi_temp_record(participant_id, condition, site, timepoint, temperature,
-                         notes='', source='manual', collector=''):
+                         session_number='', notes='', source='manual', collector=''):
     return {
         'id': str(uuid.uuid4()),
         'participant_id': str(participant_id or '').strip(),
+        'session': str(session_number or '').strip(),
         'condition': condition,
         'site': site,
         'timepoint': str(timepoint or '').strip(),
@@ -867,6 +868,7 @@ def _parse_rhi_temp_rows(headers, rows, collector='', source='csv'):
             if str(header or '').strip()
         }
         participant_id = _find_row_value(row, ('participant_id', 'participant', 'user', 'user_id', 'subject', 'subject_id', 'id', 'Subject')) or f"row-{row_index}"
+        session_number = _find_row_value(row, ('session', 'session_number', 'session_id', 'Session'))
         row_condition = _normalize_condition(_find_row_value(row, ('condition', 'trial_condition', 'group')))
         if not row_condition:
             row_condition = _normalize_condition(_find_row_value(row, ('trial', 'Trial')))
@@ -878,7 +880,7 @@ def _parse_rhi_temp_rows(headers, rows, collector='', source='csv'):
         if row_temp is not None and row_condition and row_site:
             records.append(_new_rhi_temp_record(
                 participant_id, row_condition, row_site, row_timepoint,
-                row_temp, notes=notes, source=source, collector=collector
+                row_temp, session_number=session_number, notes=notes, source=source, collector=collector
             ))
             continue
 
@@ -898,7 +900,7 @@ def _parse_rhi_temp_rows(headers, rows, collector='', source='csv'):
                 continue
             records.append(_new_rhi_temp_record(
                 participant_id, condition, site, timepoint, temp,
-                notes=notes, source=source, collector=collector
+                session_number=session_number, notes=notes, source=source, collector=collector
             ))
     return records
 
@@ -1111,6 +1113,7 @@ def rhi_temp_entry():
     user = session.get('user') or {}
     collector = user.get('email') or user.get('name') or user.get('sub') or ''
     participant_id = body.get('participant_id') or body.get('participant') or body.get('user_id')
+    session_number = body.get('session') or body.get('session_number') or ''
     timepoint = body.get('timepoint') or body.get('time') or ''
     notes = body.get('notes') or ''
     readings = body.get('readings') or {}
@@ -1127,7 +1130,7 @@ def rhi_temp_entry():
                 continue
             records.append(_new_rhi_temp_record(
                 participant_id, condition, site, timepoint, temp,
-                notes=notes, source='manual', collector=collector
+                session_number=session_number, notes=notes, source='manual', collector=collector
             ))
 
     if not participant_id:
