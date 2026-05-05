@@ -18,6 +18,8 @@
     differenceCanvas: document.getElementById('differenceChart'),
     scatterCanvas: document.getElementById('scatterChart'),
     entryForm: document.getElementById('entryForm'),
+    sheetImportForm: document.getElementById('sheetImportForm'),
+    sheetUrl: document.getElementById('sheetUrl'),
     importForm: document.getElementById('importForm'),
     csvFile: document.getElementById('csvFile'),
     csvText: document.getElementById('csvText')
@@ -363,8 +365,34 @@
     setStatus(`Imported ${data.imported || 0} temperature readings.`);
   }
 
+  async function importSheet(event) {
+    event.preventDefault();
+    const url = (els.sheetUrl && els.sheetUrl.value || '').trim();
+    if (!url) {
+      setStatus('Enter a Google Sheet URL first.', true);
+      return;
+    }
+    setStatus('Importing Google Sheet...');
+    const res = await fetch('/api/research/rhi-temp/import-sheet', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'same-origin',
+      body: JSON.stringify({ url })
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      setStatus(data.error || 'Google Sheet import failed', true);
+      return;
+    }
+    state.records = data.records || [];
+    state.summary = data.summary || {};
+    renderAll();
+    setStatus(`Imported ${data.imported || 0} temperature readings from Google Sheets.`);
+  }
+
   function attach() {
     if (els.entryForm) els.entryForm.addEventListener('submit', submitEntry);
+    if (els.sheetImportForm) els.sheetImportForm.addEventListener('submit', importSheet);
     if (els.importForm) els.importForm.addEventListener('submit', importCsv);
     if (els.differenceSite) els.differenceSite.addEventListener('change', renderDifferenceChart);
     if (els.scatterSite) els.scatterSite.addEventListener('change', renderScatterChart);

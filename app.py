@@ -7,6 +7,7 @@ from datetime import datetime
 import os, json, fnmatch, csv, re, uuid
 import base64, hmac, io, zipfile
 from functools import wraps
+from urllib.parse import parse_qs, urlencode, urlparse
 
 # Load environment from a local .env when present (useful for dev)
 try:
@@ -822,7 +823,7 @@ def _summarize_rhi_temp(records):
     }
 
 
-def _parse_rhi_temp_csv(text, collector=''):
+def _parse_rhi_temp_csv(text, collector='', source='csv'):
     stream = io.StringIO(text, newline='')
     reader = csv.DictReader(stream)
     if not reader.fieldnames:
@@ -840,7 +841,7 @@ def _parse_rhi_temp_csv(text, collector=''):
         if row_temp is not None and row_condition and row_site:
             records.append(_new_rhi_temp_record(
                 participant_id, row_condition, row_site, row_timepoint,
-                row_temp, notes=notes, source='csv', collector=collector
+                row_temp, notes=notes, source=source, collector=collector
             ))
             continue
 
@@ -855,9 +856,36 @@ def _parse_rhi_temp_csv(text, collector=''):
                 continue
             records.append(_new_rhi_temp_record(
                 participant_id, condition, site, timepoint, temp,
-                notes=notes, source='csv', collector=collector
+                notes=notes, source=source, collector=collector
             ))
     return records
+
+
+def _google_sheet_csv_url(sheet_url):
+    parsed = urlparse(str(sheet_url or '').strip())
+    if parsed.scheme not in ('http', 'https') or parsed.netloc != 'docs.google.com':
+        raise ValueError('Enter a Google Sheets URL from docs.google.com')
+    match = re.search(r'/spreadsheets/d/([^/]+)', parsed.path)
+    if not match:
+        raise ValueError('Could not find the spreadsheet id in that URL')
+    sheet_id = match.group(1)
+    params = parse_qs(parsed.query)
+    gid = (params.get('gid') or ['0'])[0]
+    query = urlencode({'format': 'csv', 'gid': gid})
+    return f"https://docs.google.com/spreadsheets/d/{sheet_id}/export?{query}"
+
+
+def _fetch_google_sheet_csv(sheet_url):
+    if not requests:
+        raise RuntimeError('requests is not available')
+    csv_url = _google_sheet_csv_url(sheet_url)
+    response = requests.get(csv_url, timeout=20)
+    response.raise_for_status()
+    text = response.content.decode('utf-8-sig', errors='replace')
+    lower = text[:2000].lower()
+    if '<html' in lower or 'google sheets: sign-in' in lower or 'to continue to google sheets' in lower:
+        raise PermissionError('Google returned a sign-in page. Publish the sheet/tab to the web or share it so CSV export is public.')
+    return text, csv_url
 
 
 @app.get('/research')
@@ -965,6 +993,51 @@ def rhi_temp_import_csv():
     return jsonify({
         'status': 'ok',
         'imported': len(records),
+        'records': all_records,
+        'summary': _summarize_rhi_temp(all_records),
+    })
+
+
+@app.post('/api/research/rhi-temp/import-sheet')
+@require_results_auth
+def rhi_temp_import_sheet():
+    user = session.get('user') or {}
+    collector = user.get('email') or user.get('name') or user.get('sub') or ''
+    body = request.get_json(silent=True) or {}
+    sheet_url = body.get('url') or body.get('sheet_url') or ''
+    if not str(sheet_url).strip():
+        return jsonify({"status": "error", "error": "Google Sheet URL is required"}), 400
+
+    try:
+        csv_text, csv_url = _fetch_google_sheet_csv(sheet_url)
+    except PermissionError as e:
+        return jsonify({"status": "error", "error": str(e)}), 400
+    except ValueError as e:
+        return jsonify({"status": "error", "error": str(e)}), 400
+    except Exception as e:
+        if requests and isinstance(e, requests.HTTPError):
+            status_code = getattr(e.response, 'status_code', None)
+            return jsonify({
+                "status": "error",
+                "error": "Google Sheet CSV export failed",
+                "upstream_status": status_code,
+            }), 502
+        app.logger.exception('google sheet import failed')
+        return jsonify({"status": "error", "error": "Google Sheet import failed"}), 500
+
+    records = _parse_rhi_temp_csv(csv_text, collector=collector, source='google-sheet')
+    if not records:
+        return jsonify({
+            "status": "error",
+            "error": "No RHI temperature rows found in the Google Sheet export",
+            "csv_url": csv_url,
+        }), 400
+    _append_rhi_temp_records(records)
+    all_records = _load_rhi_temp_records()
+    return jsonify({
+        'status': 'ok',
+        'imported': len(records),
+        'csv_url': csv_url,
         'records': all_records,
         'summary': _summarize_rhi_temp(all_records),
     })

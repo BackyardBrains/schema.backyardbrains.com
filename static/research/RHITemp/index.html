@@ -136,10 +136,20 @@
         <div class="card-header">
           <div>
             <p class="eyebrow">Import</p>
-            <h2>Spreadsheet CSV</h2>
+            <h2>Google Sheet or CSV</h2>
           </div>
         </div>
-        <p class="muted-copy">Upload an exported CSV from the Google Sheet. The importer accepts long-form rows and common wide headers containing control/RHI, wrist/index/pinky, and time labels.</p>
+        <p class="muted-copy">Import directly from a Google Sheet tab when it is exportable as CSV, or upload/paste CSV manually.</p>
+        <form id="sheetImportForm">
+          <label>
+            Google Sheet URL
+            <input id="sheetUrl" type="url" value="https://docs.google.com/spreadsheets/d/1wSW4HTJ-xY3ZDnqVYNHzpmfojnh_FVy1Y4IphEFh6-4/edit?gid=962900063#gid=962900063">
+          </label>
+          <div class="actions">
+            <button id="importSheet" type="submit">Import Google Sheet</button>
+          </div>
+        </form>
+        <hr class="soft-divider">
         <form id="importForm">
           <label>
             CSV file

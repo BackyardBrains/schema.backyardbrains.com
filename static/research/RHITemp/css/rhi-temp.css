@@ -141,6 +141,12 @@
   gap: 14px;
 }
 
+.soft-divider {
+  margin: 18px 0;
+  border: none;
+  border-top: 1px solid var(--line);
+}
+
 .form-card .row {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
