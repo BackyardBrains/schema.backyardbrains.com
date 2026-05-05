@@ -11,6 +11,7 @@
   const els = {
     stats: document.getElementById('stats'),
     clearData: document.getElementById('clearData'),
+    recordsCount: document.getElementById('recordsCount'),
     recordsBody: document.getElementById('recordsBody'),
     status: document.getElementById('status'),
     showIndividualDifference: document.getElementById('showIndividualDifference'),
@@ -43,6 +44,37 @@
       ctx.save();
       ctx.fillStyle = '#d8d8d8';
       ctx.fillRect(chartArea.left, chartArea.top, chartArea.right - chartArea.left, chartArea.bottom - chartArea.top);
+      ctx.restore();
+    }
+  };
+
+  const errorBars = {
+    id: 'errorBars',
+    afterDatasetsDraw(chart) {
+      const rows = chart.options.plugins.errorBars && chart.options.plugins.errorBars.rows;
+      if (!rows || !rows.length) return;
+      const meta = chart.getDatasetMeta(0);
+      const yScale = chart.scales.y;
+      if (!meta || !yScale) return;
+      const { ctx } = chart;
+      ctx.save();
+      ctx.strokeStyle = '#000000';
+      ctx.lineWidth = 1.5;
+      for (const [index, row] of rows.entries()) {
+        const element = meta.data[index];
+        if (!element || row.low == null || row.high == null) continue;
+        const x = element.x;
+        const lowY = yScale.getPixelForValue(row.low);
+        const highY = yScale.getPixelForValue(row.high);
+        ctx.beginPath();
+        ctx.moveTo(x, highY);
+        ctx.lineTo(x, lowY);
+        ctx.moveTo(x - 8, highY);
+        ctx.lineTo(x + 8, highY);
+        ctx.moveTo(x - 8, lowY);
+        ctx.lineTo(x + 8, lowY);
+        ctx.stroke();
+      }
       ctx.restore();
     }
   };
@@ -135,6 +167,43 @@
           });
         }
       }
+    }
+    return rows;
+  }
+
+  function aggregateIndividualDifferences(selectedSite, selectedTimepoint) {
+    const grouped = new Map();
+    for (const record of state.records) {
+      if (selectedSite !== 'all' && record.site !== selectedSite) continue;
+      if (selectedTimepoint !== 'all' && record.timepoint !== selectedTimepoint) continue;
+      if (!CONDITIONS.includes(record.condition)) continue;
+      const key = [record.participant_id, record.condition].join('|');
+      if (!grouped.has(key)) {
+        grouped.set(key, {
+          participant_id: record.participant_id,
+          condition: record.condition,
+          values: []
+        });
+      }
+      grouped.get(key).values.push(Number(record.temperature));
+    }
+
+    const means = new Map();
+    for (const [key, group] of grouped.entries()) {
+      const summary = summarizeValues(group.values);
+      if (summary) means.set(key, { ...group, temperature: summary.mean });
+    }
+
+    const participants = [...new Set(state.records.map(record => record.participant_id).filter(Boolean))].sort();
+    const rows = [];
+    for (const participant of participants) {
+      const control = means.get([participant, 'control'].join('|'));
+      const rhi = means.get([participant, 'rhi'].join('|'));
+      if (!control || !rhi) continue;
+      rows.push({
+        participant_id: participant,
+        difference: rhi.temperature - control.temperature
+      });
     }
     return rows;
   }
@@ -265,17 +334,19 @@
     const selectedSite = els.differenceSite ? els.differenceSite.value : 'all';
     const selectedTimepoint = els.differenceTime ? els.differenceTime.value : 'all';
     const showIndividuals = Boolean(els.showIndividualDifference && els.showIndividualDifference.checked);
-    const timepointRows = ((state.summary && state.summary.mean_difference) || [])
-      .filter(row => selectedSite === 'all' || row.site === selectedSite)
-      .filter(row => selectedTimepoint === 'all' || row.timepoint === selectedTimepoint)
-      .sort((a, b) => (timeRank(a.timepoint) - timeRank(b.timepoint)) || a.site.localeCompare(b.site));
-    const rows = selectedTimepoint === 'all'
-      ? [...allTimeMeanDifferenceRows(selectedSite), ...timepointRows]
-      : timepointRows;
-    const labels = rows.map(row => {
-      if (row.isAllTimes) return selectedSite === 'all' ? `${formatSite(row.site)} All times` : 'All times';
-      return selectedSite === 'all' ? `${formatSite(row.site)} ${row.timepoint || 'time ?'}` : row.timepoint || 'time ?';
-    });
+    const individualRows = aggregateIndividualDifferences(selectedSite, selectedTimepoint);
+    const summary = summarizeValues(individualRows.map(row => row.difference));
+    const siteLabel = selectedSite === 'all' ? 'All sites' : formatSite(selectedSite);
+    const timeLabel = selectedTimepoint === 'all' ? 'All times' : selectedTimepoint || 'time ?';
+    const rows = summary ? [{
+      site: selectedSite,
+      timepoint: selectedTimepoint,
+      n: summary.n,
+      mean_difference: summary.mean,
+      low: summary.low,
+      high: summary.high
+    }] : [];
+    const labels = [`${siteLabel} / ${timeLabel}`];
     const values = rows.map(row => row.mean_difference);
     const colors = rows.map(row => siteColors[row.site] || '#ff805f');
     const datasets = [{
@@ -287,18 +358,13 @@
     }];
 
     if (showIndividuals) {
-      const individualRows = selectedTimepoint === 'all'
-        ? [...allTimeIndividualDifferences(selectedSite), ...individualDifferences(selectedSite, selectedTimepoint)]
-        : individualDifferences(selectedSite, selectedTimepoint);
       datasets.push({
         type: 'scatter',
         label: 'Individual RHI - Control',
         data: individualRows.map(row => ({
-          x: row.label,
+          x: labels[0],
           y: row.difference,
-          participant: row.participant_id,
-          site: row.site,
-          timepoint: row.timepoint
+          participant: row.participant_id
         })),
         pointRadius: 4,
         pointHoverRadius: 6,
@@ -315,9 +381,11 @@
         labels,
         datasets
       },
+      plugins: [errorBars],
       options: {
         responsive: true,
         plugins: {
+          errorBars: { rows },
           legend: { display: showIndividuals },
           tooltip: {
             callbacks: {
@@ -331,7 +399,7 @@
               afterLabel(context) {
                 if (context.dataset.type === 'scatter') return '';
                 const row = rows[context.dataIndex];
-                return row ? `n = ${row.n}` : '';
+                return row ? [`SD = ${((row.high - row.mean_difference) || 0).toFixed(2)}`, `n = ${row.n}`] : '';
               }
             }
           }
@@ -483,8 +551,11 @@
   function renderRecordsTable() {
     if (!els.recordsBody) return;
     els.recordsBody.innerHTML = '';
-    const recent = [...state.records].slice(-60).reverse();
-    for (const record of recent) {
+    if (els.recordsCount) {
+      els.recordsCount.textContent = `Showing ${state.records.length} records`;
+    }
+    const records = [...state.records].reverse();
+    for (const record of records) {
       const tr = document.createElement('tr');
       const participant = document.createElement('td');
       const session = document.createElement('td');
