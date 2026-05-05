@@ -15,6 +15,7 @@
     status: document.getElementById('status'),
     showIndividualDifference: document.getElementById('showIndividualDifference'),
     differenceSite: document.getElementById('differenceSite'),
+    differenceTime: document.getElementById('differenceTime'),
     showAllValues: document.getElementById('showAllValues'),
     scatterSite: document.getElementById('scatterSite'),
     scatterTime: document.getElementById('scatterTime'),
@@ -85,10 +86,11 @@
     return { mean, sd, n: clean.length, low: mean - sd, high: mean + sd };
   }
 
-  function individualDifferences(selectedSite) {
+  function individualDifferences(selectedSite, selectedTimepoint) {
     const grouped = new Map();
     for (const record of state.records) {
       if (selectedSite !== 'all' && record.site !== selectedSite) continue;
+      if (selectedTimepoint !== 'all' && record.timepoint !== selectedTimepoint) continue;
       if (!CONDITIONS.includes(record.condition)) continue;
       const key = [record.participant_id, record.site, record.timepoint, record.condition].join('|');
       if (!grouped.has(key)) {
@@ -118,6 +120,7 @@
     for (const participant of participants) {
       for (const site of sites) {
         for (const timepoint of timepoints) {
+          if (selectedTimepoint !== 'all' && timepoint !== selectedTimepoint) continue;
           const base = [participant, site, timepoint];
           const control = means.get([...base, 'control'].join('|'));
           const rhi = means.get([...base, 'rhi'].join('|'));
@@ -170,6 +173,19 @@
     const timepoints = sortedTimepoints(summary.timepoints || []);
     setSelectOptions(els.differenceSite, sites, 'All sites');
     setSelectOptions(els.scatterSite, sites, 'All sites');
+    if (els.differenceTime) {
+      const current = els.differenceTime.value;
+      els.differenceTime.innerHTML = '<option value="all">All times</option>';
+      for (const timepoint of timepoints) {
+        const option = document.createElement('option');
+        option.value = timepoint;
+        option.textContent = timepoint || 'Unlabeled';
+        els.differenceTime.appendChild(option);
+      }
+      if ([...els.differenceTime.options].some(option => option.value === current)) {
+        els.differenceTime.value = current;
+      }
+    }
     if (els.scatterTime) {
       const current = els.scatterTime.value;
       els.scatterTime.innerHTML = '<option value="all">All times</option>';
@@ -187,9 +203,11 @@
 
   function renderDifferenceChart() {
     const selectedSite = els.differenceSite ? els.differenceSite.value : 'all';
+    const selectedTimepoint = els.differenceTime ? els.differenceTime.value : 'all';
     const showIndividuals = Boolean(els.showIndividualDifference && els.showIndividualDifference.checked);
     const rows = ((state.summary && state.summary.mean_difference) || [])
       .filter(row => selectedSite === 'all' || row.site === selectedSite)
+      .filter(row => selectedTimepoint === 'all' || row.timepoint === selectedTimepoint)
       .sort((a, b) => (timeRank(a.timepoint) - timeRank(b.timepoint)) || a.site.localeCompare(b.site));
     const labels = rows.map(row => selectedSite === 'all' ? `${formatSite(row.site)} ${row.timepoint || 'time ?'}` : row.timepoint || 'time ?');
     const values = rows.map(row => row.mean_difference);
@@ -206,7 +224,7 @@
       datasets.push({
         type: 'scatter',
         label: 'Individual RHI - Control',
-        data: individualDifferences(selectedSite).map(row => ({
+        data: individualDifferences(selectedSite, selectedTimepoint).map(row => ({
           x: row.label,
           y: row.difference,
           participant: row.participant_id,
@@ -560,6 +578,7 @@
     if (els.sheetImportForm) els.sheetImportForm.addEventListener('submit', importSheet);
     if (els.importForm) els.importForm.addEventListener('submit', importCsv);
     if (els.differenceSite) els.differenceSite.addEventListener('change', renderDifferenceChart);
+    if (els.differenceTime) els.differenceTime.addEventListener('change', renderDifferenceChart);
     if (els.showIndividualDifference) els.showIndividualDifference.addEventListener('change', renderDifferenceChart);
     if (els.showAllValues) els.showAllValues.addEventListener('change', renderScatterChart);
     if (els.scatterSite) els.scatterSite.addEventListener('change', renderScatterChart);
