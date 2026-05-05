@@ -1,0 +1,39 @@
+<!doctype html>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Research</title>
+<link rel="stylesheet" href="/results/css/results.css">
+<link rel="stylesheet" href="/research/RHITemp/css/rhi-temp.css">
+
+<body>
+  <div class="app-bar">
+    <div class="app-bar-left">
+      <span class="app-logo">BYB</span>
+      <a href="/results/" class="app-nav-link">Results</a>
+      <a href="/research/" class="app-nav-link app-nav-link--active">Research</a>
+      <a href="/admin/" id="adminLink" class="app-nav-link" style="display:none">Admin</a>
+    </div>
+    <div class="app-bar-right">
+      <span id="whoami" class="app-user"></span>
+      <button id="login" class="btn app-bar-btn">Log in</button>
+      <button id="logout" class="btn app-bar-btn" style="display:none">Log out</button>
+    </div>
+  </div>
+
+  <header class="page-header research-hero">
+    <p class="eyebrow">Research Collection</p>
+    <h1>Research Experiments</h1>
+    <p class="lede">Authenticated tools for collecting, storing, and viewing experiment data.</p>
+    <hr>
+  </header>
+
+  <main class="research-shell">
+    <a class="experiment-card" href="/research/RHITemp/">
+      <span class="card-kicker">Rubber Hand Illusion</span>
+      <strong>RHI Temperature</strong>
+      <span>Collect wrist, index, and pinky temperatures for control and RHI conditions, then view group and participant plots.</span>
+    </a>
+  </main>
+
+  <script src="/research/RHITemp/js/research-auth.js"></script>
+</body>

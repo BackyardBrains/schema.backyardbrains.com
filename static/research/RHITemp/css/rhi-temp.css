@@ -1,0 +1,237 @@
+.research-hero {
+  overflow: hidden;
+}
+
+.eyebrow {
+  margin: 0 0 6px 0;
+  color: var(--accent);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.lede {
+  max-width: 720px;
+  margin: 8px 0 0 0;
+  color: var(--muted);
+  font-size: 15px;
+}
+
+.research-shell {
+  max-width: 1120px;
+  margin: 0 auto 28px auto;
+}
+
+.experiment-card,
+.chart-card,
+.form-card,
+.data-table-card {
+  background: var(--card-bg);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.04);
+}
+
+.experiment-card {
+  display: grid;
+  gap: 8px;
+  padding: 28px 32px;
+  color: var(--fg);
+  text-decoration: none;
+}
+
+.experiment-card:hover {
+  border-color: var(--accent);
+  background: #fff9f7;
+}
+
+.experiment-card strong {
+  font-size: 22px;
+}
+
+.experiment-card span:last-child {
+  max-width: 620px;
+  color: var(--muted);
+}
+
+.card-kicker {
+  color: var(--accent);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.chart-grid,
+.data-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.chart-card,
+.form-card {
+  padding: 22px 24px 24px 24px;
+}
+
+.chart-card--scatter {
+  grid-column: span 2;
+}
+
+.card-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 18px;
+  margin-bottom: 16px;
+}
+
+.card-header h2 {
+  margin: 0;
+  font-size: 20px;
+  line-height: 1.25;
+}
+
+.filter-row {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.inline-control {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 130px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.inline-control select,
+.form-card input,
+.form-card textarea,
+.entry-table input {
+  width: 100%;
+  padding: 8px 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #ffffff;
+  font: inherit;
+}
+
+.inline-control select:focus,
+.form-card input:focus,
+.form-card textarea:focus,
+.entry-table input:focus {
+  outline: 2px solid var(--accent-soft);
+  border-color: var(--accent);
+}
+
+.chart-note,
+.muted-copy {
+  margin: 12px 0 0 0;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.form-card form {
+  display: grid;
+  gap: 14px;
+}
+
+.form-card .row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 12px;
+}
+
+.form-card label {
+  display: grid;
+  gap: 5px;
+  font-size: 13px;
+}
+
+.entry-table-wrap {
+  overflow-x: auto;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+}
+
+.entry-table {
+  min-width: 520px;
+}
+
+.entry-table th {
+  font-weight: 600;
+}
+
+.entry-table th,
+.entry-table td {
+  padding: 8px;
+}
+
+.entry-table input {
+  min-width: 110px;
+}
+
+.actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+.actions button {
+  padding: 9px 14px;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  background: var(--accent);
+  color: #ffffff;
+  cursor: pointer;
+  font-size: 13px;
+}
+
+.actions button:hover {
+  background: var(--accent-hover);
+}
+
+.status-line {
+  min-height: 20px;
+  margin-top: 14px;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.status-line--error {
+  color: #a61b1b;
+}
+
+.data-table-card {
+  position: static;
+  padding: 22px 24px 24px 24px;
+}
+
+.data-table-card table {
+  margin-top: 8px;
+}
+
+@media (max-width: 800px) {
+  .chart-grid,
+  .data-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .chart-card--scatter {
+    grid-column: auto;
+  }
+
+  .card-header,
+  .form-card .row {
+    grid-template-columns: 1fr;
+  }
+
+  .card-header {
+    display: grid;
+  }
+}

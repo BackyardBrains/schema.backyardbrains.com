@@ -4,7 +4,7 @@ from flask import redirect, url_for, session
 from flask_cors import CORS
 from werkzeug.middleware.proxy_fix import ProxyFix
 from datetime import datetime
-import os, json, fnmatch
+import os, json, fnmatch, csv, re, uuid
 import base64, hmac, io, zipfile
 from functools import wraps
 
@@ -195,6 +195,12 @@ def _abs_url(path: str) -> str:
     return root + path
 
 
+def _safe_auth_return_path(path: str, default: str = '/results') -> str:
+    if not path or not path.startswith('/') or path.startswith('//'):
+        return default
+    return path
+
+
 @app.get('/api/auth/login')
 def auth_login():
     if not (AUTH0_DOMAIN and AUTH0_CLIENT_ID and AUTH0_CLIENT_SECRET):
@@ -205,6 +211,7 @@ def auth_login():
     # Optional nonce for ID token
     nonce = base64.urlsafe_b64encode(os.urandom(24)).decode('ascii')
     session['oauth_nonce'] = nonce
+    session['auth_return_to'] = _safe_auth_return_path(request.args.get('next', ''), '/results')
 
     # Build OIDC scopes; include API permission if audience is configured
     scope = 'openid profile email'
@@ -272,22 +279,23 @@ def auth_callback():
     if 'access_token' in tok:
         session['access_token'] = tok['access_token']
 
-    # Redirect back to results
-    return redirect('/results')
+    return_to = session.pop('auth_return_to', '/results')
+    return redirect(_safe_auth_return_path(return_to, '/results'))
 
 
 @app.get('/api/auth/logout')
 def auth_logout():
+    return_to = _safe_auth_return_path(request.args.get('next', ''), '/results')
     session.clear()
     # Optional: Log out from Auth0 as well
     if AUTH0_DOMAIN and AUTH0_CLIENT_ID:
-        return_to = _abs_url('/results')
+        return_to = _abs_url(return_to)
         logout_url = (
             f"https://{AUTH0_DOMAIN}/v2/logout?client_id={AUTH0_CLIENT_ID}"
             f"&returnTo={requests.utils.quote(return_to)}"
         )
         return redirect(logout_url)
-    return redirect('/results')
+    return redirect(return_to)
 
 
 @app.get('/api/auth/me')
@@ -622,6 +630,360 @@ def api_uploads():
         <table><thead><tr><th>Name</th><th>Size</th><th>Modified</th></tr></thead><tbody>{rows}</tbody></table>"""
         return Response(html, mimetype="text/html")
     return jsonify({"count": len(files), "total_count": total_count, "files": files})
+
+
+# ---- RESEARCH: RHI Temperature data collection and viewer ----
+RHI_TEMP_SITES = ('wrist', 'index', 'pinky')
+RHI_TEMP_CONDITIONS = ('control', 'rhi')
+RHI_TEMP_CSV_FIELDS = (
+    'participant_id', 'condition', 'site', 'timepoint', 'temperature',
+    'notes', 'source', 'collector', 'created_at'
+)
+
+
+def _rhi_temp_dir():
+    return os.path.join(UPLOAD_DIRECTORY, 'research', 'rhi-temp')
+
+
+def _rhi_temp_path():
+    return os.path.join(_rhi_temp_dir(), 'records.jsonl')
+
+
+def _ensure_rhi_temp_dir():
+    os.makedirs(_rhi_temp_dir(), exist_ok=True)
+
+
+def _clean_key(value):
+    return re.sub(r'[^a-z0-9]+', '', str(value or '').lower())
+
+
+def _parse_temperature(value):
+    if value is None:
+        return None
+    text = str(value).strip()
+    if not text:
+        return None
+    text = text.replace('°', '').replace('F', '').replace('f', '').replace('C', '').replace('c', '')
+    text = text.replace(',', '.')
+    match = re.search(r'-?\d+(?:\.\d+)?', text)
+    if not match:
+        return None
+    try:
+        return float(match.group(0))
+    except ValueError:
+        return None
+
+
+def _find_row_value(row, candidates):
+    wanted = {_clean_key(c) for c in candidates}
+    for key, value in row.items():
+        if _clean_key(key) in wanted:
+            return value
+    return ''
+
+
+def _normalize_condition(value):
+    text = _clean_key(value)
+    if 'rhi' in text or 'rubberhand' in text or 'illusion' in text:
+        return 'rhi'
+    if 'control' in text or 'ctrl' in text or 'baseline' in text:
+        return 'control'
+    return ''
+
+
+def _normalize_site(value):
+    text = _clean_key(value)
+    for site in RHI_TEMP_SITES:
+        if site in text:
+            return site
+    return ''
+
+
+def _extract_timepoint(*values):
+    text = ' '.join(str(v or '') for v in values).lower()
+    match = re.search(r'(\d+(?:\.\d+)?)\s*(?:m|min|minute|minutes)\b', text)
+    if match:
+        return f"{match.group(1)}m"
+    match = re.search(r'\b(\d+):([0-5]\d)\b', text)
+    if match:
+        return f"{match.group(1)}:{match.group(2)}"
+    match = re.search(r'\b(\d+(?:\.\d+)?)\s*(?:s|sec|seconds)\b', text)
+    if match:
+        return f"{match.group(1)}s"
+    match = re.search(r'\b([5-7](?:\.\d+)?)\b', text)
+    if match:
+        return f"{match.group(1)}m"
+    return ''
+
+
+def _new_rhi_temp_record(participant_id, condition, site, timepoint, temperature,
+                         notes='', source='manual', collector=''):
+    return {
+        'id': str(uuid.uuid4()),
+        'participant_id': str(participant_id or '').strip(),
+        'condition': condition,
+        'site': site,
+        'timepoint': str(timepoint or '').strip(),
+        'temperature': float(temperature),
+        'notes': str(notes or '').strip(),
+        'source': str(source or 'manual').strip(),
+        'collector': str(collector or '').strip(),
+        'created_at': datetime.utcnow().isoformat(timespec='seconds') + 'Z',
+    }
+
+
+def _append_rhi_temp_records(records):
+    if not records:
+        return
+    _ensure_rhi_temp_dir()
+    path = _rhi_temp_path()
+    with open(path, 'a') as f:
+        for record in records:
+            f.write(json.dumps(record, separators=(',', ':')) + '\n')
+        f.flush()
+        os.fsync(f.fileno())
+    dir_fd = os.open(_rhi_temp_dir(), os.O_DIRECTORY)
+    try:
+        os.fsync(dir_fd)
+    finally:
+        os.close(dir_fd)
+
+
+def _load_rhi_temp_records():
+    path = _rhi_temp_path()
+    if not os.path.exists(path):
+        return []
+    records = []
+    with open(path) as f:
+        for line in f:
+            line = line.strip()
+            if not line:
+                continue
+            try:
+                record = json.loads(line)
+            except json.JSONDecodeError:
+                continue
+            if isinstance(record, dict):
+                records.append(record)
+    return records
+
+
+def _summarize_rhi_temp(records):
+    participants = sorted({r.get('participant_id') for r in records if r.get('participant_id')})
+    sites = sorted({r.get('site') for r in records if r.get('site')})
+    timepoints = sorted({r.get('timepoint') for r in records if r.get('timepoint')})
+    values = {}
+    for record in records:
+        key = (
+            record.get('participant_id'),
+            record.get('site'),
+            record.get('timepoint'),
+            record.get('condition'),
+        )
+        values.setdefault(key, []).append(float(record.get('temperature', 0)))
+
+    means = {key: sum(vals) / len(vals) for key, vals in values.items() if vals}
+    diffs = []
+    for participant_id in participants:
+        for site in sites:
+            for timepoint in timepoints:
+                control = means.get((participant_id, site, timepoint, 'control'))
+                rhi = means.get((participant_id, site, timepoint, 'rhi'))
+                if control is None or rhi is None:
+                    continue
+                diffs.append({
+                    'participant_id': participant_id,
+                    'site': site,
+                    'timepoint': timepoint,
+                    'difference': rhi - control,
+                })
+
+    grouped = {}
+    for diff in diffs:
+        key = (diff['site'], diff['timepoint'])
+        grouped.setdefault(key, []).append(diff['difference'])
+
+    mean_difference = []
+    for (site, timepoint), vals in sorted(grouped.items()):
+        mean_difference.append({
+            'site': site,
+            'timepoint': timepoint,
+            'n': len(vals),
+            'mean_difference': sum(vals) / len(vals),
+        })
+
+    return {
+        'record_count': len(records),
+        'participant_count': len(participants),
+        'participants': participants,
+        'sites': sites,
+        'timepoints': timepoints,
+        'mean_difference': mean_difference,
+    }
+
+
+def _parse_rhi_temp_csv(text, collector=''):
+    stream = io.StringIO(text, newline='')
+    reader = csv.DictReader(stream)
+    if not reader.fieldnames:
+        return []
+
+    records = []
+    for row_index, row in enumerate(reader, start=2):
+        participant_id = _find_row_value(row, ('participant_id', 'participant', 'user', 'user_id', 'subject', 'subject_id', 'id')) or f"row-{row_index}"
+        row_condition = _normalize_condition(_find_row_value(row, ('condition', 'trial_condition', 'group')))
+        row_site = _normalize_site(_find_row_value(row, ('site', 'body_site', 'location')))
+        row_timepoint = _find_row_value(row, ('timepoint', 'time', 'minute', 'minutes', 'timestamp'))
+        row_temp = _parse_temperature(_find_row_value(row, ('temperature', 'temp', 'value', 'reading')))
+        notes = _find_row_value(row, ('notes', 'note', 'comment', 'comments'))
+
+        if row_temp is not None and row_condition and row_site:
+            records.append(_new_rhi_temp_record(
+                participant_id, row_condition, row_site, row_timepoint,
+                row_temp, notes=notes, source='csv', collector=collector
+            ))
+            continue
+
+        for header, value in row.items():
+            temp = _parse_temperature(value)
+            if temp is None:
+                continue
+            condition = _normalize_condition(header) or row_condition
+            site = _normalize_site(header) or row_site
+            timepoint = _extract_timepoint(header) or str(row_timepoint or '').strip()
+            if not (condition and site):
+                continue
+            records.append(_new_rhi_temp_record(
+                participant_id, condition, site, timepoint, temp,
+                notes=notes, source='csv', collector=collector
+            ))
+    return records
+
+
+@app.get('/research')
+@require_results_auth
+def research_page():
+    return send_from_directory(os.path.join(app.root_path, 'static', 'research'), 'index.html')
+
+
+@app.get('/research/')
+@require_results_auth
+def research_page_slash():
+    return research_page()
+
+
+@app.get('/research/RHITemp')
+@require_results_auth
+def rhi_temp_page():
+    return send_from_directory(os.path.join(app.root_path, 'static', 'research', 'RHITemp'), 'index.html')
+
+
+@app.get('/research/RHITemp/')
+@require_results_auth
+def rhi_temp_page_slash():
+    return rhi_temp_page()
+
+
+@app.get('/research/<path:filename>')
+@require_results_auth
+def research_assets(filename):
+    base_dir = os.path.join(app.root_path, 'static', 'research')
+    return send_from_directory(base_dir, filename)
+
+
+@app.get('/api/research/rhi-temp/data')
+@require_results_auth
+def rhi_temp_data():
+    records = _load_rhi_temp_records()
+    return jsonify({
+        'status': 'ok',
+        'records': records,
+        'summary': _summarize_rhi_temp(records),
+    })
+
+
+@app.post('/api/research/rhi-temp/entry')
+@require_results_auth
+def rhi_temp_entry():
+    body = request.get_json(silent=True) or {}
+    user = session.get('user') or {}
+    collector = user.get('email') or user.get('name') or user.get('sub') or ''
+    participant_id = body.get('participant_id') or body.get('participant') or body.get('user_id')
+    timepoint = body.get('timepoint') or body.get('time') or ''
+    notes = body.get('notes') or ''
+    readings = body.get('readings') or {}
+    records = []
+
+    for condition in RHI_TEMP_CONDITIONS:
+        condition_values = readings.get(condition, {}) if isinstance(readings, dict) else {}
+        for site in RHI_TEMP_SITES:
+            value = condition_values.get(site) if isinstance(condition_values, dict) else None
+            if value is None:
+                value = body.get(f"{condition}_{site}")
+            temp = _parse_temperature(value)
+            if temp is None:
+                continue
+            records.append(_new_rhi_temp_record(
+                participant_id, condition, site, timepoint, temp,
+                notes=notes, source='manual', collector=collector
+            ))
+
+    if not participant_id:
+        return jsonify({"status": "error", "error": "participant_id is required"}), 400
+    if not records:
+        return jsonify({"status": "error", "error": "no valid temperatures supplied"}), 400
+
+    _append_rhi_temp_records(records)
+    all_records = _load_rhi_temp_records()
+    return jsonify({
+        'status': 'ok',
+        'added': len(records),
+        'records': all_records,
+        'summary': _summarize_rhi_temp(all_records),
+    })
+
+
+@app.post('/api/research/rhi-temp/import-csv')
+@require_results_auth
+def rhi_temp_import_csv():
+    user = session.get('user') or {}
+    collector = user.get('email') or user.get('name') or user.get('sub') or ''
+    csv_text = ''
+    if 'file' in request.files:
+        csv_text = request.files['file'].read().decode('utf-8-sig')
+    else:
+        body = request.get_json(silent=True) or {}
+        csv_text = body.get('csv') or ''
+    if not csv_text.strip():
+        return jsonify({"status": "error", "error": "CSV data is required"}), 400
+
+    records = _parse_rhi_temp_csv(csv_text, collector=collector)
+    if not records:
+        return jsonify({"status": "error", "error": "no RHI temperature rows found"}), 400
+    _append_rhi_temp_records(records)
+    all_records = _load_rhi_temp_records()
+    return jsonify({
+        'status': 'ok',
+        'imported': len(records),
+        'records': all_records,
+        'summary': _summarize_rhi_temp(all_records),
+    })
+
+
+@app.get('/api/research/rhi-temp/export.csv')
+@require_results_auth
+def rhi_temp_export_csv():
+    records = _load_rhi_temp_records()
+    buf = io.StringIO()
+    writer = csv.DictWriter(buf, fieldnames=RHI_TEMP_CSV_FIELDS, extrasaction='ignore')
+    writer.writeheader()
+    for record in records:
+        writer.writerow(record)
+    resp = Response(buf.getvalue(), mimetype='text/csv')
+    ts = datetime.utcnow().strftime('%Y%m%d-%H%M%S')
+    resp.headers['Content-Disposition'] = f'attachment; filename="rhi-temp-{ts}.csv"'
+    return resp
+
 
 # ---- RESULTS SPA & API ----
 @app.get('/results')

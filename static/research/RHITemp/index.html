@@ -1,0 +1,185 @@
+<!doctype html>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>RHI Temperature Research</title>
+<link rel="stylesheet" href="/results/css/results.css">
+<link rel="stylesheet" href="/research/RHITemp/css/rhi-temp.css">
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<body>
+  <div class="app-bar">
+    <div class="app-bar-left">
+      <span class="app-logo">BYB</span>
+      <a href="/results/" class="app-nav-link">Results</a>
+      <a href="/research/" class="app-nav-link app-nav-link--active">Research</a>
+      <a href="/admin/" id="adminLink" class="app-nav-link" style="display:none">Admin</a>
+    </div>
+    <div class="app-bar-right">
+      <span id="whoami" class="app-user"></span>
+      <button id="login" class="btn app-bar-btn">Log in</button>
+      <button id="logout" class="btn app-bar-btn" style="display:none">Log out</button>
+    </div>
+  </div>
+
+  <header class="page-header research-hero">
+    <p class="eyebrow">Rubber Hand Illusion</p>
+    <h1>RHI Temperature Research</h1>
+    <p class="lede">Collect and review wrist, index, and pinky temperatures for RHI and control conditions.</p>
+    <div id="stats" class="stats">Loading data...</div>
+    <a id="exportCsv" class="download" href="/api/research/rhi-temp/export.csv" download>Export CSV</a>
+    <hr>
+  </header>
+
+  <div id="guestBanner" style="display:none; text-align:center; padding:40px 20px;">
+    <h2>Research Login Required</h2>
+    <p>Please log in to access RHI temperature research data.</p>
+  </div>
+
+  <main id="researchApp" class="research-shell">
+    <section class="chart-grid">
+      <article class="chart-card">
+        <div class="card-header">
+          <div>
+            <p class="eyebrow">Plot 1</p>
+            <h2>Mean Difference: RHI - Control</h2>
+          </div>
+          <label class="inline-control">
+            Site
+            <select id="differenceSite">
+              <option value="all">All sites</option>
+            </select>
+          </label>
+        </div>
+        <canvas id="differenceChart" height="260"></canvas>
+      </article>
+
+      <article class="chart-card chart-card--scatter">
+        <div class="card-header">
+          <div>
+            <p class="eyebrow">Plot 2</p>
+            <h2>Temperature By User</h2>
+          </div>
+          <div class="filter-row">
+            <label class="inline-control">
+              Site
+              <select id="scatterSite"></select>
+            </label>
+            <label class="inline-control">
+              Time
+              <select id="scatterTime"></select>
+            </label>
+          </div>
+        </div>
+        <canvas id="scatterChart" height="300"></canvas>
+        <p class="chart-note">Control is shown as black circles; RHI is shown as white circles on the grey plotting field.</p>
+      </article>
+    </section>
+
+    <section class="data-grid">
+      <article class="form-card">
+        <div class="card-header">
+          <div>
+            <p class="eyebrow">Collect</p>
+            <h2>Manual Entry</h2>
+          </div>
+        </div>
+        <form id="entryForm">
+          <div class="row">
+            <label>
+              Participant ID
+              <input id="participantId" name="participant_id" required placeholder="e.g. RHI-001">
+            </label>
+            <label>
+              Timepoint
+              <input id="timepoint" name="timepoint" placeholder="e.g. 5m or 5:30">
+            </label>
+          </div>
+
+          <div class="entry-table-wrap">
+            <table class="entry-table">
+              <thead>
+                <tr>
+                  <th>Condition</th>
+                  <th>Wrist</th>
+                  <th>Index</th>
+                  <th>Pinky</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <th>Control</th>
+                  <td><input name="control_wrist" inputmode="decimal" placeholder="Temp"></td>
+                  <td><input name="control_index" inputmode="decimal" placeholder="Temp"></td>
+                  <td><input name="control_pinky" inputmode="decimal" placeholder="Temp"></td>
+                </tr>
+                <tr>
+                  <th>RHI</th>
+                  <td><input name="rhi_wrist" inputmode="decimal" placeholder="Temp"></td>
+                  <td><input name="rhi_index" inputmode="decimal" placeholder="Temp"></td>
+                  <td><input name="rhi_pinky" inputmode="decimal" placeholder="Temp"></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <label>
+            Notes
+            <textarea id="notes" name="notes" rows="3" placeholder="Optional collection notes"></textarea>
+          </label>
+          <div class="actions">
+            <button id="submitEntry" type="submit">Save Entry</button>
+          </div>
+        </form>
+      </article>
+
+      <article class="form-card">
+        <div class="card-header">
+          <div>
+            <p class="eyebrow">Import</p>
+            <h2>Spreadsheet CSV</h2>
+          </div>
+        </div>
+        <p class="muted-copy">Upload an exported CSV from the Google Sheet. The importer accepts long-form rows and common wide headers containing control/RHI, wrist/index/pinky, and time labels.</p>
+        <form id="importForm">
+          <label>
+            CSV file
+            <input id="csvFile" type="file" accept=".csv,text/csv">
+          </label>
+          <label>
+            Or paste CSV
+            <textarea id="csvText" rows="8" placeholder="participant_id,condition,site,timepoint,temperature"></textarea>
+          </label>
+          <div class="actions">
+            <button id="importCsv" type="submit">Import CSV</button>
+          </div>
+        </form>
+        <div id="status" class="status-line"></div>
+      </article>
+    </section>
+
+    <section class="results data-table-card">
+      <div class="card-header">
+        <div>
+          <p class="eyebrow">Stored Data</p>
+          <h2>Recent Records</h2>
+        </div>
+      </div>
+      <table>
+        <thead>
+          <tr>
+            <th>Participant</th>
+            <th>Condition</th>
+            <th>Site</th>
+            <th>Time</th>
+            <th class="num">Temp</th>
+            <th>Source</th>
+          </tr>
+        </thead>
+        <tbody id="recordsBody"></tbody>
+      </table>
+    </section>
+  </main>
+
+  <script src="/research/RHITemp/js/research-auth.js"></script>
+  <script src="/research/RHITemp/js/rhi-temp.js"></script>
+</body>
