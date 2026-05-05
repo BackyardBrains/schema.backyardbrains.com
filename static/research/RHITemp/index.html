@@ -198,8 +198,32 @@
     <section class="results data-table-card">
       <div class="card-header">
         <div>
+          <p class="eyebrow">Participants</p>
+          <h2>Participant Metadata</h2>
+        </div>
+        <div id="participantsCount" class="stats"></div>
+      </div>
+      <table>
+        <thead>
+          <tr>
+            <th>Participant</th>
+            <th>Name</th>
+            <th>Age</th>
+            <th>Sex</th>
+            <th>Q1-Q9</th>
+            <th>Description</th>
+            <th>Note</th>
+          </tr>
+        </thead>
+        <tbody id="participantsBody"></tbody>
+      </table>
+    </section>
+
+    <section class="results data-table-card">
+      <div class="card-header">
+        <div>
           <p class="eyebrow">Stored Data</p>
-          <h2>All Records</h2>
+          <h2>Temperature Records</h2>
         </div>
         <div id="recordsCount" class="stats"></div>
       </div>
@@ -207,17 +231,11 @@
         <thead>
           <tr>
             <th>Participant</th>
-            <th>Name</th>
             <th>Session</th>
             <th>Condition</th>
             <th>Site</th>
             <th>Time</th>
             <th class="num">Temp</th>
-            <th>Age</th>
-            <th>Sex</th>
-            <th>Q1-Q9</th>
-            <th>Description</th>
-            <th>Source</th>
           </tr>
         </thead>
         <tbody id="recordsBody"></tbody>

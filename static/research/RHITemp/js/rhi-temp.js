@@ -11,6 +11,8 @@
   const els = {
     stats: document.getElementById('stats'),
     clearData: document.getElementById('clearData'),
+    participantsCount: document.getElementById('participantsCount'),
+    participantsBody: document.getElementById('participantsBody'),
     recordsCount: document.getElementById('recordsCount'),
     recordsBody: document.getElementById('recordsBody'),
     status: document.getElementById('status'),
@@ -548,6 +550,44 @@
     });
   }
 
+  function questionSummary(record) {
+    return Array.from({ length: 9 }, (_, index) => record[`question_${index + 1}`] || '')
+      .filter(value => value !== '')
+      .join(' / ');
+  }
+
+  function renderParticipantsTable() {
+    if (!els.participantsBody) return;
+    els.participantsBody.innerHTML = '';
+    const participants = new Map();
+    for (const record of state.records) {
+      if (!record.participant_id || participants.has(record.participant_id)) continue;
+      participants.set(record.participant_id, record);
+    }
+    if (els.participantsCount) {
+      els.participantsCount.textContent = `Showing ${participants.size} participants`;
+    }
+    for (const record of [...participants.values()].sort((a, b) => String(a.participant_id).localeCompare(String(b.participant_id)))) {
+      const tr = document.createElement('tr');
+      const participant = document.createElement('td');
+      const name = document.createElement('td');
+      const age = document.createElement('td');
+      const sex = document.createElement('td');
+      const questions = document.createElement('td');
+      const description = document.createElement('td');
+      const note = document.createElement('td');
+      participant.textContent = record.participant_id || '';
+      name.textContent = record.participant_name || '';
+      age.textContent = record.age || '';
+      sex.textContent = record.sex || '';
+      questions.textContent = questionSummary(record);
+      description.textContent = record.description || '';
+      note.textContent = record.participant_note || '';
+      tr.append(participant, name, age, sex, questions, description, note);
+      els.participantsBody.appendChild(tr);
+    }
+  }
+
   function renderRecordsTable() {
     if (!els.recordsBody) return;
     els.recordsBody.innerHTML = '';
@@ -558,31 +598,19 @@
     for (const record of records) {
       const tr = document.createElement('tr');
       const participant = document.createElement('td');
-      const name = document.createElement('td');
       const session = document.createElement('td');
       const condition = document.createElement('td');
       const site = document.createElement('td');
       const timepoint = document.createElement('td');
       const temperature = document.createElement('td');
-      const age = document.createElement('td');
-      const sex = document.createElement('td');
-      const questions = document.createElement('td');
-      const description = document.createElement('td');
-      const source = document.createElement('td');
       participant.textContent = record.participant_id || '';
-      name.textContent = record.participant_name || '';
       session.textContent = record.session || '';
       condition.textContent = record.condition || '';
       site.textContent = record.site || '';
       timepoint.textContent = record.timepoint || '';
       temperature.textContent = Number(record.temperature).toFixed(2);
       temperature.className = 'num';
-      age.textContent = record.age || '';
-      sex.textContent = record.sex || '';
-      questions.textContent = Array.from({ length: 9 }, (_, index) => record[`question_${index + 1}`] || '').join(' / ');
-      description.textContent = record.description || '';
-      source.textContent = record.source || '';
-      tr.append(participant, name, session, condition, site, timepoint, temperature, age, sex, questions, description, source);
+      tr.append(participant, session, condition, site, timepoint, temperature);
       els.recordsBody.appendChild(tr);
     }
   }
@@ -592,6 +620,7 @@
     populateFilters();
     renderDifferenceChart();
     renderScatterChart();
+    renderParticipantsTable();
     renderRecordsTable();
   }
 
