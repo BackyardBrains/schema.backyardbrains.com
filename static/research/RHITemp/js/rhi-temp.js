@@ -139,6 +139,66 @@
     return rows;
   }
 
+  function allTimeIndividualDifferences(selectedSite) {
+    const grouped = new Map();
+    for (const record of state.records) {
+      if (selectedSite !== 'all' && record.site !== selectedSite) continue;
+      if (!CONDITIONS.includes(record.condition)) continue;
+      const key = [record.participant_id, record.site, record.condition].join('|');
+      if (!grouped.has(key)) {
+        grouped.set(key, {
+          participant_id: record.participant_id,
+          site: record.site,
+          condition: record.condition,
+          values: []
+        });
+      }
+      grouped.get(key).values.push(Number(record.temperature));
+    }
+
+    const means = new Map();
+    for (const [key, group] of grouped.entries()) {
+      const summary = summarizeValues(group.values);
+      if (summary) means.set(key, { ...group, temperature: summary.mean });
+    }
+
+    const rows = [];
+    const participants = [...new Set(state.records.map(record => record.participant_id).filter(Boolean))].sort();
+    const sites = selectedSite === 'all'
+      ? [...new Set(state.records.map(record => record.site).filter(Boolean))].sort()
+      : [selectedSite];
+    for (const participant of participants) {
+      for (const site of sites) {
+        const control = means.get([participant, site, 'control'].join('|'));
+        const rhi = means.get([participant, site, 'rhi'].join('|'));
+        if (!control || !rhi) continue;
+        rows.push({
+          participant_id: participant,
+          site,
+          timepoint: 'all',
+          label: selectedSite === 'all' ? `${formatSite(site)} All times` : 'All times',
+          difference: rhi.temperature - control.temperature
+        });
+      }
+    }
+    return rows;
+  }
+
+  function allTimeMeanDifferenceRows(selectedSite) {
+    const rowsBySite = new Map();
+    for (const row of allTimeIndividualDifferences(selectedSite)) {
+      if (!rowsBySite.has(row.site)) rowsBySite.set(row.site, []);
+      rowsBySite.get(row.site).push(row.difference);
+    }
+    return [...rowsBySite.entries()].map(([site, values]) => ({
+      site,
+      timepoint: 'all',
+      n: values.length,
+      mean_difference: values.reduce((sum, value) => sum + value, 0) / values.length,
+      isAllTimes: true
+    })).sort((a, b) => a.site.localeCompare(b.site));
+  }
+
   function updateStats() {
     const summary = state.summary || {};
     els.stats.textContent = [
@@ -205,11 +265,17 @@
     const selectedSite = els.differenceSite ? els.differenceSite.value : 'all';
     const selectedTimepoint = els.differenceTime ? els.differenceTime.value : 'all';
     const showIndividuals = Boolean(els.showIndividualDifference && els.showIndividualDifference.checked);
-    const rows = ((state.summary && state.summary.mean_difference) || [])
+    const timepointRows = ((state.summary && state.summary.mean_difference) || [])
       .filter(row => selectedSite === 'all' || row.site === selectedSite)
       .filter(row => selectedTimepoint === 'all' || row.timepoint === selectedTimepoint)
       .sort((a, b) => (timeRank(a.timepoint) - timeRank(b.timepoint)) || a.site.localeCompare(b.site));
-    const labels = rows.map(row => selectedSite === 'all' ? `${formatSite(row.site)} ${row.timepoint || 'time ?'}` : row.timepoint || 'time ?');
+    const rows = selectedTimepoint === 'all'
+      ? [...allTimeMeanDifferenceRows(selectedSite), ...timepointRows]
+      : timepointRows;
+    const labels = rows.map(row => {
+      if (row.isAllTimes) return selectedSite === 'all' ? `${formatSite(row.site)} All times` : 'All times';
+      return selectedSite === 'all' ? `${formatSite(row.site)} ${row.timepoint || 'time ?'}` : row.timepoint || 'time ?';
+    });
     const values = rows.map(row => row.mean_difference);
     const colors = rows.map(row => siteColors[row.site] || '#ff805f');
     const datasets = [{
@@ -221,10 +287,13 @@
     }];
 
     if (showIndividuals) {
+      const individualRows = selectedTimepoint === 'all'
+        ? [...allTimeIndividualDifferences(selectedSite), ...individualDifferences(selectedSite, selectedTimepoint)]
+        : individualDifferences(selectedSite, selectedTimepoint);
       datasets.push({
         type: 'scatter',
         label: 'Individual RHI - Control',
-        data: individualDifferences(selectedSite, selectedTimepoint).map(row => ({
+        data: individualRows.map(row => ({
           x: row.label,
           y: row.difference,
           participant: row.participant_id,
