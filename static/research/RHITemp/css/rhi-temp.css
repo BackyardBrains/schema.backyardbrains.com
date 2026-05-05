@@ -109,6 +109,20 @@
   font-size: 12px;
 }
 
+.check-control {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 54px;
+  color: var(--fg);
+  font-size: 13px;
+}
+
+.check-control input {
+  width: auto;
+  accent-color: var(--accent);
+}
+
 .inline-control select,
 .form-card input,
 .form-card textarea,

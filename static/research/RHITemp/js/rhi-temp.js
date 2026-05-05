@@ -13,6 +13,7 @@
     recordsBody: document.getElementById('recordsBody'),
     status: document.getElementById('status'),
     differenceSite: document.getElementById('differenceSite'),
+    showAllValues: document.getElementById('showAllValues'),
     scatterSite: document.getElementById('scatterSite'),
     scatterTime: document.getElementById('scatterTime'),
     differenceCanvas: document.getElementById('differenceChart'),
@@ -168,18 +169,21 @@
     });
   }
 
-  function averagedScatterRecords() {
+  function scatterRecords() {
     const site = els.scatterSite ? els.scatterSite.value : 'all';
     const timepoint = els.scatterTime ? els.scatterTime.value : 'all';
+    const showAllValues = Boolean(els.showAllValues && els.showAllValues.checked);
     const groups = new Map();
-    for (const record of state.records) {
-      if (site !== 'all' && record.site !== site) continue;
-      if (timepoint !== 'all' && record.timepoint !== timepoint) continue;
-      if (!CONDITIONS.includes(record.condition)) continue;
-      const key = [record.participant_id, record.condition, record.site, record.timepoint].join('|');
+    state.records.forEach((record, index) => {
+      if (site !== 'all' && record.site !== site) return;
+      if (timepoint !== 'all' && record.timepoint !== timepoint) return;
+      if (!CONDITIONS.includes(record.condition)) return;
+      const key = showAllValues
+        ? [record.id || index, record.participant_id, record.condition, record.site, record.timepoint].join('|')
+        : [record.participant_id, record.condition].join('|');
       if (!groups.has(key)) groups.set(key, { ...record, values: [] });
       groups.get(key).values.push(Number(record.temperature));
-    }
+    });
     return [...groups.values()].map(group => ({
       ...group,
       temperature: group.values.reduce((sum, value) => sum + value, 0) / group.values.length
@@ -187,20 +191,21 @@
   }
 
   function renderScatterChart() {
-    const rows = averagedScatterRecords();
+    const rows = scatterRecords();
+    const showAllValues = Boolean(els.showAllValues && els.showAllValues.checked);
     const participants = [...new Set(rows.map(row => row.participant_id).filter(Boolean))].sort();
     const participantIndex = new Map(participants.map((participant, index) => [participant, index + 1]));
-    const siteOffset = { wrist: -0.16, index: 0, pinky: 0.16 };
+    const siteOffset = showAllValues ? { wrist: -0.16, index: 0, pinky: 0.16 } : {};
     const datasets = CONDITIONS.map(condition => ({
       label: condition === 'control' ? 'Control' : 'RHI',
       data: rows
         .filter(row => row.condition === condition)
         .map(row => ({
-          x: (participantIndex.get(row.participant_id) || 0) + (siteOffset[row.site] || 0),
+          x: (participantIndex.get(row.participant_id) || 0) + (siteOffset[row.site] || 0) + (condition === 'control' ? -0.08 : 0.08),
           y: Number(row.temperature),
           participant: row.participant_id,
-          site: row.site,
-          timepoint: row.timepoint
+          site: showAllValues ? row.site : 'average',
+          timepoint: showAllValues ? row.timepoint : 'average'
         })),
       pointRadius: 6,
       pointHoverRadius: 8,
@@ -223,7 +228,8 @@
             callbacks: {
               label(context) {
                 const point = context.raw || {};
-                return `${context.dataset.label}: ${point.participant || 'participant ?'} ${formatSite(point.site)} ${point.timepoint || ''} ${context.parsed.y}`;
+                const detail = showAllValues ? `${formatSite(point.site)} ${point.timepoint || ''}` : 'average';
+                return `${context.dataset.label}: ${point.participant || 'participant ?'} ${detail} ${context.parsed.y.toFixed(2)}`;
               }
             }
           }
@@ -397,6 +403,7 @@
     if (els.sheetImportForm) els.sheetImportForm.addEventListener('submit', importSheet);
     if (els.importForm) els.importForm.addEventListener('submit', importCsv);
     if (els.differenceSite) els.differenceSite.addEventListener('change', renderDifferenceChart);
+    if (els.showAllValues) els.showAllValues.addEventListener('change', renderScatterChart);
     if (els.scatterSite) els.scatterSite.addEventListener('change', renderScatterChart);
     if (els.scatterTime) els.scatterTime.addEventListener('change', renderScatterChart);
   }
