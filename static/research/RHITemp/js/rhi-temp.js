@@ -558,21 +558,31 @@
     for (const record of records) {
       const tr = document.createElement('tr');
       const participant = document.createElement('td');
+      const name = document.createElement('td');
       const session = document.createElement('td');
       const condition = document.createElement('td');
       const site = document.createElement('td');
       const timepoint = document.createElement('td');
       const temperature = document.createElement('td');
+      const age = document.createElement('td');
+      const sex = document.createElement('td');
+      const questions = document.createElement('td');
+      const description = document.createElement('td');
       const source = document.createElement('td');
       participant.textContent = record.participant_id || '';
+      name.textContent = record.participant_name || '';
       session.textContent = record.session || '';
       condition.textContent = record.condition || '';
       site.textContent = record.site || '';
       timepoint.textContent = record.timepoint || '';
       temperature.textContent = Number(record.temperature).toFixed(2);
       temperature.className = 'num';
+      age.textContent = record.age || '';
+      sex.textContent = record.sex || '';
+      questions.textContent = Array.from({ length: 9 }, (_, index) => record[`question_${index + 1}`] || '').join(' / ');
+      description.textContent = record.description || '';
       source.textContent = record.source || '';
-      tr.append(participant, session, condition, site, timepoint, temperature, source);
+      tr.append(participant, name, session, condition, site, timepoint, temperature, age, sex, questions, description, source);
       els.recordsBody.appendChild(tr);
     }
   }
@@ -693,7 +703,8 @@
     state.summary = data.summary || {};
     renderAll();
     const tab = data.sheet_title ? ` from "${data.sheet_title}"` : '';
-    setStatus(`Imported ${data.imported || 0} temperature readings${tab} through the Google Sheets API.`);
+    const excluded = data.excluded ? ` Excluded ${data.excluded} participant(s).` : '';
+    setStatus(`Imported ${data.imported || 0} temperature readings${tab} through the Google Sheets API.${excluded}`);
   }
 
   async function clearData() {

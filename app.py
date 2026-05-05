@@ -643,7 +643,10 @@ RHI_TEMP_SITES = ('wrist', 'index', 'pinky')
 RHI_TEMP_CONDITIONS = ('control', 'rhi')
 RHI_TEMP_CSV_FIELDS = (
     'participant_id', 'session', 'condition', 'site', 'timepoint', 'temperature',
-    'notes', 'source', 'collector', 'created_at'
+    'participant_name', 'age', 'sex', 'who_note', 'description',
+    'participant_note', 'question_1', 'question_2', 'question_3',
+    'question_4', 'question_5', 'question_6', 'question_7',
+    'question_8', 'question_9', 'notes', 'source', 'collector', 'created_at'
 )
 
 
@@ -735,7 +738,9 @@ def _extract_timepoint(*values):
 
 
 def _new_rhi_temp_record(participant_id, condition, site, timepoint, temperature,
-                         session_number='', notes='', source='manual', collector=''):
+                         session_number='', participant_metadata=None, notes='',
+                         source='manual', collector=''):
+    participant_metadata = participant_metadata or {}
     return {
         'id': str(uuid.uuid4()),
         'participant_id': str(participant_id or '').strip(),
@@ -744,6 +749,21 @@ def _new_rhi_temp_record(participant_id, condition, site, timepoint, temperature
         'site': site,
         'timepoint': str(timepoint or '').strip(),
         'temperature': float(temperature),
+        'participant_name': str(participant_metadata.get('name') or '').strip(),
+        'age': str(participant_metadata.get('age') or '').strip(),
+        'sex': str(participant_metadata.get('sex') or '').strip(),
+        'who_note': str(participant_metadata.get('who_note') or '').strip(),
+        'description': str(participant_metadata.get('description') or '').strip(),
+        'participant_note': str(participant_metadata.get('note') or '').strip(),
+        'question_1': str(participant_metadata.get('question_1') or '').strip(),
+        'question_2': str(participant_metadata.get('question_2') or '').strip(),
+        'question_3': str(participant_metadata.get('question_3') or '').strip(),
+        'question_4': str(participant_metadata.get('question_4') or '').strip(),
+        'question_5': str(participant_metadata.get('question_5') or '').strip(),
+        'question_6': str(participant_metadata.get('question_6') or '').strip(),
+        'question_7': str(participant_metadata.get('question_7') or '').strip(),
+        'question_8': str(participant_metadata.get('question_8') or '').strip(),
+        'question_9': str(participant_metadata.get('question_9') or '').strip(),
         'notes': str(notes or '').strip(),
         'source': str(source or 'manual').strip(),
         'collector': str(collector or '').strip(),
@@ -852,10 +872,46 @@ def _summarize_rhi_temp(records):
     }
 
 
-def _parse_rhi_temp_rows(headers, rows, collector='', source='csv'):
+def _is_truthy(value):
+    if isinstance(value, bool):
+        return value
+    return str(value or '').strip().lower() in ('true', 'yes', 'y', '1', 'exclude', 'excluded')
+
+
+def _participant_metadata_from_rows(headers, rows):
+    metadata = {}
+    if not headers:
+        return metadata
+    for values in rows:
+        row = {
+            str(header or '').strip(): values[idx] if idx < len(values) else ''
+            for idx, header in enumerate(headers)
+            if str(header or '').strip()
+        }
+        subject = str(_find_row_value(row, ('subject', 'participant_id', 'participant', 'user_id')) or '').strip()
+        if not subject:
+            continue
+        item = {
+            'subject': subject,
+            'exclude': _is_truthy(_find_row_value(row, ('exclude',))),
+            'name': _find_row_value(row, ('name',)),
+            'age': _find_row_value(row, ('age',)),
+            'sex': _find_row_value(row, ('sex',)),
+            'who_note': _find_row_value(row, ('who note', 'who_note')),
+            'description': _find_row_value(row, ('description of what they felt', 'description')),
+            'note': _find_row_value(row, ('note',)),
+        }
+        for idx in range(1, 10):
+            item[f'question_{idx}'] = _find_row_value(row, (f'question {idx}', f'question_{idx}', f'q{idx}'))
+        metadata[subject] = item
+    return metadata
+
+
+def _parse_rhi_temp_rows(headers, rows, collector='', source='csv', participant_metadata=None):
     if not headers:
         return []
 
+    participant_metadata = participant_metadata or {}
     records = []
     metadata_headers = {
         'subject', 'age', 'session', 'trial', 'position', 'averagetemp',
@@ -868,6 +924,9 @@ def _parse_rhi_temp_rows(headers, rows, collector='', source='csv'):
             if str(header or '').strip()
         }
         participant_id = _find_row_value(row, ('participant_id', 'participant', 'user', 'user_id', 'subject', 'subject_id', 'id', 'Subject')) or f"row-{row_index}"
+        metadata = participant_metadata.get(str(participant_id).strip(), {})
+        if metadata.get('exclude'):
+            continue
         session_number = _find_row_value(row, ('session', 'session_number', 'session_id', 'Session'))
         row_condition = _normalize_condition(_find_row_value(row, ('condition', 'trial_condition', 'group')))
         if not row_condition:
@@ -880,7 +939,8 @@ def _parse_rhi_temp_rows(headers, rows, collector='', source='csv'):
         if row_temp is not None and row_condition and row_site:
             records.append(_new_rhi_temp_record(
                 participant_id, row_condition, row_site, row_timepoint,
-                row_temp, session_number=session_number, notes=notes, source=source, collector=collector
+                row_temp, session_number=session_number, participant_metadata=metadata,
+                notes=notes, source=source, collector=collector
             ))
             continue
 
@@ -900,7 +960,8 @@ def _parse_rhi_temp_rows(headers, rows, collector='', source='csv'):
                 continue
             records.append(_new_rhi_temp_record(
                 participant_id, condition, site, timepoint, temp,
-                session_number=session_number, notes=notes, source=source, collector=collector
+                session_number=session_number, participant_metadata=metadata,
+                notes=notes, source=source, collector=collector
             ))
     return records
 
@@ -1051,6 +1112,30 @@ def _fetch_google_sheet_values(sheet_url):
     return values[0], values[1:], selected_title
 
 
+def _fetch_google_participant_metadata(sheet_url):
+    if not requests:
+        return {}
+    sheet_id, _ = _parse_google_sheet_url(sheet_url)
+    headers, params = _google_sheets_auth()
+    for title in ('Partipants', 'Participants'):
+        values_url = f"https://sheets.googleapis.com/v4/spreadsheets/{sheet_id}/values/{quote(title, safe='')}"
+        response = requests.get(
+            values_url,
+            headers=headers,
+            params={**params, 'majorDimension': 'ROWS', 'valueRenderOption': 'UNFORMATTED_VALUE'},
+            timeout=20,
+        )
+        if response.status_code == 404:
+            continue
+        response.raise_for_status()
+        values = response.json().get('values') or []
+        if not values:
+            return {}
+        # Row 2 contains question text; row 1 contains machine-friendly labels.
+        return _participant_metadata_from_rows(values[0], values[2:] if len(values) > 2 else values[1:])
+    return {}
+
+
 @app.get('/research')
 @require_results_auth
 def research_page():
@@ -1187,6 +1272,7 @@ def rhi_temp_import_sheet():
 
     try:
         headers, rows, sheet_title = _fetch_google_sheet_values(sheet_url)
+        participant_metadata = _fetch_google_participant_metadata(sheet_url)
     except PermissionError as e:
         return jsonify({
             "status": "error",
@@ -1211,7 +1297,13 @@ def rhi_temp_import_sheet():
         app.logger.exception('google sheet import failed')
         return jsonify({"status": "error", "error": "Google Sheet import failed"}), 500
 
-    records = _parse_rhi_temp_rows(headers, rows, collector=collector, source='google-sheet')
+    records = _parse_rhi_temp_rows(
+        headers,
+        rows,
+        collector=collector,
+        source='google-sheet',
+        participant_metadata=participant_metadata,
+    )
     if not records:
         return jsonify({
             "status": "error",
@@ -1223,6 +1315,7 @@ def rhi_temp_import_sheet():
     return jsonify({
         'status': 'ok',
         'imported': len(records),
+        'excluded': len([m for m in participant_metadata.values() if m.get('exclude')]),
         'sheet_title': sheet_title,
         'records': all_records,
         'summary': _summarize_rhi_temp(all_records),
