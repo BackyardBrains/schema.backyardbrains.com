@@ -7,7 +7,7 @@ from datetime import datetime
 import os, json, fnmatch, csv, re, uuid
 import base64, hmac, io, zipfile
 from functools import wraps
-from urllib.parse import parse_qs, urlencode, urlparse
+from urllib.parse import parse_qs, quote, urlparse
 
 # Load environment from a local .env when present (useful for dev)
 try:
@@ -39,6 +39,9 @@ AUTH0_MGMT_CLIENT_SECRET = os.environ.get('AUTH0_MGMT_CLIENT_SECRET')
 AUTH0_MGMT_DOMAIN = os.environ.get('AUTH0_MGMT_DOMAIN')  # e.g. backyardbrains.us.auth0.com
 AUTH0_MGMT_AUDIENCE = os.environ.get('AUTH0_MGMT_AUDIENCE')  # e.g. https://backyardbrains.us.auth0.com/api/v2/
 AUTH0_READ_RESULTS_ROLE_ID = os.environ.get('AUTH0_READ_RESULTS_ROLE_ID')  # optional: role that includes read:results
+GOOGLE_SHEETS_API_KEY = os.environ.get('GOOGLE_SHEETS_API_KEY')
+GOOGLE_SERVICE_ACCOUNT_JSON = os.environ.get('GOOGLE_SERVICE_ACCOUNT_JSON')
+GOOGLE_APPLICATION_CREDENTIALS = os.environ.get('GOOGLE_APPLICATION_CREDENTIALS')
 
 # Flask session config (required for server-side login)
 app.secret_key = os.environ.get('SECRET_KEY', os.environ.get('FLASK_SECRET_KEY', 'dev-insecure'))
@@ -48,6 +51,8 @@ app.config['SESSION_COOKIE_SECURE'] = True
 _JWKS_CACHE = None
 _MGMT_TOKEN_CACHE = None
 _MGMT_TOKEN_EXP = 0
+_GOOGLE_TOKEN_CACHE = None
+_GOOGLE_TOKEN_EXP = 0
 
 def _get_auth0_jwks():
     global _JWKS_CACHE
@@ -694,6 +699,12 @@ def _normalize_condition(value):
 
 def _normalize_site(value):
     text = _clean_key(value)
+    if text in ('w', 'wrist'):
+        return 'wrist'
+    if text in ('i', 'index', 'indexfinger'):
+        return 'index'
+    if text in ('p', 'pinky', 'pinkie'):
+        return 'pinky'
     for site in RHI_TEMP_SITES:
         if site in text:
             return site
@@ -702,6 +713,12 @@ def _normalize_site(value):
 
 def _extract_timepoint(*values):
     text = ' '.join(str(v or '') for v in values).lower()
+    match = re.search(r'(\d+(?:\.\d+)?)\s*(?:m|min|minute|minutes)\s*(\d+(?:\.\d+)?)\s*(?:s|sec|second|seconds)\b', text)
+    if match:
+        minutes = float(match.group(1))
+        seconds = float(match.group(2))
+        total_minutes = minutes + (seconds / 60)
+        return f"{total_minutes:g}m"
     match = re.search(r'(\d+(?:\.\d+)?)\s*(?:m|min|minute|minutes)\b', text)
     if match:
         return f"{match.group(1)}m"
@@ -823,17 +840,26 @@ def _summarize_rhi_temp(records):
     }
 
 
-def _parse_rhi_temp_csv(text, collector='', source='csv'):
-    stream = io.StringIO(text, newline='')
-    reader = csv.DictReader(stream)
-    if not reader.fieldnames:
+def _parse_rhi_temp_rows(headers, rows, collector='', source='csv'):
+    if not headers:
         return []
 
     records = []
-    for row_index, row in enumerate(reader, start=2):
-        participant_id = _find_row_value(row, ('participant_id', 'participant', 'user', 'user_id', 'subject', 'subject_id', 'id')) or f"row-{row_index}"
+    metadata_headers = {
+        'subject', 'age', 'session', 'trial', 'position', 'averagetemp',
+        'average', 'difference', 'whattimedidtheyfeeltheillusion'
+    }
+    for row_index, values in enumerate(rows, start=2):
+        row = {
+            str(header or '').strip(): values[idx] if idx < len(values) else ''
+            for idx, header in enumerate(headers)
+            if str(header or '').strip()
+        }
+        participant_id = _find_row_value(row, ('participant_id', 'participant', 'user', 'user_id', 'subject', 'subject_id', 'id', 'Subject')) or f"row-{row_index}"
         row_condition = _normalize_condition(_find_row_value(row, ('condition', 'trial_condition', 'group')))
-        row_site = _normalize_site(_find_row_value(row, ('site', 'body_site', 'location')))
+        if not row_condition:
+            row_condition = _normalize_condition(_find_row_value(row, ('trial', 'Trial')))
+        row_site = _normalize_site(_find_row_value(row, ('site', 'body_site', 'location', 'position', 'Position')))
         row_timepoint = _find_row_value(row, ('timepoint', 'time', 'minute', 'minutes', 'timestamp'))
         row_temp = _parse_temperature(_find_row_value(row, ('temperature', 'temp', 'value', 'reading')))
         notes = _find_row_value(row, ('notes', 'note', 'comment', 'comments'))
@@ -846,12 +872,17 @@ def _parse_rhi_temp_csv(text, collector='', source='csv'):
             continue
 
         for header, value in row.items():
+            clean_header = _clean_key(header)
+            if clean_header in metadata_headers:
+                continue
             temp = _parse_temperature(value)
             if temp is None:
                 continue
             condition = _normalize_condition(header) or row_condition
             site = _normalize_site(header) or row_site
             timepoint = _extract_timepoint(header) or str(row_timepoint or '').strip()
+            if not timepoint:
+                continue
             if not (condition and site):
                 continue
             records.append(_new_rhi_temp_record(
@@ -861,7 +892,7 @@ def _parse_rhi_temp_csv(text, collector='', source='csv'):
     return records
 
 
-def _google_sheet_csv_url(sheet_url):
+def _parse_google_sheet_url(sheet_url):
     parsed = urlparse(str(sheet_url or '').strip())
     if parsed.scheme not in ('http', 'https') or parsed.netloc != 'docs.google.com':
         raise ValueError('Enter a Google Sheets URL from docs.google.com')
@@ -871,21 +902,140 @@ def _google_sheet_csv_url(sheet_url):
     sheet_id = match.group(1)
     params = parse_qs(parsed.query)
     gid = (params.get('gid') or ['0'])[0]
-    query = urlencode({'format': 'csv', 'gid': gid})
-    return f"https://docs.google.com/spreadsheets/d/{sheet_id}/export?{query}"
+    return sheet_id, gid
 
 
-def _fetch_google_sheet_csv(sheet_url):
+def _parse_rhi_temp_csv(text, collector='', source='csv'):
+    stream = io.StringIO(text, newline='')
+    reader = csv.reader(stream)
+    try:
+        headers = next(reader)
+    except StopIteration:
+        return []
+    return _parse_rhi_temp_rows(headers, list(reader), collector=collector, source=source)
+
+
+def _load_google_service_account():
+    if GOOGLE_SERVICE_ACCOUNT_JSON:
+        try:
+            return json.loads(GOOGLE_SERVICE_ACCOUNT_JSON)
+        except json.JSONDecodeError:
+            raise RuntimeError('GOOGLE_SERVICE_ACCOUNT_JSON is not valid JSON')
+    if GOOGLE_APPLICATION_CREDENTIALS:
+        with open(GOOGLE_APPLICATION_CREDENTIALS) as f:
+            return json.load(f)
+    local_credentials = os.path.join(app.root_path, 'api.googlekey.json')
+    if os.path.exists(local_credentials):
+        with open(local_credentials) as f:
+            return json.load(f)
+    return None
+
+
+def _google_sheets_auth():
+    if GOOGLE_SHEETS_API_KEY:
+        return {}, {'key': GOOGLE_SHEETS_API_KEY}
+
+    service_account = _load_google_service_account()
+    if not service_account:
+        raise PermissionError(
+            'Google Sheets API credentials are not configured. Set GOOGLE_SERVICE_ACCOUNT_JSON '
+            'or GOOGLE_APPLICATION_CREDENTIALS for a service account, then share this sheet with that service account email.'
+        )
+
+    token = _google_service_account_token(service_account)
+    return {'Authorization': f'Bearer {token}'}, {}
+
+
+def _google_service_account_token(service_account):
+    global _GOOGLE_TOKEN_CACHE, _GOOGLE_TOKEN_EXP
+    import time
+    now = int(time.time())
+    if _GOOGLE_TOKEN_CACHE and now < _GOOGLE_TOKEN_EXP - 60:
+        return _GOOGLE_TOKEN_CACHE
+    if not jwt:
+        raise RuntimeError('python-jose is required for Google service account auth')
+    client_email = service_account.get('client_email')
+    private_key = service_account.get('private_key')
+    if not client_email or not private_key:
+        raise RuntimeError('Google service account JSON must include client_email and private_key')
+    claims = {
+        'iss': client_email,
+        'scope': 'https://www.googleapis.com/auth/spreadsheets.readonly',
+        'aud': 'https://oauth2.googleapis.com/token',
+        'iat': now,
+        'exp': now + 3600,
+    }
+    assertion = jwt.encode(claims, private_key, algorithm='RS256')
+    resp = requests.post(
+        'https://oauth2.googleapis.com/token',
+        data={
+            'grant_type': 'urn:ietf:params:oauth:grant-type:jwt-bearer',
+            'assertion': assertion,
+        },
+        timeout=20,
+    )
+    resp.raise_for_status()
+    data = resp.json()
+    _GOOGLE_TOKEN_CACHE = data.get('access_token')
+    _GOOGLE_TOKEN_EXP = now + int(data.get('expires_in', 3600))
+    return _GOOGLE_TOKEN_CACHE
+
+
+def _google_service_account_email():
+    try:
+        service_account = _load_google_service_account()
+    except Exception:
+        return ''
+    if not service_account:
+        return ''
+    return service_account.get('client_email') or ''
+
+
+def _fetch_google_sheet_values(sheet_url):
     if not requests:
         raise RuntimeError('requests is not available')
-    csv_url = _google_sheet_csv_url(sheet_url)
-    response = requests.get(csv_url, timeout=20)
-    response.raise_for_status()
-    text = response.content.decode('utf-8-sig', errors='replace')
-    lower = text[:2000].lower()
-    if '<html' in lower or 'google sheets: sign-in' in lower or 'to continue to google sheets' in lower:
-        raise PermissionError('Google returned a sign-in page. Publish the sheet/tab to the web or share it so CSV export is public.')
-    return text, csv_url
+    sheet_id, gid = _parse_google_sheet_url(sheet_url)
+    headers, params = _google_sheets_auth()
+    meta_url = f"https://sheets.googleapis.com/v4/spreadsheets/{sheet_id}"
+    meta_resp = requests.get(
+        meta_url,
+        headers=headers,
+        params={**params, 'fields': 'sheets(properties(sheetId,title))'},
+        timeout=20,
+    )
+    meta_resp.raise_for_status()
+    metadata = meta_resp.json()
+    sheets = metadata.get('sheets') or []
+    selected_title = ''
+    for sheet in sheets:
+        props = sheet.get('properties') or {}
+        if str(props.get('sheetId')) == str(gid):
+            selected_title = props.get('title') or ''
+            break
+    if not selected_title:
+        for sheet in sheets:
+            props = sheet.get('properties') or {}
+            if props.get('title') == 'exp 1 Data':
+                selected_title = props.get('title') or ''
+                break
+    if not selected_title:
+        selected_title = (sheets[0].get('properties') or {}).get('title') if sheets else ''
+    if not selected_title:
+        raise ValueError('No readable tabs found in that Google Sheet')
+
+    range_name = quote(selected_title, safe='')
+    values_url = f"https://sheets.googleapis.com/v4/spreadsheets/{sheet_id}/values/{range_name}"
+    values_resp = requests.get(
+        values_url,
+        headers=headers,
+        params={**params, 'majorDimension': 'ROWS', 'valueRenderOption': 'UNFORMATTED_VALUE'},
+        timeout=20,
+    )
+    values_resp.raise_for_status()
+    values = values_resp.json().get('values') or []
+    if not values:
+        return [], [], selected_title
+    return values[0], values[1:], selected_title
 
 
 @app.get('/research')
@@ -1009,35 +1159,44 @@ def rhi_temp_import_sheet():
         return jsonify({"status": "error", "error": "Google Sheet URL is required"}), 400
 
     try:
-        csv_text, csv_url = _fetch_google_sheet_csv(sheet_url)
+        headers, rows, sheet_title = _fetch_google_sheet_values(sheet_url)
     except PermissionError as e:
-        return jsonify({"status": "error", "error": str(e)}), 400
+        return jsonify({
+            "status": "error",
+            "error": str(e),
+            "service_account_email": _google_service_account_email(),
+        }), 400
     except ValueError as e:
         return jsonify({"status": "error", "error": str(e)}), 400
     except Exception as e:
         if requests and isinstance(e, requests.HTTPError):
             status_code = getattr(e.response, 'status_code', None)
+            service_account_email = _google_service_account_email()
+            message = "Google Sheets API request failed"
+            if status_code in (401, 403):
+                message = "Google Sheets API does not have access to this sheet"
             return jsonify({
                 "status": "error",
-                "error": "Google Sheet CSV export failed",
+                "error": message,
                 "upstream_status": status_code,
+                "service_account_email": service_account_email,
             }), 502
         app.logger.exception('google sheet import failed')
         return jsonify({"status": "error", "error": "Google Sheet import failed"}), 500
 
-    records = _parse_rhi_temp_csv(csv_text, collector=collector, source='google-sheet')
+    records = _parse_rhi_temp_rows(headers, rows, collector=collector, source='google-sheet')
     if not records:
         return jsonify({
             "status": "error",
-            "error": "No RHI temperature rows found in the Google Sheet export",
-            "csv_url": csv_url,
+            "error": "No RHI temperature rows found in the Google Sheet tab",
+            "sheet_title": sheet_title,
         }), 400
     _append_rhi_temp_records(records)
     all_records = _load_rhi_temp_records()
     return jsonify({
         'status': 'ok',
         'imported': len(records),
-        'csv_url': csv_url,
+        'sheet_title': sheet_title,
         'records': all_records,
         'summary': _summarize_rhi_temp(all_records),
     })

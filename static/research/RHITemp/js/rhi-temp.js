@@ -381,13 +381,15 @@
     });
     const data = await res.json().catch(() => ({}));
     if (!res.ok) {
-      setStatus(data.error || 'Google Sheet import failed', true);
+      const account = data.service_account_email ? ` Share the sheet with: ${data.service_account_email}` : '';
+      setStatus((data.error || 'Google Sheets API import failed') + account, true);
       return;
     }
     state.records = data.records || [];
     state.summary = data.summary || {};
     renderAll();
-    setStatus(`Imported ${data.imported || 0} temperature readings from Google Sheets.`);
+    const tab = data.sheet_title ? ` from "${data.sheet_title}"` : '';
+    setStatus(`Imported ${data.imported || 0} temperature readings${tab} through the Google Sheets API.`);
   }
 
   function attach() {

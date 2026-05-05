@@ -136,10 +136,10 @@
         <div class="card-header">
           <div>
             <p class="eyebrow">Import</p>
-            <h2>Google Sheet or CSV</h2>
+            <h2>Google Sheets API</h2>
           </div>
         </div>
-        <p class="muted-copy">Import directly from a Google Sheet tab when it is exportable as CSV, or upload/paste CSV manually.</p>
+        <p class="muted-copy">Import directly through the Google Sheets API. For private sheets, share the sheet with the app service account configured on the server.</p>
         <form id="sheetImportForm">
           <label>
             Google Sheet URL
@@ -150,6 +150,7 @@
           </div>
         </form>
         <hr class="soft-divider">
+        <p class="muted-copy">Fallback: upload or paste an exported CSV if API credentials are not configured yet.</p>
         <form id="importForm">
           <label>
             CSV file
