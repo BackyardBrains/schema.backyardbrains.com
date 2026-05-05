@@ -121,9 +121,12 @@
 .chart-grid,
 .data-grid {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   gap: 16px;
   margin-bottom: 16px;
+}
+
+.chart-grid {
+  grid-template-columns: minmax(260px, 1fr) minmax(0, 2fr);
 }
 
 .data-grid {
@@ -136,7 +139,7 @@
 }
 
 .chart-card--scatter {
-  grid-column: span 2;
+  grid-column: auto;
 }
 
 .form-card--entry .entry-table {
