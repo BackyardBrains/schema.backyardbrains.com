@@ -22,13 +22,26 @@
   </div>
 
   <header class="page-header research-hero">
-    <p class="eyebrow">Rubber Hand Illusion</p>
-    <h1>RHI Temperature Research</h1>
-    <p class="lede">Collect and review wrist, index, and pinky temperatures for RHI and control conditions.</p>
-    <div id="stats" class="stats">Loading data...</div>
-    <div class="header-actions">
-      <a id="exportCsv" class="download" href="/api/research/rhi-temp/export.csv" download>Export CSV</a>
-      <button id="clearData" class="danger-btn" type="button">Clear Data</button>
+    <div class="hero-layout">
+      <div class="hero-copy">
+        <p class="eyebrow">Rubber Hand Illusion</p>
+        <h1>RHI Temperature Research</h1>
+        <p class="lede">Collect and review wrist, index, and pinky temperatures for RHI and control conditions.</p>
+        <div id="stats" class="stats">Loading data...</div>
+        <div class="header-actions">
+          <a id="exportCsv" class="download" href="/api/research/rhi-temp/export.csv" download>Export CSV</a>
+          <button id="clearData" class="danger-btn" type="button">Clear Data</button>
+        </div>
+      </div>
+      <form id="sheetImportForm" class="sheet-import-panel">
+        <p class="eyebrow">Import</p>
+        <h2>Google Sheets API</h2>
+        <label>
+          Google Sheet URL
+          <input id="sheetUrl" type="url" value="https://docs.google.com/spreadsheets/d/1wSW4HTJ-xY3ZDnqVYNHzpmfojnh_FVy1Y4IphEFh6-4/edit?gid=962900063#gid=962900063">
+        </label>
+        <button id="importSheet" type="submit">Import Google Sheet</button>
+      </form>
     </div>
     <hr>
   </header>
@@ -95,7 +108,7 @@
     </section>
 
     <section class="data-grid">
-      <article class="form-card">
+      <article class="form-card form-card--entry">
         <div class="card-header">
           <div>
             <p class="eyebrow">Collect</p>
@@ -157,25 +170,14 @@
         </form>
       </article>
 
-      <article class="form-card">
+      <article class="form-card form-card--fallback">
         <div class="card-header">
           <div>
             <p class="eyebrow">Import</p>
-            <h2>Google Sheets API</h2>
+            <h2>CSV Fallback</h2>
           </div>
         </div>
-        <p class="muted-copy">Import directly through the Google Sheets API. For private sheets, share the sheet with the app service account configured on the server.</p>
-        <form id="sheetImportForm">
-          <label>
-            Google Sheet URL
-            <input id="sheetUrl" type="url" value="https://docs.google.com/spreadsheets/d/1wSW4HTJ-xY3ZDnqVYNHzpmfojnh_FVy1Y4IphEFh6-4/edit?gid=962900063#gid=962900063">
-          </label>
-          <div class="actions">
-            <button id="importSheet" type="submit">Import Google Sheet</button>
-          </div>
-        </form>
-        <hr class="soft-divider">
-        <p class="muted-copy">Fallback: upload or paste an exported CSV if API credentials are not configured yet.</p>
+        <p class="muted-copy">Upload or paste an exported CSV if API credentials are not configured yet.</p>
         <form id="importForm">
           <label>
             CSV file

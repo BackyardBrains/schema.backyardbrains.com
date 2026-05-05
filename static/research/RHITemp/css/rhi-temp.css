@@ -2,6 +2,61 @@
   overflow: hidden;
 }
 
+.hero-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(320px, 420px);
+  gap: 28px;
+  align-items: start;
+}
+
+.hero-copy h1 {
+  margin-top: 0;
+}
+
+.sheet-import-panel {
+  display: grid;
+  gap: 10px;
+  padding: 18px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: #fff9f7;
+}
+
+.sheet-import-panel h2 {
+  margin: 0;
+  font-size: 18px;
+}
+
+.sheet-import-panel label {
+  display: grid;
+  gap: 5px;
+  font-size: 13px;
+}
+
+.sheet-import-panel input {
+  width: 100%;
+  padding: 8px 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #ffffff;
+  font: inherit;
+}
+
+.sheet-import-panel button {
+  justify-self: end;
+  padding: 9px 14px;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  background: var(--accent);
+  color: #ffffff;
+  cursor: pointer;
+  font-size: 13px;
+}
+
+.sheet-import-panel button:hover {
+  background: var(--accent-hover);
+}
+
 .eyebrow {
   margin: 0 0 6px 0;
   color: var(--accent);
@@ -71,6 +126,10 @@
   margin-bottom: 16px;
 }
 
+.data-grid {
+  grid-template-columns: minmax(0, 2fr) minmax(280px, 0.85fr);
+}
+
 .chart-card,
 .form-card {
   padding: 22px 24px 24px 24px;
@@ -78,6 +137,10 @@
 
 .chart-card--scatter {
   grid-column: span 2;
+}
+
+.form-card--entry .entry-table {
+  min-width: 680px;
 }
 
 .card-header {
@@ -262,6 +325,7 @@
 }
 
 @media (max-width: 800px) {
+  .hero-layout,
   .chart-grid,
   .data-grid {
     grid-template-columns: 1fr;
