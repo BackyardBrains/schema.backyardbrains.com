@@ -845,7 +845,7 @@ def _summarize_rhi_temp(records):
                     'participant_id': participant_id,
                     'site': site,
                     'timepoint': timepoint,
-                    'difference': rhi - control,
+                    'difference': control - rhi,
                 })
 
     grouped = {}

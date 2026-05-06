@@ -168,7 +168,7 @@
             site,
             timepoint,
             label,
-            difference: rhi.temperature - control.temperature
+            difference: control.temperature - rhi.temperature
           });
         }
       }
@@ -207,7 +207,7 @@
       if (!control || !rhi) continue;
       rows.push({
         participant_id: participant,
-        difference: rhi.temperature - control.temperature
+        difference: control.temperature - rhi.temperature
       });
     }
     return rows;
@@ -251,7 +251,7 @@
           site,
           timepoint: 'all',
           label: selectedSite === 'all' ? `${formatSite(site)} All times` : 'All times',
-          difference: rhi.temperature - control.temperature
+          difference: control.temperature - rhi.temperature
         });
       }
     }
@@ -387,7 +387,7 @@
     const values = rows.map(row => row.mean_difference);
     const colors = rows.map(row => siteColors[row.site] || '#ff805f');
     const datasets = [{
-      label: 'Group mean RHI - Control',
+      label: 'Group mean Control - RHI',
       data: values,
       backgroundColor: colors,
       borderColor: '#000000',
@@ -408,7 +408,7 @@
         }));
       datasets.push({
         type: 'scatter',
-        label: 'Individual RHI - Control',
+        label: 'Individual Control - RHI',
         data: points,
         pointRadius: 4,
         pointHoverRadius: 6,
@@ -482,12 +482,46 @@
     }));
   }
 
+  function sessionOrderValue(session) {
+    const value = Number.parseFloat(String(session || '').trim());
+    return Number.isFinite(value) ? value : null;
+  }
+
+  function conditionOrderByParticipant() {
+    const orderMap = new Map();
+    for (const record of state.records) {
+      if (!record.participant_id || !CONDITIONS.includes(record.condition)) continue;
+      const order = sessionOrderValue(record.session);
+      if (order === null) continue;
+      if (!orderMap.has(record.participant_id)) {
+        orderMap.set(record.participant_id, { control: null, rhi: null });
+      }
+      const participantOrder = orderMap.get(record.participant_id);
+      const currentOrder = participantOrder[record.condition];
+      if (currentOrder === null || order < currentOrder) {
+        participantOrder[record.condition] = order;
+      }
+    }
+    return orderMap;
+  }
+
+  function conditionOffset(row, orderMap) {
+    const participantOrder = orderMap.get(row.participant_id) || {};
+    const controlOrder = participantOrder.control;
+    const rhiOrder = participantOrder.rhi;
+    const rhiFirst = rhiOrder !== null && rhiOrder !== undefined
+      && (controlOrder === null || controlOrder === undefined || rhiOrder < controlOrder);
+    const firstCondition = rhiFirst ? 'rhi' : 'control';
+    return row.condition === firstCondition ? -0.08 : 0.08;
+  }
+
   function renderScatterChart() {
     const rows = scatterRecords();
     const showAllValues = Boolean(els.showAllValues && els.showAllValues.checked);
     const participants = [...new Set(rows.map(row => row.participant_id).filter(Boolean))].sort();
     const participantIndex = new Map(participants.map((participant, index) => [participant, index + 1]));
     const siteOffset = showAllValues ? { wrist: -0.16, index: 0, pinky: 0.16 } : {};
+    const participantConditionOrder = conditionOrderByParticipant();
     const summaryX = {
       control: participants.length + 1,
       rhi: participants.length + 2
@@ -497,7 +531,7 @@
       data: rows
         .filter(row => row.condition === condition)
         .map(row => ({
-          x: (participantIndex.get(row.participant_id) || 0) + (siteOffset[row.site] || 0) + (condition === 'control' ? -0.08 : 0.08),
+          x: (participantIndex.get(row.participant_id) || 0) + (siteOffset[row.site] || 0) + conditionOffset(row, participantConditionOrder),
           y: Number(row.temperature),
           participant: row.participant_id,
           site: showAllValues ? row.site : 'average',
