@@ -18,6 +18,7 @@
     recordsBody: document.getElementById('recordsBody'),
     status: document.getElementById('status'),
     showIndividualDifference: document.getElementById('showIndividualDifference'),
+    viewDifferenceOverTime: document.getElementById('viewDifferenceOverTime'),
     differenceSite: document.getElementById('differenceSite'),
     differenceTime: document.getElementById('differenceTime'),
     showAllValues: document.getElementById('showAllValues'),
@@ -28,6 +29,7 @@
     entryForm: document.getElementById('entryForm'),
     sheetImportForm: document.getElementById('sheetImportForm'),
     sheetUrl: document.getElementById('sheetUrl'),
+    viewSheet: document.getElementById('viewSheet'),
     importForm: document.getElementById('importForm'),
     csvFile: document.getElementById('csvFile'),
     csvText: document.getElementById('csvText')
@@ -271,6 +273,26 @@
     })).sort((a, b) => a.site.localeCompare(b.site));
   }
 
+  function overTimeDifferenceRows(selectedSite) {
+    const rows = [];
+    const timepoints = sortedTimepoints(state.records.map(record => record.timepoint));
+    for (const timepoint of timepoints) {
+      const individualRows = aggregateIndividualDifferences(selectedSite, timepoint);
+      const summary = summarizeValues(individualRows.map(row => row.difference));
+      if (!summary) continue;
+      rows.push({
+        site: selectedSite,
+        timepoint,
+        n: summary.n,
+        mean_difference: summary.mean,
+        low: summary.low,
+        high: summary.high,
+        individualRows
+      });
+    }
+    return rows;
+  }
+
   function updateStats() {
     const summary = state.summary || {};
     els.stats.textContent = [
@@ -337,19 +359,31 @@
     const selectedSite = els.differenceSite ? els.differenceSite.value : 'all';
     const selectedTimepoint = els.differenceTime ? els.differenceTime.value : 'all';
     const showIndividuals = Boolean(els.showIndividualDifference && els.showIndividualDifference.checked);
-    const individualRows = aggregateIndividualDifferences(selectedSite, selectedTimepoint);
-    const summary = summarizeValues(individualRows.map(row => row.difference));
+    const viewOverTime = Boolean(els.viewDifferenceOverTime && els.viewDifferenceOverTime.checked);
+    if (els.differenceTime) {
+      els.differenceTime.disabled = viewOverTime;
+      els.differenceTime.parentElement.classList.toggle('inline-control--disabled', viewOverTime);
+    }
     const siteLabel = selectedSite === 'all' ? 'All sites' : formatSite(selectedSite);
+    const individualRows = viewOverTime
+      ? []
+      : aggregateIndividualDifferences(selectedSite, selectedTimepoint);
+    const summary = viewOverTime ? null : summarizeValues(individualRows.map(row => row.difference));
     const timeLabel = selectedTimepoint === 'all' ? 'All times' : selectedTimepoint || 'time ?';
-    const rows = summary ? [{
-      site: selectedSite,
-      timepoint: selectedTimepoint,
-      n: summary.n,
-      mean_difference: summary.mean,
-      low: summary.low,
-      high: summary.high
-    }] : [];
-    const labels = [`${siteLabel} / ${timeLabel}`];
+    const rows = viewOverTime
+      ? overTimeDifferenceRows(selectedSite)
+      : (summary ? [{
+        site: selectedSite,
+        timepoint: selectedTimepoint,
+        n: summary.n,
+        mean_difference: summary.mean,
+        low: summary.low,
+        high: summary.high,
+        individualRows
+      }] : []);
+    const labels = viewOverTime
+      ? rows.map(row => row.timepoint || 'time ?')
+      : [`${siteLabel} / ${timeLabel}`];
     const values = rows.map(row => row.mean_difference);
     const colors = rows.map(row => siteColors[row.site] || '#ff805f');
     const datasets = [{
@@ -361,14 +395,21 @@
     }];
 
     if (showIndividuals) {
-      datasets.push({
-        type: 'scatter',
-        label: 'Individual RHI - Control',
-        data: individualRows.map(row => ({
+      const points = viewOverTime
+        ? rows.flatMap(row => row.individualRows.map(individual => ({
+          x: row.timepoint || 'time ?',
+          y: individual.difference,
+          participant: individual.participant_id
+        })))
+        : individualRows.map(row => ({
           x: labels[0],
           y: row.difference,
           participant: row.participant_id
-        })),
+        }));
+      datasets.push({
+        type: 'scatter',
+        label: 'Individual RHI - Control',
+        data: points,
         pointRadius: 4,
         pointHoverRadius: 6,
         pointBackgroundColor: '#ffffff',
@@ -742,6 +783,12 @@
     setStatus(`Imported ${data.imported || 0} temperature readings${tab} through the Google Sheets API.${excluded}`);
   }
 
+  function syncSheetLink() {
+    if (!els.viewSheet || !els.sheetUrl) return;
+    const url = (els.sheetUrl.value || '').trim();
+    if (url) els.viewSheet.href = url;
+  }
+
   async function clearData() {
     const ok = window.confirm('Clear all locally stored RHI temperature records? This cannot be undone.');
     if (!ok) return;
@@ -765,10 +812,13 @@
     if (els.clearData) els.clearData.addEventListener('click', clearData);
     if (els.entryForm) els.entryForm.addEventListener('submit', submitEntry);
     if (els.sheetImportForm) els.sheetImportForm.addEventListener('submit', importSheet);
+    if (els.sheetUrl) els.sheetUrl.addEventListener('input', syncSheetLink);
+    if (els.viewSheet) els.viewSheet.addEventListener('click', syncSheetLink);
     if (els.importForm) els.importForm.addEventListener('submit', importCsv);
     if (els.differenceSite) els.differenceSite.addEventListener('change', renderDifferenceChart);
     if (els.differenceTime) els.differenceTime.addEventListener('change', renderDifferenceChart);
     if (els.showIndividualDifference) els.showIndividualDifference.addEventListener('change', renderDifferenceChart);
+    if (els.viewDifferenceOverTime) els.viewDifferenceOverTime.addEventListener('change', renderDifferenceChart);
     if (els.showAllValues) els.showAllValues.addEventListener('change', renderScatterChart);
     if (els.scatterSite) els.scatterSite.addEventListener('change', renderScatterChart);
     if (els.scatterTime) els.scatterTime.addEventListener('change', renderScatterChart);

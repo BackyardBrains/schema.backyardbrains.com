@@ -5,7 +5,8 @@
     whoami: document.getElementById('whoami'),
     adminLink: document.getElementById('adminLink'),
     guestBanner: document.getElementById('guestBanner'),
-    researchApp: document.getElementById('researchApp')
+    researchApp: document.getElementById('researchApp'),
+    sheetImportForm: document.getElementById('sheetImportForm')
   };
 
   function setWhoami(user) {
@@ -41,6 +42,7 @@
         setAdminLink([]);
         if (els.guestBanner) els.guestBanner.style.display = 'block';
         if (els.researchApp) els.researchApp.style.display = 'none';
+        if (els.sheetImportForm) els.sheetImportForm.style.display = 'none';
         return false;
       }
       const data = await res.json();
@@ -50,11 +52,13 @@
       setAdminLink(data && data.permissions);
       if (els.guestBanner) els.guestBanner.style.display = isLoggedIn ? 'none' : 'block';
       if (els.researchApp) els.researchApp.style.display = isLoggedIn ? '' : 'none';
+      if (els.sheetImportForm) els.sheetImportForm.style.display = isLoggedIn ? 'grid' : 'none';
       return isLoggedIn;
     } catch {
       toggleAuthButtons(false);
       setWhoami(null);
       setAdminLink([]);
+      if (els.sheetImportForm) els.sheetImportForm.style.display = 'none';
       return false;
     }
   }

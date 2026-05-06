@@ -42,15 +42,38 @@
   font: inherit;
 }
 
+.sheet-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.sheet-link,
 .sheet-import-panel button {
   justify-self: end;
   padding: 9px 14px;
   border: 1px solid transparent;
   border-radius: 8px;
-  background: var(--accent);
-  color: #ffffff;
   cursor: pointer;
   font-size: 13px;
+}
+
+.sheet-link {
+  border-color: var(--line);
+  background: #ffffff;
+  color: var(--accent);
+  text-decoration: none;
+}
+
+.sheet-import-panel button {
+  background: var(--accent);
+  color: #ffffff;
+}
+
+.sheet-link:hover {
+  background: #fff1ec;
 }
 
 .sheet-import-panel button:hover {
@@ -211,6 +234,14 @@
   min-width: 130px;
   color: var(--muted);
   font-size: 12px;
+}
+
+.inline-control--disabled {
+  opacity: 0.45;
+}
+
+.inline-control--disabled select {
+  cursor: not-allowed;
 }
 
 .check-control {

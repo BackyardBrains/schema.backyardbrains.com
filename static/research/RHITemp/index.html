@@ -33,14 +33,17 @@
           <button id="clearData" class="danger-btn" type="button">Clear Data</button>
         </div>
       </div>
-      <form id="sheetImportForm" class="sheet-import-panel">
+      <form id="sheetImportForm" class="sheet-import-panel" style="display:none">
         <p class="eyebrow">Import</p>
         <h2>Google Sheets API</h2>
         <label>
           Google Sheet URL
           <input id="sheetUrl" type="url" value="https://docs.google.com/spreadsheets/d/1wSW4HTJ-xY3ZDnqVYNHzpmfojnh_FVy1Y4IphEFh6-4/edit?gid=962900063#gid=962900063">
         </label>
-        <button id="importSheet" type="submit">Import Google Sheet</button>
+        <div class="sheet-actions">
+          <a id="viewSheet" class="sheet-link" href="https://docs.google.com/spreadsheets/d/1wSW4HTJ-xY3ZDnqVYNHzpmfojnh_FVy1Y4IphEFh6-4/edit?gid=962900063#gid=962900063" target="_blank" rel="noopener">View Sheet</a>
+          <button id="importSheet" type="submit">Import Google Sheet</button>
+        </div>
       </form>
     </div>
     <hr>
@@ -63,6 +66,10 @@
             <label class="check-control">
               <input id="showIndividualDifference" type="checkbox">
               Show individuals
+            </label>
+            <label class="check-control">
+              <input id="viewDifferenceOverTime" type="checkbox">
+              View over time
             </label>
             <label class="inline-control">
               Site
