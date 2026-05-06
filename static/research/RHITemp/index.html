@@ -121,43 +121,122 @@
               Participant ID
               <input id="participantId" name="participant_id" required placeholder="e.g. RHI-001">
             </label>
-            <label>
-              Session
-              <input id="sessionNumber" name="session" placeholder="e.g. 1">
-            </label>
-          </div>
-          <div class="row">
-            <label>
-              Timepoint
-              <input id="timepoint" name="timepoint" placeholder="e.g. 5m or 5:30">
-            </label>
           </div>
 
-          <div class="entry-table-wrap">
-            <table class="entry-table">
-              <thead>
-                <tr>
-                  <th>Condition</th>
-                  <th>Wrist</th>
-                  <th>Index</th>
-                  <th>Pinky</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr>
-                  <th>Control</th>
-                  <td><input name="control_wrist" inputmode="decimal" placeholder="Temp"></td>
-                  <td><input name="control_index" inputmode="decimal" placeholder="Temp"></td>
-                  <td><input name="control_pinky" inputmode="decimal" placeholder="Temp"></td>
-                </tr>
-                <tr>
-                  <th>RHI</th>
-                  <td><input name="rhi_wrist" inputmode="decimal" placeholder="Temp"></td>
-                  <td><input name="rhi_index" inputmode="decimal" placeholder="Temp"></td>
-                  <td><input name="rhi_pinky" inputmode="decimal" placeholder="Temp"></td>
-                </tr>
-              </tbody>
-            </table>
+          <div class="condition-entry">
+            <div class="condition-entry-header">
+              <h3>Control</h3>
+              <label>
+                Order
+                <select name="control_order">
+                  <option value="">Select</option>
+                  <option value="1">1</option>
+                  <option value="2">2</option>
+                </select>
+              </label>
+            </div>
+            <div class="entry-table-wrap">
+              <table class="entry-table">
+                <thead>
+                  <tr>
+                    <th>Site</th>
+                    <th>5m</th>
+                    <th>5.5m</th>
+                    <th>6m</th>
+                    <th>6.5m</th>
+                    <th>7m</th>
+                    <th>7.5m</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <th>Wrist</th>
+                    <td><input name="control_wrist_5m" inputmode="decimal"></td>
+                    <td><input name="control_wrist_5.5m" inputmode="decimal"></td>
+                    <td><input name="control_wrist_6m" inputmode="decimal"></td>
+                    <td><input name="control_wrist_6.5m" inputmode="decimal"></td>
+                    <td><input name="control_wrist_7m" inputmode="decimal"></td>
+                    <td><input name="control_wrist_7.5m" inputmode="decimal"></td>
+                  </tr>
+                  <tr>
+                    <th>Index</th>
+                    <td><input name="control_index_5m" inputmode="decimal"></td>
+                    <td><input name="control_index_5.5m" inputmode="decimal"></td>
+                    <td><input name="control_index_6m" inputmode="decimal"></td>
+                    <td><input name="control_index_6.5m" inputmode="decimal"></td>
+                    <td><input name="control_index_7m" inputmode="decimal"></td>
+                    <td><input name="control_index_7.5m" inputmode="decimal"></td>
+                  </tr>
+                  <tr>
+                    <th>Pinky</th>
+                    <td><input name="control_pinky_5m" inputmode="decimal"></td>
+                    <td><input name="control_pinky_5.5m" inputmode="decimal"></td>
+                    <td><input name="control_pinky_6m" inputmode="decimal"></td>
+                    <td><input name="control_pinky_6.5m" inputmode="decimal"></td>
+                    <td><input name="control_pinky_7m" inputmode="decimal"></td>
+                    <td><input name="control_pinky_7.5m" inputmode="decimal"></td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <div class="condition-entry">
+            <div class="condition-entry-header">
+              <h3>RHI</h3>
+              <label>
+                Order
+                <select name="rhi_order">
+                  <option value="">Select</option>
+                  <option value="1">1</option>
+                  <option value="2">2</option>
+                </select>
+              </label>
+            </div>
+            <div class="entry-table-wrap">
+              <table class="entry-table">
+                <thead>
+                  <tr>
+                    <th>Site</th>
+                    <th>5m</th>
+                    <th>5.5m</th>
+                    <th>6m</th>
+                    <th>6.5m</th>
+                    <th>7m</th>
+                    <th>7.5m</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <th>Wrist</th>
+                    <td><input name="rhi_wrist_5m" inputmode="decimal"></td>
+                    <td><input name="rhi_wrist_5.5m" inputmode="decimal"></td>
+                    <td><input name="rhi_wrist_6m" inputmode="decimal"></td>
+                    <td><input name="rhi_wrist_6.5m" inputmode="decimal"></td>
+                    <td><input name="rhi_wrist_7m" inputmode="decimal"></td>
+                    <td><input name="rhi_wrist_7.5m" inputmode="decimal"></td>
+                  </tr>
+                  <tr>
+                    <th>Index</th>
+                    <td><input name="rhi_index_5m" inputmode="decimal"></td>
+                    <td><input name="rhi_index_5.5m" inputmode="decimal"></td>
+                    <td><input name="rhi_index_6m" inputmode="decimal"></td>
+                    <td><input name="rhi_index_6.5m" inputmode="decimal"></td>
+                    <td><input name="rhi_index_7m" inputmode="decimal"></td>
+                    <td><input name="rhi_index_7.5m" inputmode="decimal"></td>
+                  </tr>
+                  <tr>
+                    <th>Pinky</th>
+                    <td><input name="rhi_pinky_5m" inputmode="decimal"></td>
+                    <td><input name="rhi_pinky_5.5m" inputmode="decimal"></td>
+                    <td><input name="rhi_pinky_6m" inputmode="decimal"></td>
+                    <td><input name="rhi_pinky_6.5m" inputmode="decimal"></td>
+                    <td><input name="rhi_pinky_7m" inputmode="decimal"></td>
+                    <td><input name="rhi_pinky_7.5m" inputmode="decimal"></td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
           </div>
 
           <label>
@@ -170,29 +249,7 @@
         </form>
       </article>
 
-      <article class="form-card form-card--fallback">
-        <div class="card-header">
-          <div>
-            <p class="eyebrow">Import</p>
-            <h2>CSV Fallback</h2>
-          </div>
-        </div>
-        <p class="muted-copy">Upload or paste an exported CSV if API credentials are not configured yet.</p>
-        <form id="importForm">
-          <label>
-            CSV file
-            <input id="csvFile" type="file" accept=".csv,text/csv">
-          </label>
-          <label>
-            Or paste CSV
-            <textarea id="csvText" rows="8" placeholder="participant_id,condition,site,timepoint,temperature"></textarea>
-          </label>
-          <div class="actions">
-            <button id="importCsv" type="submit">Import CSV</button>
-          </div>
-        </form>
-        <div id="status" class="status-line"></div>
-      </article>
+      <div id="status" class="status-line data-grid-status"></div>
     </section>
 
     <section class="results data-table-card">

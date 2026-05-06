@@ -1,6 +1,7 @@
 (function () {
   const SITES = ['wrist', 'index', 'pinky'];
   const CONDITIONS = ['control', 'rhi'];
+  const ENTRY_TIMEPOINTS = ['5m', '5.5m', '6m', '6.5m', '7m', '7.5m'];
   const state = {
     records: [],
     summary: null,
@@ -639,13 +640,18 @@
     for (const condition of CONDITIONS) {
       readings[condition] = {};
       for (const site of SITES) {
-        readings[condition][site] = data.get(`${condition}_${site}`);
+        readings[condition][site] = {};
+        for (const timepoint of ENTRY_TIMEPOINTS) {
+          readings[condition][site][timepoint] = data.get(`${condition}_${site}_${timepoint}`);
+        }
       }
     }
     return {
       participant_id: data.get('participant_id'),
-      session: data.get('session'),
-      timepoint: data.get('timepoint'),
+      condition_order: {
+        control: data.get('control_order'),
+        rhi: data.get('rhi_order')
+      },
       notes: data.get('notes'),
       readings
     };

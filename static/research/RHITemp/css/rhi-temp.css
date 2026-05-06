@@ -130,7 +130,7 @@
 }
 
 .data-grid {
-  grid-template-columns: minmax(0, 2fr) minmax(280px, 0.85fr);
+  grid-template-columns: minmax(0, 1fr);
 }
 
 .chart-card,
@@ -143,7 +143,45 @@
 }
 
 .form-card--entry .entry-table {
-  min-width: 680px;
+  min-width: 760px;
+}
+
+.condition-entry {
+  display: grid;
+  gap: 10px;
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: #ffffff;
+}
+
+.condition-entry-header {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.condition-entry-header h3 {
+  margin: 0;
+  font-size: 16px;
+}
+
+.condition-entry-header label {
+  min-width: 120px;
+}
+
+.condition-entry-header select {
+  width: 100%;
+  padding: 8px 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #ffffff;
+  font: inherit;
+}
+
+.data-grid-status {
+  margin-top: 0;
 }
 
 .card-header {
@@ -271,7 +309,7 @@
 }
 
 .entry-table {
-  min-width: 520px;
+  min-width: 760px;
 }
 
 .entry-table th {

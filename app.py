@@ -1199,6 +1199,7 @@ def rhi_temp_entry():
     collector = user.get('email') or user.get('name') or user.get('sub') or ''
     participant_id = body.get('participant_id') or body.get('participant') or body.get('user_id')
     session_number = body.get('session') or body.get('session_number') or ''
+    condition_order = body.get('condition_order') or {}
     timepoint = body.get('timepoint') or body.get('time') or ''
     notes = body.get('notes') or ''
     readings = body.get('readings') or {}
@@ -1208,6 +1209,18 @@ def rhi_temp_entry():
         condition_values = readings.get(condition, {}) if isinstance(readings, dict) else {}
         for site in RHI_TEMP_SITES:
             value = condition_values.get(site) if isinstance(condition_values, dict) else None
+            order = condition_order.get(condition) if isinstance(condition_order, dict) else ''
+            order = order or session_number
+            if isinstance(value, dict):
+                for reading_timepoint, reading_value in value.items():
+                    temp = _parse_temperature(reading_value)
+                    if temp is None:
+                        continue
+                    records.append(_new_rhi_temp_record(
+                        participant_id, condition, site, reading_timepoint, temp,
+                        session_number=order, notes=notes, source='manual', collector=collector
+                    ))
+                continue
             if value is None:
                 value = body.get(f"{condition}_{site}")
             temp = _parse_temperature(value)
@@ -1215,7 +1228,7 @@ def rhi_temp_entry():
                 continue
             records.append(_new_rhi_temp_record(
                 participant_id, condition, site, timepoint, temp,
-                session_number=session_number, notes=notes, source='manual', collector=collector
+                session_number=order, notes=notes, source='manual', collector=collector
             ))
 
     if not participant_id:
