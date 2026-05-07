@@ -29,6 +29,7 @@
     entryForm: document.getElementById('entryForm'),
     sheetImportForm: document.getElementById('sheetImportForm'),
     sheetUrl: document.getElementById('sheetUrl'),
+    sheetStatus: document.getElementById('sheetStatus'),
     viewSheet: document.getElementById('viewSheet'),
     importForm: document.getElementById('importForm'),
     csvFile: document.getElementById('csvFile'),
@@ -88,6 +89,12 @@
     if (!els.status) return;
     els.status.textContent = message || '';
     els.status.classList.toggle('status-line--error', Boolean(isError));
+  }
+
+  function setSheetStatus(message, isError) {
+    if (!els.sheetStatus) return;
+    els.sheetStatus.textContent = message || '';
+    els.sheetStatus.classList.toggle('status-line--error', Boolean(isError));
   }
 
   function formatSite(site) {
@@ -794,9 +801,11 @@
     const url = (els.sheetUrl && els.sheetUrl.value || '').trim();
     if (!url) {
       setStatus('Enter a Google Sheet URL first.', true);
+      setSheetStatus('Enter a Google Sheet URL first.', true);
       return;
     }
     setStatus('Importing Google Sheet...');
+    setSheetStatus('Importing Google Sheet...');
     const res = await fetch('/api/research/rhi-temp/import-sheet', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -806,7 +815,11 @@
     const data = await res.json().catch(() => ({}));
     if (!res.ok) {
       const account = data.service_account_email ? ` Share the sheet with: ${data.service_account_email}` : '';
-      setStatus((data.error || 'Google Sheets API import failed') + account, true);
+      const upstream = data.upstream_status ? ` Google returned ${data.upstream_status}.` : '';
+      const message = (data.error || 'Google Sheets API import failed') + upstream + account;
+      setStatus(message, true);
+      setSheetStatus(message, true);
+      console.error('Google Sheet import failed', data);
       return;
     }
     state.records = data.records || [];
@@ -814,7 +827,9 @@
     renderAll();
     const tab = data.sheet_title ? ` from "${data.sheet_title}"` : '';
     const excluded = data.excluded ? ` Excluded ${data.excluded} participant(s).` : '';
-    setStatus(`Imported ${data.imported || 0} temperature readings${tab} through the Google Sheets API.${excluded}`);
+    const message = `Imported ${data.imported || 0} temperature readings${tab} through the Google Sheets API.${excluded}`;
+    setStatus(message);
+    setSheetStatus(message);
   }
 
   function syncSheetLink() {
