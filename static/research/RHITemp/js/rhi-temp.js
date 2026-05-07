@@ -175,7 +175,7 @@
             site,
             timepoint,
             label,
-            difference: control.temperature - rhi.temperature
+            difference: rhi.temperature - control.temperature
           });
         }
       }
@@ -214,7 +214,7 @@
       if (!control || !rhi) continue;
       rows.push({
         participant_id: participant,
-        difference: control.temperature - rhi.temperature
+        difference: rhi.temperature - control.temperature
       });
     }
     return rows;
@@ -258,7 +258,7 @@
           site,
           timepoint: 'all',
           label: selectedSite === 'all' ? `${formatSite(site)} All times` : 'All times',
-          difference: control.temperature - rhi.temperature
+          difference: rhi.temperature - control.temperature
         });
       }
     }
@@ -394,7 +394,7 @@
     const values = rows.map(row => row.mean_difference);
     const colors = rows.map(row => siteColors[row.site] || '#ff805f');
     const datasets = [{
-      label: 'Group mean Control - RHI',
+      label: 'Group mean RHI - Control',
       data: values,
       backgroundColor: colors,
       borderColor: '#000000',
@@ -415,7 +415,7 @@
         }));
       datasets.push({
         type: 'scatter',
-        label: 'Individual Control - RHI',
+        label: 'Individual RHI - Control',
         data: points,
         pointRadius: 4,
         pointHoverRadius: 6,
