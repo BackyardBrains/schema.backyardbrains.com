@@ -979,6 +979,11 @@ def _parse_google_sheet_url(sheet_url):
     return sheet_id, gid
 
 
+def _google_sheet_values_range(title):
+    escaped_title = str(title or '').replace("'", "''")
+    return quote(f"'{escaped_title}'!A:ZZ", safe='')
+
+
 def _parse_rhi_temp_csv(text, collector='', source='csv'):
     stream = io.StringIO(text, newline='')
     reader = csv.reader(stream)
@@ -1097,7 +1102,7 @@ def _fetch_google_sheet_values(sheet_url):
     if not selected_title:
         raise ValueError('No readable tabs found in that Google Sheet')
 
-    range_name = quote(selected_title, safe='')
+    range_name = _google_sheet_values_range(selected_title)
     values_url = f"https://sheets.googleapis.com/v4/spreadsheets/{sheet_id}/values/{range_name}"
     values_resp = requests.get(
         values_url,
@@ -1118,7 +1123,7 @@ def _fetch_google_participant_metadata(sheet_url):
     sheet_id, _ = _parse_google_sheet_url(sheet_url)
     headers, params = _google_sheets_auth()
     for title in ('Partipants', 'Participants'):
-        values_url = f"https://sheets.googleapis.com/v4/spreadsheets/{sheet_id}/values/{quote(title, safe='')}"
+        values_url = f"https://sheets.googleapis.com/v4/spreadsheets/{sheet_id}/values/{_google_sheet_values_range(title)}"
         response = requests.get(
             values_url,
             headers=headers,
@@ -1297,6 +1302,11 @@ def rhi_temp_import_sheet():
     except Exception as e:
         if requests and isinstance(e, requests.HTTPError):
             status_code = getattr(e.response, 'status_code', None)
+            upstream_error = ''
+            try:
+                upstream_error = e.response.text
+            except Exception:
+                upstream_error = ''
             service_account_email = _google_service_account_email()
             message = "Google Sheets API request failed"
             if status_code in (401, 403):
@@ -1305,6 +1315,7 @@ def rhi_temp_import_sheet():
                 "status": "error",
                 "error": message,
                 "upstream_status": status_code,
+                "upstream_error": upstream_error[:1000],
                 "service_account_email": service_account_email,
             }), 502
         app.logger.exception('google sheet import failed')

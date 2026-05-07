@@ -816,7 +816,8 @@
     if (!res.ok) {
       const account = data.service_account_email ? ` Share the sheet with: ${data.service_account_email}` : '';
       const upstream = data.upstream_status ? ` Google returned ${data.upstream_status}.` : '';
-      const message = (data.error || 'Google Sheets API import failed') + upstream + account;
+      const detail = data.upstream_error ? ` ${data.upstream_error}` : '';
+      const message = (data.error || 'Google Sheets API import failed') + upstream + detail + account;
       setStatus(message, true);
       setSheetStatus(message, true);
       console.error('Google Sheet import failed', data);
