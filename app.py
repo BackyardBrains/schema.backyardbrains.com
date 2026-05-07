@@ -1130,7 +1130,7 @@ def _fetch_google_participant_metadata(sheet_url):
             params={**params, 'majorDimension': 'ROWS', 'valueRenderOption': 'UNFORMATTED_VALUE'},
             timeout=20,
         )
-        if response.status_code == 404:
+        if response.status_code in (400, 404):
             continue
         response.raise_for_status()
         values = response.json().get('values') or []
