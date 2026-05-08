@@ -590,7 +590,15 @@
       options: {
         responsive: true,
         plugins: {
-          legend: { labels: { usePointStyle: true } },
+          legend: {
+            labels: {
+              usePointStyle: true,
+              filter(item, chart) {
+                const dataset = chart.data.datasets[item.datasetIndex] || {};
+                return !(dataset.summary && dataset.type === 'line');
+              }
+            }
+          },
           tooltip: {
             callbacks: {
               label(context) {
