@@ -872,6 +872,174 @@ def _summarize_rhi_temp(records):
     }
 
 
+# ---- RESEARCH: Grab-nose proprioception data collection and viewer ----
+GRAB_NOSE_CSV_FIELDS = (
+    'participant_id', 'participant_name', 'age', 'sex', 'starting_angle',
+    'ending_angle', 'angle_difference', 'attempts', 'location', 'comments',
+    'source', 'collector', 'created_at'
+)
+
+
+def _grab_nose_dir():
+    return os.path.join(UPLOAD_DIRECTORY, 'research', 'grab-nose')
+
+
+def _grab_nose_path():
+    return os.path.join(_grab_nose_dir(), 'records.jsonl')
+
+
+def _ensure_grab_nose_dir():
+    os.makedirs(_grab_nose_dir(), exist_ok=True)
+
+
+def _parse_number(value):
+    parsed = _parse_temperature(value)
+    return parsed
+
+
+def _parse_attempts(value):
+    parsed = _parse_number(value)
+    return int(parsed) if parsed is not None else None
+
+
+def _parse_grab_nose_subject(value, index=0):
+    text = str(value or '').strip()
+    match = re.search(r'\(([^)]*)\)', text)
+    name = re.sub(r'\s*\([^)]*\)\s*', ' ', text).strip() or f'Participant {index + 1}'
+    age = ''
+    sex = ''
+    if match:
+        details = match.group(1)
+        age_match = re.search(r'\b(\d{1,3})\b', details)
+        sex_match = re.search(r'\b([mMfF])\b', details)
+        if age_match:
+            age = age_match.group(1)
+        if sex_match:
+            sex = sex_match.group(1).upper()
+    participant_id = re.sub(r'[^A-Za-z0-9]+', '-', name).strip('-').lower() or f'participant-{index + 1}'
+    return participant_id, name, age, sex
+
+
+def _new_grab_nose_record(participant_id, participant_name, starting_angle, ending_angle,
+                          angle_difference=None, attempts=None, age='', sex='',
+                          location='', comments='', source='manual', collector=''):
+    start = _parse_number(starting_angle)
+    end = _parse_number(ending_angle)
+    diff = _parse_number(angle_difference)
+    if start is None or end is None:
+        return None
+    if diff is None:
+        diff = end - start
+    return {
+        'id': str(uuid.uuid4()),
+        'participant_id': str(participant_id or participant_name or '').strip(),
+        'participant_name': str(participant_name or participant_id or '').strip(),
+        'age': str(age or '').strip(),
+        'sex': str(sex or '').strip(),
+        'starting_angle': float(start),
+        'ending_angle': float(end),
+        'angle_difference': float(diff),
+        'attempts': _parse_attempts(attempts),
+        'location': str(location or '').strip(),
+        'comments': str(comments or '').strip(),
+        'source': str(source or 'manual').strip(),
+        'collector': str(collector or '').strip(),
+        'created_at': datetime.utcnow().isoformat(timespec='seconds') + 'Z',
+    }
+
+
+def _append_grab_nose_records(records):
+    if not records:
+        return
+    _ensure_grab_nose_dir()
+    path = _grab_nose_path()
+    with open(path, 'a') as f:
+        for record in records:
+            f.write(json.dumps(record, separators=(',', ':')) + '\n')
+        f.flush()
+        os.fsync(f.fileno())
+    dir_fd = os.open(_grab_nose_dir(), os.O_DIRECTORY)
+    try:
+        os.fsync(dir_fd)
+    finally:
+        os.close(dir_fd)
+
+
+def _load_grab_nose_records():
+    path = _grab_nose_path()
+    if not os.path.exists(path):
+        return []
+    records = []
+    with open(path) as f:
+        for line in f:
+            line = line.strip()
+            if not line:
+                continue
+            try:
+                record = json.loads(line)
+            except json.JSONDecodeError:
+                continue
+            if isinstance(record, dict):
+                records.append(record)
+    return records
+
+
+def _clear_grab_nose_records():
+    path = _grab_nose_path()
+    if os.path.exists(path):
+        os.remove(path)
+        dir_fd = os.open(_grab_nose_dir(), os.O_DIRECTORY)
+        try:
+            os.fsync(dir_fd)
+        finally:
+            os.close(dir_fd)
+
+
+def _parse_grab_nose_rows(headers, rows, collector='', source='google-sheet'):
+    records = []
+    for index, row_values in enumerate(rows):
+        row = {str(headers[i] if i < len(headers) else f'column_{i + 1}'): row_values[i]
+               for i in range(len(row_values))}
+        subject = _find_row_value(row, ('Subject', 'Participant', 'Name'))
+        start = _find_row_value(row, ('Starting Angle', 'Start Angle', 'Before Angle', 'Before'))
+        end = _find_row_value(row, ('Ending Angle', 'End Angle', 'After Angle', 'After'))
+        if not subject and _parse_number(start) is None and _parse_number(end) is None:
+            continue
+        participant_id, name, age, sex = _parse_grab_nose_subject(subject, index)
+        record = _new_grab_nose_record(
+            participant_id,
+            name,
+            start,
+            end,
+            angle_difference=_find_row_value(row, ('Angle Difference', 'Difference', 'Change')),
+            attempts=_find_row_value(row, ('Amount of attempts to grab nose', 'Attempts', 'Nose Attempts')),
+            age=age,
+            sex=sex,
+            location=_find_row_value(row, ('Location', 'Place')),
+            comments=_find_row_value(row, ('Comments: ', 'Comments', 'Comment', 'Notes')),
+            source=source,
+            collector=collector,
+        )
+        if record:
+            records.append(record)
+    return records
+
+
+def _summarize_grab_nose(records):
+    locations = sorted({r.get('location') for r in records if r.get('location')})
+    diffs = [float(r.get('angle_difference')) for r in records if r.get('angle_difference') is not None]
+    attempts = [int(r.get('attempts')) for r in records if r.get('attempts') is not None]
+    positive = [value for value in diffs if value > 0]
+    return {
+        'record_count': len(records),
+        'participant_count': len({r.get('participant_id') for r in records if r.get('participant_id')}),
+        'locations': locations,
+        'mean_angle_difference': sum(diffs) / len(diffs) if diffs else None,
+        'mean_attempts': sum(attempts) / len(attempts) if attempts else None,
+        'positive_difference_count': len(positive),
+    }
+
+
 def _is_truthy(value):
     if isinstance(value, bool):
         return value
@@ -1165,6 +1333,18 @@ def rhi_temp_page_slash():
     return rhi_temp_page()
 
 
+@app.get('/research/GrabNose')
+@require_results_auth
+def grab_nose_page():
+    return send_from_directory(os.path.join(app.root_path, 'static', 'research', 'GrabNose'), 'index.html')
+
+
+@app.get('/research/GrabNose/')
+@require_results_auth
+def grab_nose_page_slash():
+    return grab_nose_page()
+
+
 @app.get('/research/<path:filename>')
 @require_results_auth
 def research_assets(filename):
@@ -1358,6 +1538,135 @@ def rhi_temp_export_csv():
     resp = Response(buf.getvalue(), mimetype='text/csv')
     ts = datetime.utcnow().strftime('%Y%m%d-%H%M%S')
     resp.headers['Content-Disposition'] = f'attachment; filename="rhi-temp-{ts}.csv"'
+    return resp
+
+
+@app.get('/api/research/grab-nose/data')
+@require_results_auth
+def grab_nose_data():
+    records = _load_grab_nose_records()
+    return jsonify({
+        'status': 'ok',
+        'records': records,
+        'summary': _summarize_grab_nose(records),
+    })
+
+
+@app.post('/api/research/grab-nose/clear')
+@require_results_auth
+def grab_nose_clear():
+    _clear_grab_nose_records()
+    records = []
+    return jsonify({
+        'status': 'ok',
+        'cleared': True,
+        'records': records,
+        'summary': _summarize_grab_nose(records),
+    })
+
+
+@app.post('/api/research/grab-nose/entry')
+@require_results_auth
+def grab_nose_entry():
+    body = request.get_json(silent=True) or {}
+    user = session.get('user') or {}
+    collector = user.get('email') or user.get('name') or user.get('sub') or ''
+    record = _new_grab_nose_record(
+        body.get('participant_id') or body.get('participant_name'),
+        body.get('participant_name') or body.get('participant_id'),
+        body.get('starting_angle'),
+        body.get('ending_angle'),
+        angle_difference=body.get('angle_difference'),
+        attempts=body.get('attempts'),
+        age=body.get('age'),
+        sex=body.get('sex'),
+        location=body.get('location'),
+        comments=body.get('comments') or body.get('notes'),
+        source='manual',
+        collector=collector,
+    )
+    if not record:
+        return jsonify({"status": "error", "error": "starting and ending angles are required"}), 400
+    _append_grab_nose_records([record])
+    records = _load_grab_nose_records()
+    return jsonify({
+        'status': 'ok',
+        'added': 1,
+        'records': records,
+        'summary': _summarize_grab_nose(records),
+    })
+
+
+@app.post('/api/research/grab-nose/import-sheet')
+@require_results_auth
+def grab_nose_import_sheet():
+    user = session.get('user') or {}
+    collector = user.get('email') or user.get('name') or user.get('sub') or ''
+    body = request.get_json(silent=True) or {}
+    sheet_url = body.get('url') or body.get('sheet_url') or ''
+    if not str(sheet_url).strip():
+        return jsonify({"status": "error", "error": "Google Sheet URL is required"}), 400
+
+    try:
+        headers, rows, sheet_title = _fetch_google_sheet_values(sheet_url)
+    except PermissionError as e:
+        return jsonify({
+            "status": "error",
+            "error": str(e),
+            "service_account_email": _google_service_account_email(),
+        }), 400
+    except ValueError as e:
+        return jsonify({"status": "error", "error": str(e)}), 400
+    except Exception as e:
+        if requests and isinstance(e, requests.HTTPError):
+            status_code = getattr(e.response, 'status_code', None)
+            try:
+                upstream_error = e.response.text
+            except Exception:
+                upstream_error = ''
+            message = "Google Sheets API request failed"
+            if status_code in (401, 403):
+                message = "Google Sheets API does not have access to this sheet"
+            return jsonify({
+                "status": "error",
+                "error": message,
+                "upstream_status": status_code,
+                "upstream_error": upstream_error[:1000],
+                "service_account_email": _google_service_account_email(),
+            }), 502
+        app.logger.exception('grab-nose google sheet import failed')
+        return jsonify({"status": "error", "error": "Google Sheet import failed"}), 500
+
+    records = _parse_grab_nose_rows(headers, rows, collector=collector)
+    if not records:
+        return jsonify({
+            "status": "error",
+            "error": "No grab-nose angle rows found in the Google Sheet tab",
+            "sheet_title": sheet_title,
+        }), 400
+    _append_grab_nose_records(records)
+    all_records = _load_grab_nose_records()
+    return jsonify({
+        'status': 'ok',
+        'imported': len(records),
+        'sheet_title': sheet_title,
+        'records': all_records,
+        'summary': _summarize_grab_nose(all_records),
+    })
+
+
+@app.get('/api/research/grab-nose/export.csv')
+@require_results_auth
+def grab_nose_export_csv():
+    records = _load_grab_nose_records()
+    buf = io.StringIO()
+    writer = csv.DictWriter(buf, fieldnames=GRAB_NOSE_CSV_FIELDS, extrasaction='ignore')
+    writer.writeheader()
+    for record in records:
+        writer.writerow(record)
+    resp = Response(buf.getvalue(), mimetype='text/csv')
+    ts = datetime.utcnow().strftime('%Y%m%d-%H%M%S')
+    resp.headers['Content-Disposition'] = f'attachment; filename="grab-nose-{ts}.csv"'
     return resp
 
 

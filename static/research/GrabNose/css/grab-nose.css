@@ -1,0 +1,27 @@
+.grab-chart-grid {
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+}
+
+.chart-card--wide {
+  grid-column: 1 / -1;
+}
+
+.grab-entry-form {
+  display: grid;
+  gap: 14px;
+}
+
+.grab-entry-form .row {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+@media (max-width: 760px) {
+  .grab-chart-grid,
+  .grab-entry-form .row {
+    grid-template-columns: 1fr;
+  }
+
+  .chart-card--wide {
+    grid-column: auto;
+  }
+}

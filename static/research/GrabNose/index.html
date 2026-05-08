@@ -1,0 +1,177 @@
+<!doctype html>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Grab Nose Research</title>
+<link rel="stylesheet" href="/results/css/results.css">
+<link rel="stylesheet" href="/research/RHITemp/css/rhi-temp.css">
+<link rel="stylesheet" href="/research/GrabNose/css/grab-nose.css">
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<body>
+  <div class="app-bar">
+    <div class="app-bar-left">
+      <span class="app-logo">BYB</span>
+      <a href="/results/" class="app-nav-link">Results</a>
+      <a href="/research/" class="app-nav-link app-nav-link--active">Research</a>
+      <a href="/admin/" id="adminLink" class="app-nav-link" style="display:none">Admin</a>
+    </div>
+    <div class="app-bar-right">
+      <span id="whoami" class="app-user"></span>
+      <button id="login" class="btn app-bar-btn">Log in</button>
+      <button id="logout" class="btn app-bar-btn" style="display:none">Log out</button>
+    </div>
+  </div>
+
+  <header class="page-header research-hero">
+    <div class="hero-layout">
+      <div class="hero-copy">
+        <p class="eyebrow">Proprioception</p>
+        <h1>Grab Nose Research</h1>
+        <p class="lede">Review forearm angle before and after blindfolded triceps vibration, plus the number of attempts needed to grab the nose.</p>
+        <div id="stats" class="stats">Loading data...</div>
+        <div class="header-actions">
+          <a class="download" href="/api/research/grab-nose/export.csv" download>Export CSV</a>
+          <button id="clearData" class="danger-btn" type="button">Clear Data</button>
+        </div>
+      </div>
+      <form id="sheetImportForm" class="sheet-import-panel" style="display:none">
+        <p class="eyebrow">Import</p>
+        <h2>Google Sheets API</h2>
+        <label>
+          Google Sheet URL
+          <input id="sheetUrl" type="url" value="https://docs.google.com/spreadsheets/d/13FRF6_zxYc20K1N2sfxAXrXpJCjtyUGvLms9Lrq8_u4/edit?gid=0#gid=0">
+        </label>
+        <div class="sheet-actions">
+          <a id="viewSheet" class="sheet-link" href="https://docs.google.com/spreadsheets/d/13FRF6_zxYc20K1N2sfxAXrXpJCjtyUGvLms9Lrq8_u4/edit?gid=0#gid=0" target="_blank" rel="noopener">View Sheet</a>
+          <button type="submit">Import Google Sheet</button>
+        </div>
+        <div id="sheetStatus" class="status-line"></div>
+      </form>
+    </div>
+    <hr>
+  </header>
+
+  <div id="guestBanner" style="display:none; text-align:center; padding:40px 20px;">
+    <h2>Research Login Required</h2>
+    <p>Please log in to access grab-nose research data.</p>
+  </div>
+
+  <main id="researchApp" class="research-shell">
+    <section class="chart-grid grab-chart-grid">
+      <article class="chart-card chart-card--wide">
+        <div class="card-header">
+          <div>
+            <p class="eyebrow">Plot 1</p>
+            <h2>Forearm Angle Before and After Vibration</h2>
+          </div>
+        </div>
+        <canvas id="angleChart" height="260"></canvas>
+      </article>
+
+      <article class="chart-card">
+        <div class="card-header">
+          <div>
+            <p class="eyebrow">Plot 2</p>
+            <h2>Angle Change By Participant</h2>
+          </div>
+        </div>
+        <canvas id="differenceChart" height="260"></canvas>
+        <p class="chart-note">Positive values mean the arm angle increased after vibration.</p>
+      </article>
+
+      <article class="chart-card">
+        <div class="card-header">
+          <div>
+            <p class="eyebrow">Plot 3</p>
+            <h2>Attempts vs Angle Change</h2>
+          </div>
+        </div>
+        <canvas id="attemptChart" height="260"></canvas>
+      </article>
+    </section>
+
+    <section class="data-grid">
+      <article class="form-card">
+        <div class="card-header">
+          <div>
+            <p class="eyebrow">Collect</p>
+            <h2>Manual Entry</h2>
+          </div>
+        </div>
+        <form id="entryForm" class="grab-entry-form">
+          <div class="row">
+            <label>
+              Participant
+              <input name="participant_name" required placeholder="e.g. Dallan">
+            </label>
+            <label>
+              Age
+              <input name="age" inputmode="numeric">
+            </label>
+            <label>
+              Sex
+              <input name="sex" placeholder="M/F">
+            </label>
+          </div>
+          <div class="row">
+            <label>
+              Starting Angle
+              <input name="starting_angle" required inputmode="decimal">
+            </label>
+            <label>
+              Ending Angle
+              <input name="ending_angle" required inputmode="decimal">
+            </label>
+            <label>
+              Attempts
+              <input name="attempts" inputmode="numeric">
+            </label>
+          </div>
+          <div class="row">
+            <label>
+              Location
+              <input name="location">
+            </label>
+          </div>
+          <label>
+            Comments
+            <textarea name="comments" rows="3"></textarea>
+          </label>
+          <div class="actions">
+            <button type="submit">Save Entry</button>
+          </div>
+        </form>
+      </article>
+      <div id="status" class="status-line data-grid-status"></div>
+    </section>
+
+    <section class="results data-table-card">
+      <div class="card-header">
+        <div>
+          <p class="eyebrow">Stored Data</p>
+          <h2>Grab Nose Records</h2>
+        </div>
+        <div id="recordsCount" class="stats"></div>
+      </div>
+      <table>
+        <thead>
+          <tr>
+            <th>Participant</th>
+            <th>Age</th>
+            <th>Sex</th>
+            <th class="num">Start</th>
+            <th class="num">End</th>
+            <th class="num">Change</th>
+            <th class="num">Attempts</th>
+            <th>Location</th>
+            <th>Comments</th>
+          </tr>
+        </thead>
+        <tbody id="recordsBody"></tbody>
+      </table>
+    </section>
+  </main>
+
+  <script src="/research/RHITemp/js/research-auth.js"></script>
+  <script src="/research/GrabNose/js/grab-nose.js"></script>
+</body>
