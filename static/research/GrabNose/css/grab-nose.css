@@ -1,27 +1,20 @@
 .grab-chart-grid {
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  grid-template-columns: minmax(200px, 0.7fr) minmax(360px, 1.6fr) minmax(300px, 1.1fr);
+  align-items: stretch;
 }
 
-.chart-card--wide {
-  grid-column: 1 / -1;
+.grab-chart-grid .card-header h2 {
+  font-size: 18px;
 }
 
-.grab-entry-form {
-  display: grid;
-  gap: 14px;
-}
-
-.grab-entry-form .row {
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+@media (max-width: 1050px) {
+  .grab-chart-grid {
+    grid-template-columns: 1fr;
+  }
 }
 
 @media (max-width: 760px) {
-  .grab-chart-grid,
-  .grab-entry-form .row {
+  .grab-chart-grid {
     grid-template-columns: 1fr;
-  }
-
-  .chart-card--wide {
-    grid-column: auto;
   }
 }

@@ -69,7 +69,7 @@
         <p id="deltaSummary" class="chart-note">Positive values mean the arm angle increased after vibration.</p>
       </article>
 
-      <article class="chart-card chart-card--wide">
+      <article class="chart-card">
         <div class="card-header">
           <div>
             <p class="eyebrow">Plot 2</p>
@@ -90,60 +90,7 @@
       </article>
     </section>
 
-    <section class="data-grid">
-      <article class="form-card">
-        <div class="card-header">
-          <div>
-            <p class="eyebrow">Collect</p>
-            <h2>Manual Entry</h2>
-          </div>
-        </div>
-        <form id="entryForm" class="grab-entry-form">
-          <div class="row">
-            <label>
-              Participant
-              <input name="participant_name" required placeholder="e.g. Dallan">
-            </label>
-            <label>
-              Age
-              <input name="age" inputmode="numeric">
-            </label>
-            <label>
-              Sex
-              <input name="sex" placeholder="M/F">
-            </label>
-          </div>
-          <div class="row">
-            <label>
-              Starting Angle
-              <input name="starting_angle" required inputmode="decimal">
-            </label>
-            <label>
-              Ending Angle
-              <input name="ending_angle" required inputmode="decimal">
-            </label>
-            <label>
-              Attempts
-              <input name="attempts" inputmode="numeric">
-            </label>
-          </div>
-          <div class="row">
-            <label>
-              Location
-              <input name="location">
-            </label>
-          </div>
-          <label>
-            Comments
-            <textarea name="comments" rows="3"></textarea>
-          </label>
-          <div class="actions">
-            <button type="submit">Save Entry</button>
-          </div>
-        </form>
-      </article>
-      <div id="status" class="status-line data-grid-status"></div>
-    </section>
+    <div id="status" class="status-line data-grid-status"></div>
 
     <section class="results data-table-card">
       <div class="card-header">
