@@ -20,7 +20,48 @@
     entryForm: document.getElementById('entryForm'),
     angleCanvas: document.getElementById('angleChart'),
     differenceCanvas: document.getElementById('differenceChart'),
-    attemptCanvas: document.getElementById('attemptChart')
+    attemptCanvas: document.getElementById('attemptChart'),
+    deltaSummary: document.getElementById('deltaSummary')
+  };
+
+  const tCriticalTwoTailed05 = [
+    null, 12.706, 4.303, 3.182, 2.776, 2.571, 2.447, 2.365, 2.306, 2.262,
+    2.228, 2.201, 2.179, 2.160, 2.145, 2.131, 2.120, 2.110, 2.101, 2.093,
+    2.086, 2.080, 2.074, 2.069, 2.064, 2.060, 2.056, 2.052, 2.048, 2.045, 2.042
+  ];
+
+  const meanDeltaOverlay = {
+    id: 'meanDeltaOverlay',
+    afterDatasetsDraw(chart) {
+      const stats = chart.options.plugins.meanDeltaOverlay;
+      if (!stats || stats.mean == null || stats.sd == null) return;
+      const meta = chart.getDatasetMeta(0);
+      const element = meta && meta.data && meta.data[0];
+      const yScale = chart.scales.y;
+      if (!element || !yScale) return;
+      const { ctx } = chart;
+      const x = element.x;
+      const highY = yScale.getPixelForValue(stats.mean + stats.sd);
+      const lowY = yScale.getPixelForValue(stats.mean - stats.sd);
+      ctx.save();
+      ctx.strokeStyle = '#000000';
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      ctx.moveTo(x, highY);
+      ctx.lineTo(x, lowY);
+      ctx.moveTo(x - 9, highY);
+      ctx.lineTo(x + 9, highY);
+      ctx.moveTo(x - 9, lowY);
+      ctx.lineTo(x + 9, lowY);
+      ctx.stroke();
+      if (stats.significant) {
+        ctx.fillStyle = '#000000';
+        ctx.font = '700 22px system-ui, -apple-system, BlinkMacSystemFont, sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText('*', x, highY - 8);
+      }
+      ctx.restore();
+    }
   };
 
   function setStatus(message, isError) {
@@ -38,6 +79,26 @@
   function fmt(value, digits = 1) {
     const number = Number(value);
     return Number.isFinite(number) ? number.toFixed(digits) : '';
+  }
+
+  function summarizeValues(values) {
+    const clean = values.map(Number).filter(Number.isFinite);
+    if (!clean.length) return null;
+    const mean = clean.reduce((sum, value) => sum + value, 0) / clean.length;
+    const variance = clean.length > 1
+      ? clean.reduce((sum, value) => sum + Math.pow(value - mean, 2), 0) / (clean.length - 1)
+      : 0;
+    const sd = Math.sqrt(variance);
+    const df = clean.length - 1;
+    const t = clean.length > 1 && sd > 0 ? mean / (sd / Math.sqrt(clean.length)) : 0;
+    const critical = df > 30 ? 1.96 : tCriticalTwoTailed05[df];
+    return {
+      mean,
+      sd,
+      n: clean.length,
+      t,
+      significant: Boolean(critical && Math.abs(t) > critical)
+    };
   }
 
   function escapeHtml(value) {
@@ -123,24 +184,62 @@
 
   function renderDifferenceChart() {
     const rows = sortedRecords();
-    const labels = rows.map(participantLabel);
-    const colors = rows.map(record => Number(record.angle_difference) >= 0 ? '#ff805f' : '#2f7dbb');
+    const summary = summarizeValues(rows.map(record => record.angle_difference));
+    if (els.deltaSummary) {
+      els.deltaSummary.textContent = summary
+        ? `Mean delta = ${fmt(summary.mean)} +/- ${fmt(summary.sd)} deg SD, n=${summary.n}${summary.significant ? ' * p < .05 vs 0' : ''}.`
+        : 'Positive values mean the arm angle increased after vibration.';
+    }
     destroy('differenceChart');
     state.differenceChart = new Chart(els.differenceCanvas, {
       type: 'bar',
       data: {
-        labels,
-        datasets: [{
-          label: 'After - before angle',
-          data: rows.map(record => Number(record.angle_difference)),
-          backgroundColor: colors,
-          borderColor: '#000000',
-          borderWidth: 1
-        }]
+        labels: ['Mean delta'],
+        datasets: [
+          {
+            label: 'Mean delta',
+            data: [summary ? summary.mean : 0],
+            backgroundColor: '#ff805f',
+            borderColor: '#000000',
+            borderWidth: 1
+          },
+          {
+            type: 'scatter',
+            label: 'Participant delta',
+            data: rows.map((record, index) => ({
+              x: 'Mean delta',
+              y: Number(record.angle_difference),
+              participant: participantLabel(record, index)
+            })),
+            pointRadius: 5,
+            pointHoverRadius: 7,
+            pointBackgroundColor: '#ffffff',
+            pointBorderColor: '#000000',
+            pointBorderWidth: 1.3
+          }
+        ]
       },
+      plugins: [meanDeltaOverlay],
       options: {
         responsive: true,
-        plugins: { legend: { display: false } },
+        plugins: {
+          meanDeltaOverlay: summary || {},
+          tooltip: {
+            callbacks: {
+              label(context) {
+                const point = context.raw || {};
+                if (context.dataset.type === 'scatter') {
+                  return `${point.participant || 'participant'}: ${fmt(context.parsed.y)} deg`;
+                }
+                return `${context.dataset.label}: ${fmt(context.parsed.y)} deg`;
+              },
+              afterLabel(context) {
+                if (context.dataset.type === 'scatter' || !summary) return '';
+                return [`SD = ${fmt(summary.sd)} deg`, `n = ${summary.n}`, summary.significant ? '* p < .05 vs 0' : 'n.s. vs 0'];
+              }
+            }
+          }
+        },
         scales: {
           y: {
             title: { display: true, text: 'Angle change (degrees)' },

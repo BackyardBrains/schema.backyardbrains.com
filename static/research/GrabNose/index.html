@@ -58,25 +58,25 @@
 
   <main id="researchApp" class="research-shell">
     <section class="chart-grid grab-chart-grid">
-      <article class="chart-card chart-card--wide">
+      <article class="chart-card">
         <div class="card-header">
           <div>
             <p class="eyebrow">Plot 1</p>
+            <h2>Mean Delta Angle</h2>
+          </div>
+        </div>
+        <canvas id="differenceChart" height="260"></canvas>
+        <p id="deltaSummary" class="chart-note">Positive values mean the arm angle increased after vibration.</p>
+      </article>
+
+      <article class="chart-card chart-card--wide">
+        <div class="card-header">
+          <div>
+            <p class="eyebrow">Plot 2</p>
             <h2>Forearm Angle Before and After Vibration</h2>
           </div>
         </div>
         <canvas id="angleChart" height="260"></canvas>
-      </article>
-
-      <article class="chart-card">
-        <div class="card-header">
-          <div>
-            <p class="eyebrow">Plot 2</p>
-            <h2>Angle Change By Participant</h2>
-          </div>
-        </div>
-        <canvas id="differenceChart" height="260"></canvas>
-        <p class="chart-note">Positive values mean the arm angle increased after vibration.</p>
       </article>
 
       <article class="chart-card">

@@ -1030,11 +1030,18 @@ def _summarize_grab_nose(records):
     diffs = [float(r.get('angle_difference')) for r in records if r.get('angle_difference') is not None]
     attempts = [int(r.get('attempts')) for r in records if r.get('attempts') is not None]
     positive = [value for value in diffs if value > 0]
+    mean_diff = sum(diffs) / len(diffs) if diffs else None
+    if len(diffs) > 1 and mean_diff is not None:
+        variance = sum((value - mean_diff) ** 2 for value in diffs) / (len(diffs) - 1)
+        sd_diff = variance ** 0.5
+    else:
+        sd_diff = 0 if diffs else None
     return {
         'record_count': len(records),
         'participant_count': len({r.get('participant_id') for r in records if r.get('participant_id')}),
         'locations': locations,
-        'mean_angle_difference': sum(diffs) / len(diffs) if diffs else None,
+        'mean_angle_difference': mean_diff,
+        'sd_angle_difference': sd_diff,
         'mean_attempts': sum(attempts) / len(attempts) if attempts else None,
         'positive_difference_count': len(positive),
     }
