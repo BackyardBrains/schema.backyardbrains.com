@@ -3,8 +3,7 @@
     records: [],
     summary: null,
     angleChart: null,
-    differenceChart: null,
-    attemptChart: null
+    differenceChart: null
   };
 
   const els = {
@@ -20,7 +19,6 @@
     entryForm: document.getElementById('entryForm'),
     angleCanvas: document.getElementById('angleChart'),
     differenceCanvas: document.getElementById('differenceChart'),
-    attemptCanvas: document.getElementById('attemptChart'),
     deltaSummary: document.getElementById('deltaSummary')
   };
 
@@ -185,6 +183,12 @@
   function renderDifferenceChart() {
     const rows = sortedRecords();
     const summary = summarizeValues(rows.map(record => record.angle_difference));
+    const values = rows.map(record => Number(record.angle_difference)).filter(Number.isFinite);
+    const sdLow = summary ? summary.mean - summary.sd : 0;
+    const sdHigh = summary ? summary.mean + summary.sd : 0;
+    const minValue = Math.min(0, sdLow, ...values);
+    const maxValue = Math.max(0, sdHigh, ...values);
+    const padding = Math.max(4, (maxValue - minValue) * 0.25);
     if (els.deltaSummary) {
       els.deltaSummary.textContent = summary
         ? `Mean delta = ${fmt(summary.mean)} +/- ${fmt(summary.sd)} deg SD, n=${summary.n}${summary.significant ? ' * p < .05 vs 0' : ''}.`
@@ -222,6 +226,7 @@
       plugins: [meanDeltaOverlay],
       options: {
         responsive: true,
+        maintainAspectRatio: false,
         plugins: {
           meanDeltaOverlay: summary || {},
           tooltip: {
@@ -242,60 +247,12 @@
         },
         scales: {
           y: {
+            suggestedMin: minValue - padding,
+            suggestedMax: maxValue + padding,
             title: { display: true, text: 'Angle change (degrees)' },
             grid: { color: 'rgba(0,0,0,0.08)' }
           },
           x: { grid: { display: false } }
-        }
-      }
-    });
-  }
-
-  function renderAttemptChart() {
-    const rows = sortedRecords().filter(record => record.attempts !== null && record.attempts !== undefined && record.attempts !== '');
-    destroy('attemptChart');
-    state.attemptChart = new Chart(els.attemptCanvas, {
-      type: 'scatter',
-      data: {
-        datasets: [{
-          label: 'Participant',
-          data: rows.map(record => ({
-            x: Number(record.angle_difference),
-            y: Number(record.attempts),
-            participant: record.participant_name || record.participant_id,
-            location: record.location
-          })),
-          pointRadius: 6,
-          pointHoverRadius: 8,
-          pointBackgroundColor: '#ffffff',
-          pointBorderColor: '#000000',
-          pointBorderWidth: 1.5
-        }]
-      },
-      options: {
-        responsive: true,
-        plugins: {
-          legend: { display: false },
-          tooltip: {
-            callbacks: {
-              label(context) {
-                const point = context.raw || {};
-                const location = point.location ? ` (${point.location})` : '';
-                return `${point.participant || 'participant'}${location}: ${fmt(context.parsed.x)} deg, ${context.parsed.y} attempt(s)`;
-              }
-            }
-          }
-        },
-        scales: {
-          x: {
-            title: { display: true, text: 'Angle change (degrees)' },
-            grid: { color: 'rgba(0,0,0,0.08)' }
-          },
-          y: {
-            title: { display: true, text: 'Attempts to grab nose' },
-            ticks: { stepSize: 1 },
-            grid: { color: 'rgba(0,0,0,0.08)' }
-          }
         }
       }
     });
@@ -323,7 +280,6 @@
     renderStats();
     renderAngleChart();
     renderDifferenceChart();
-    renderAttemptChart();
     renderTable();
   }
 

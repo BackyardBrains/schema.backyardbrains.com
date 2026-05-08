@@ -1,6 +1,15 @@
 .grab-chart-grid {
-  grid-template-columns: minmax(200px, 0.7fr) minmax(360px, 1.6fr) minmax(300px, 1.1fr);
+  grid-template-columns: minmax(260px, 0.8fr) minmax(460px, 1.8fr);
   align-items: stretch;
+}
+
+.mean-delta-chart-wrap {
+  height: 340px;
+}
+
+.mean-delta-chart-wrap canvas {
+  width: 100% !important;
+  height: 100% !important;
 }
 
 .grab-chart-grid .card-header h2 {
