@@ -595,8 +595,7 @@
             labels: {
               usePointStyle: true,
               filter(item) {
-                const dataset = datasets[item.datasetIndex] || {};
-                return !(dataset.summary && dataset.type === 'line');
+                return !String(item.text || '').includes('mean +/- SD');
               }
             }
           },
