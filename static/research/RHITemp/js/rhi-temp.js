@@ -582,7 +582,8 @@
       });
     }
 
-    if (state.scatterChart) state.scatterChart.destroy();
+    const existingChart = Chart.getChart ? Chart.getChart(els.scatterCanvas) : state.scatterChart;
+    if (existingChart) existingChart.destroy();
     state.scatterChart = new Chart(els.scatterCanvas, {
       type: 'scatter',
       data: { datasets },
@@ -593,8 +594,8 @@
           legend: {
             labels: {
               usePointStyle: true,
-              filter(item, chart) {
-                const dataset = chart.data.datasets[item.datasetIndex] || {};
+              filter(item, data) {
+                const dataset = data.datasets[item.datasetIndex] || {};
                 return !(dataset.summary && dataset.type === 'line');
               }
             }
