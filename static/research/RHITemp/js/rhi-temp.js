@@ -594,8 +594,8 @@
           legend: {
             labels: {
               usePointStyle: true,
-              filter(item, data) {
-                const dataset = data.datasets[item.datasetIndex] || {};
+              filter(item) {
+                const dataset = datasets[item.datasetIndex] || {};
                 return !(dataset.summary && dataset.type === 'line');
               }
             }
