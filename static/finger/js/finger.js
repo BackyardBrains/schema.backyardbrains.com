@@ -24,8 +24,8 @@ document.addEventListener('DOMContentLoaded', () => {
         bend: 'dark_gray'
     };
     const SQUARE_COLOR_VALUES = {
-        light_gray: '#CBCBCB',
-        dark_gray: '#9F9F9F'
+        light_gray: '#808080',
+        dark_gray: '#000000'
     };
     const BASELINE_SQUARE_COLOR = '#FFFFFF';
 

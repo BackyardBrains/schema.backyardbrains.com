@@ -6,8 +6,7 @@ body {
   justify-content: center;
   min-height: 100vh;
   margin: 0;
-  background-color: #FFFFFF;
-  color: #000000;
+  background-color: white;
 }
 
 .container {
@@ -46,19 +45,15 @@ button {
   max-width: 800px;
   padding: 20px;
   text-align: center;
-  color: #000000;
 }
 
 #feedback-area {
   margin-top: 10px;
   font-size: 1.2em;
   min-height: 2em;
-  color: #808080;
 }
 
-#trial-info {
-  color: #808080;
-}
+
 
 .corner-square-element {
   position: fixed;
