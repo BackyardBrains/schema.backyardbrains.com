@@ -1,17 +1,17 @@
 document.addEventListener('DOMContentLoaded', () => {
     const VIDEO_FILES = [
-        'h-index-bend.mov',
-        'h-index-ctrl.mov',
-        'h-middle-bend.mov',
-        'h-middle-ctrl.mov',
-        'h-pinky-bend.mov',
-        'h-pinky-ctrl.mov',
-        'h-ring-bend.mov',
-        'h-ring-ctrl.mov',
-        'v-index-bend.mov',
-        'v-index-ctrl.mov',
-        'v-index2-bend.mov',
-        'v-index2-ctrl.mov'
+        'h-index-bend.mp4',
+        'h-index-ctrl.mp4',
+        'h-middle-bend.mp4',
+        'h-middle-ctrl.mp4',
+        'h-pinky-bend.mp4',
+        'h-pinky-ctrl.mp4',
+        'h-ring-bend.mp4',
+        'h-ring-ctrl.mp4',
+        'v-index-bend.mp4',
+        'v-index-ctrl.mp4',
+        'v-index2-bend.mp4',
+        'v-index2-ctrl.mp4'
     ];
 
     const DATAFILE_VERSION = '1.0';
@@ -56,7 +56,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const cornerSquareElement = document.getElementById('corner-square-element');
 
     function parseVideoFile(fileName) {
-        const match = fileName.match(/^([^-]+)-(.+)-(bend|ctrl)\.mov$/);
+        const match = fileName.match(/^([^-]+)-(.+)-(bend|ctrl)\.mp4$/);
 
         if (!match) {
             throw new Error(`Unexpected finger video filename: ${fileName}`);
@@ -270,6 +270,7 @@ document.addEventListener('DOMContentLoaded', () => {
         pendingIntertrialIntervalMs = randomInteger(MIN_INTERTRIAL_INTERVAL_MS, MAX_INTERTRIAL_INTERVAL_MS);
         playlist[currentVideoIndex].intertrialIntervalBeforeMs = pendingIntertrialIntervalMs;
         updateTrialDisplay();
+        preloadUpcoming();
         intertrialTimer = setTimeout(playCurrentVideo, pendingIntertrialIntervalMs);
     }
 
@@ -278,13 +279,27 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function preloadVideoFiles() {
-        VIDEO_FILES.forEach((fileName) => {
+        // Only preload next few videos to avoid overwhelming mobile devices
+        const preloadCount = Math.min(2, playlist.length);
+        for (let i = 0; i < preloadCount; i++) {
             const preloadLink = document.createElement('link');
             preloadLink.rel = 'preload';
             preloadLink.as = 'video';
-            preloadLink.href = `video/${fileName}`;
+            preloadLink.href = playlist[i].videoPath;
             document.head.appendChild(preloadLink);
-        });
+        }
+    }
+
+    function preloadUpcoming() {
+        // Preload the next video after the current one
+        const nextIndex = currentVideoIndex + 1;
+        if (nextIndex < playlist.length) {
+            const preloadLink = document.createElement('link');
+            preloadLink.rel = 'preload';
+            preloadLink.as = 'video';
+            preloadLink.href = playlist[nextIndex].videoPath;
+            document.head.appendChild(preloadLink);
+        }
     }
 
     function clearSquareTimers() {
