@@ -103,13 +103,12 @@ document.addEventListener('DOMContentLoaded', () => {
         console.log('Finger experiment session initialized:', sessionData);
     }
 
-    function initializeVideoPlayback() {
+    async function initializeVideoPlayback() {
         playlist = VIDEO_FILES.map(parseVideoFile);
         shuffleArray(playlist);
         currentVideoIndex = 0;
         pendingIntertrialIntervalMs = 0;
-        preloadVideoFiles();
-        updateTrialDisplay();
+        await preloadAllVideos();
         playCurrentVideo();
     }
 
@@ -269,7 +268,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
         pendingIntertrialIntervalMs = randomInteger(MIN_INTERTRIAL_INTERVAL_MS, MAX_INTERTRIAL_INTERVAL_MS);
         playlist[currentVideoIndex].intertrialIntervalBeforeMs = pendingIntertrialIntervalMs;
-        preloadUpcoming();
         intertrialTimer = setTimeout(playCurrentVideo, pendingIntertrialIntervalMs);
     }
 
@@ -277,28 +275,27 @@ document.addEventListener('DOMContentLoaded', () => {
         stimulusVideo.classList.add('video-loading');
     }
 
-    function preloadVideoFiles() {
-        // Only preload next few videos to avoid overwhelming mobile devices
-        const preloadCount = Math.min(2, playlist.length);
-        for (let i = 0; i < preloadCount; i++) {
-            const preloadLink = document.createElement('link');
-            preloadLink.rel = 'preload';
-            preloadLink.as = 'video';
-            preloadLink.href = playlist[i].videoPath;
-            document.head.appendChild(preloadLink);
-        }
-    }
+    async function preloadAllVideos() {
+        const total = playlist.length;
+        let loaded = 0;
+        feedbackTextElement.textContent = `Loading videos: 0 / ${total}`;
 
-    function preloadUpcoming() {
-        // Preload the next video after the current one
-        const nextIndex = currentVideoIndex + 1;
-        if (nextIndex < playlist.length) {
-            const preloadLink = document.createElement('link');
-            preloadLink.rel = 'preload';
-            preloadLink.as = 'video';
-            preloadLink.href = playlist[nextIndex].videoPath;
-            document.head.appendChild(preloadLink);
-        }
+        const promises = playlist.map((trial) => {
+            return fetch(trial.videoPath)
+                .then((response) => response.blob())
+                .then(() => {
+                    loaded++;
+                    feedbackTextElement.textContent = `Loading videos: ${loaded} / ${total}`;
+                })
+                .catch((err) => {
+                    loaded++;
+                    console.warn(`Failed to preload ${trial.videoPath}:`, err);
+                    feedbackTextElement.textContent = `Loading videos: ${loaded} / ${total}`;
+                });
+        });
+
+        await Promise.all(promises);
+        feedbackTextElement.textContent = '';
     }
 
     function clearSquareTimers() {
