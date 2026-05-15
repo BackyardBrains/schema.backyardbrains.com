@@ -129,7 +129,6 @@ document.addEventListener('DOMContentLoaded', () => {
         currentTrial.intertrialIntervalBeforeMs = pendingIntertrialIntervalMs;
         pendingIntertrialIntervalMs = 0;
         cornerSquareElement.style.backgroundColor = BASELINE_SQUARE_COLOR;
-        updateTrialDisplay();
         showBlackVideoScreen();
 
         stimulusVideo.src = currentTrial.videoPath;
@@ -157,6 +156,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         stimulusVideo.classList.remove('video-loading');
+        updateTrialDisplay();
         const currentTrial = playlist[currentVideoIndex];
         currentTrial.startTimestampMs = Date.now();
         videoPlayStart = currentTrial.startTimestampMs;
@@ -269,7 +269,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
         pendingIntertrialIntervalMs = randomInteger(MIN_INTERTRIAL_INTERVAL_MS, MAX_INTERTRIAL_INTERVAL_MS);
         playlist[currentVideoIndex].intertrialIntervalBeforeMs = pendingIntertrialIntervalMs;
-        updateTrialDisplay();
         preloadUpcoming();
         intertrialTimer = setTimeout(playCurrentVideo, pendingIntertrialIntervalMs);
     }
