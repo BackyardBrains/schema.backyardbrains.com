@@ -16,25 +16,24 @@ document.addEventListener('DOMContentLoaded', () => {
     ];
 
     const DATAFILE_VERSION = '1.0';
-    const CUE_DURATION_MS = 300;
-    const CUE_DELAY_MS = 0;
-    const GROUP_CUE_COLORS = {
-        ctrl: 'orange',
-        bend: 'green'
+    const SQUARE_FLASH_DURATION_MS = 300;
+    const SQUARE_FLASH_DELAY_MS = 0;
+    const GROUP_SQUARE_COLORS = {
+        ctrl: 'light_gray',
+        bend: 'dark_gray'
     };
-    const COLOR_GROUP_MAP = {
-        orange: 'ctrl',
-        green: 'bend'
+    const SQUARE_COLOR_VALUES = {
+        light_gray: '#CBCBCB',
+        dark_gray: '#9F9F9F'
     };
-    const BASELINE_SQUARE_COLOR = '#CBCBCB';
-    const CUE_SQUARE_COLOR = '#9F9F9F';
+    const BASELINE_SQUARE_COLOR = '#FFFFFF';
 
     let playlist = [];
     let currentVideoIndex = 0;
     let isTransitioning = false;
-    let cueTimer = null;
-    let cueHideTimer = null;
-    let hasCueBeenShownForCurrentVideo = false;
+    let squareTimer = null;
+    let squareResetTimer = null;
+    let hasSquareBeenShownForCurrentVideo = false;
 
     let sessionData = {};
     let allTrialsData = [];
@@ -51,11 +50,6 @@ document.addEventListener('DOMContentLoaded', () => {
     const feedbackTextElement = document.getElementById('feedback-text');
     const stimulusVideo = document.getElementById('stimulus-video');
     const cornerSquareElement = document.getElementById('corner-square-element');
-    const cueDisplayElement = document.getElementById('cue-display');
-    const cueShapeElement = document.getElementById('cue-shape');
-
-    cueShapeElement.classList.add('cue-dot');
-    cueDisplayElement.classList.add('hidden');
 
     function parseVideoFile(fileName) {
         const match = fileName.match(/^([^-]+)-(.+)-(bend|ctrl)\.mov$/);
@@ -67,10 +61,13 @@ document.addEventListener('DOMContentLoaded', () => {
         return {
             fileName,
             videoPath: `video/${fileName}`,
+            position: match[1],
             orientation: match[1],
             fingerId: match[2],
             group: match[3],
-            cueColor: GROUP_CUE_COLORS[match[3]]
+            controlOrBend: match[3],
+            squareColorName: GROUP_SQUARE_COLORS[match[3]],
+            squareColorValue: SQUARE_COLOR_VALUES[GROUP_SQUARE_COLORS[match[3]]]
         };
     }
 
@@ -84,17 +81,16 @@ document.addEventListener('DOMContentLoaded', () => {
             experiment_name: 'finger',
             experiment_version: '1.0',
             file_version: DATAFILE_VERSION,
-            color_group_map: COLOR_GROUP_MAP,
-            group_cue_colors: GROUP_CUE_COLORS,
+            group_square_colors: GROUP_SQUARE_COLORS,
             session_start_iso: new Date(sessionStartMs).toISOString(),
             browser_data: getBrowserData(),
             experiment_config: {
                 total_videos_configured: VIDEO_FILES.length,
                 video_files: VIDEO_FILES,
-                cue_delay_ms: CUE_DELAY_MS,
-                cue_duration_ms: CUE_DURATION_MS,
+                square_flash_delay_ms: SQUARE_FLASH_DELAY_MS,
+                square_flash_duration_ms: SQUARE_FLASH_DURATION_MS,
                 baseline_square_color: BASELINE_SQUARE_COLOR,
-                cue_square_color: CUE_SQUARE_COLOR
+                square_color_values: SQUARE_COLOR_VALUES
             }
         };
         allTrialsData = [];
@@ -117,10 +113,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const currentTrial = playlist[currentVideoIndex];
         isTransitioning = false;
-        hasCueBeenShownForCurrentVideo = false;
+        hasSquareBeenShownForCurrentVideo = false;
         videoPlayStart = null;
-        clearCueTimers();
-        cueDisplayElement.classList.add('hidden');
+        clearSquareTimers();
         cornerSquareElement.style.backgroundColor = BASELINE_SQUARE_COLOR;
         updateTrialDisplay();
 
@@ -137,42 +132,36 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function handleVideoPlaying() {
-        if (hasCueBeenShownForCurrentVideo || currentVideoIndex >= playlist.length) {
+        if (hasSquareBeenShownForCurrentVideo || currentVideoIndex >= playlist.length) {
             return;
         }
 
         const currentTrial = playlist[currentVideoIndex];
         currentTrial.startTimestampMs = Date.now();
         videoPlayStart = currentTrial.startTimestampMs;
-        hasCueBeenShownForCurrentVideo = true;
-        showCueForCurrentTrial();
+        hasSquareBeenShownForCurrentVideo = true;
+        flashSquareForCurrentTrial();
     }
 
-    function showCueForCurrentTrial() {
-        clearCueTimers();
+    function flashSquareForCurrentTrial() {
+        clearSquareTimers();
 
         const currentTrial = playlist[currentVideoIndex];
-        cueTimer = setTimeout(() => {
+        squareTimer = setTimeout(() => {
             if (stimulusVideo.paused || stimulusVideo.ended) {
                 return;
             }
 
-            const requiredCueColor = currentTrial.cueColor;
-            cueShapeElement.classList.remove('cue-orange', 'cue-green');
-            cueShapeElement.classList.add(`cue-${requiredCueColor}`);
+            currentTrial.squareAppearanceTimestampMs = Date.now();
+            currentTrial.squarePlannedDelayMs = SQUARE_FLASH_DELAY_MS;
+            currentTrial.squareOffsetMs = currentTrial.squareAppearanceTimestampMs - videoPlayStart;
+            currentTrial.trialLabel = `${currentTrial.position}-${currentTrial.fingerId}-${currentTrial.controlOrBend}`;
+            cornerSquareElement.style.backgroundColor = currentTrial.squareColorValue;
 
-            currentTrial.cueAppearanceTimestampMs = Date.now();
-            currentTrial.cuePlannedDelayMs = CUE_DELAY_MS;
-            currentTrial.cueOffsetMs = currentTrial.cueAppearanceTimestampMs - videoPlayStart;
-            currentTrial.trialLabel = `${currentTrial.orientation}-${currentTrial.fingerId}-${currentTrial.group}`;
-            currentTrial.cornerSquareColor = CUE_SQUARE_COLOR;
-            cornerSquareElement.style.backgroundColor = CUE_SQUARE_COLOR;
-
-            cueDisplayElement.classList.remove('hidden');
-            cueHideTimer = setTimeout(() => {
-                cueDisplayElement.classList.add('hidden');
-            }, CUE_DURATION_MS);
-        }, CUE_DELAY_MS);
+            squareResetTimer = setTimeout(() => {
+                cornerSquareElement.style.backgroundColor = BASELINE_SQUARE_COLOR;
+            }, SQUARE_FLASH_DURATION_MS);
+        }, SQUARE_FLASH_DELAY_MS);
     }
 
     function handleVideoEnded() {
@@ -197,8 +186,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function recordCurrentTrial() {
-        clearCueTimers();
-        cueDisplayElement.classList.add('hidden');
+        clearSquareTimers();
         cornerSquareElement.style.backgroundColor = BASELINE_SQUARE_COLOR;
 
         const finishedTrial = playlist[currentVideoIndex];
@@ -206,18 +194,20 @@ document.addEventListener('DOMContentLoaded', () => {
             trial_number: currentVideoIndex + 1,
             video_file: finishedTrial.fileName,
             video_path: finishedTrial.videoPath,
+            position: finishedTrial.position,
             orientation: finishedTrial.orientation,
             finger_id: finishedTrial.fingerId,
+            control_or_bend: finishedTrial.controlOrBend,
             group: finishedTrial.group,
-            trial_label: finishedTrial.trialLabel || `${finishedTrial.orientation}-${finishedTrial.fingerId}-${finishedTrial.group}`,
-            cue_color: finishedTrial.cueColor,
-            cue_group: finishedTrial.group,
-            cue_planned_delay_ms: finishedTrial.cuePlannedDelayMs,
-            cue_offset_from_video_start_ms: finishedTrial.cueOffsetMs,
+            trial_label: finishedTrial.trialLabel || `${finishedTrial.position}-${finishedTrial.fingerId}-${finishedTrial.controlOrBend}`,
+            square_color_name: finishedTrial.squareColorName,
+            square_color_value: finishedTrial.squareColorValue,
+            square_group: finishedTrial.controlOrBend,
+            square_planned_delay_ms: finishedTrial.squarePlannedDelayMs,
+            square_offset_from_video_start_ms: finishedTrial.squareOffsetMs,
             trial_start_ts: ((finishedTrial.startTimestampMs || 0) - sessionStartMs) / 1000,
             trial_end_ts: (Date.now() - sessionStartMs) / 1000,
-            cue_ts: ((finishedTrial.cueAppearanceTimestampMs || 0) - sessionStartMs) / 1000,
-            corner_square_color: finishedTrial.cornerSquareColor || null,
+            square_ts: ((finishedTrial.squareAppearanceTimestampMs || 0) - sessionStartMs) / 1000,
             video_error: Boolean(finishedTrial.videoError)
         };
 
@@ -227,8 +217,7 @@ document.addEventListener('DOMContentLoaded', () => {
     function finishExperiment() {
         experimentArea.classList.add('hidden');
         endScreen.classList.remove('hidden');
-        clearCueTimers();
-        cueDisplayElement.classList.add('hidden');
+        clearSquareTimers();
         stimulusVideo.removeAttribute('src');
         stimulusVideo.load();
 
@@ -246,11 +235,11 @@ document.addEventListener('DOMContentLoaded', () => {
         totalTrialsDisplayElement.textContent = String(playlist.length || VIDEO_FILES.length);
     }
 
-    function clearCueTimers() {
-        clearTimeout(cueTimer);
-        clearTimeout(cueHideTimer);
-        cueTimer = null;
-        cueHideTimer = null;
+    function clearSquareTimers() {
+        clearTimeout(squareTimer);
+        clearTimeout(squareResetTimer);
+        squareTimer = null;
+        squareResetTimer = null;
     }
 
     startButton.addEventListener('click', () => {
