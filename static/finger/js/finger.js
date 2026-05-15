@@ -16,8 +16,8 @@ document.addEventListener('DOMContentLoaded', () => {
     ];
 
     const DATAFILE_VERSION = '1.0';
-    const MIN_INTERTRIAL_INTERVAL_MS = 3000;
-    const MAX_INTERTRIAL_INTERVAL_MS = 8000;
+    const MIN_INTERTRIAL_INTERVAL_MS = 1000;
+    const MAX_INTERTRIAL_INTERVAL_MS = 3000;
     const SQUARE_FLASH_DURATION_MS = 300;
     const SQUARE_FLASH_DELAY_MS = 0;
     const GROUP_SQUARE_COLORS = {
