@@ -8,7 +8,6 @@ document.addEventListener('DOMContentLoaded', () => {
         'h-pinky-ctrl.mov',
         'h-ring-bend.mov',
         'h-ring-ctrl.mov',
-        'h-thumb-bend.mov',
         'v-index-bend.mov',
         'v-index-ctrl.mov',
         'v-index2-bend.mov',
