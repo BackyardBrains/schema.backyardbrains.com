@@ -14,16 +14,22 @@ body {
   width: 100%;
   max-width: 800px;
   margin: 1rem auto;
-  background: white;
-  padding: 1rem;
+  background: black;
+  padding: 0;
   box-shadow: 0 0 10px rgba(0,0,0,0.1);
 }
 
 video {
   width: 100%;
+  aspect-ratio: 16 / 9;
   height: auto;
   display: block;
   background: black;
+  object-fit: contain;
+}
+
+.video-loading {
+  visibility: hidden;
 }
 
 .hidden { display: none !important; }

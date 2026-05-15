@@ -16,6 +16,8 @@ document.addEventListener('DOMContentLoaded', () => {
     ];
 
     const DATAFILE_VERSION = '1.0';
+    const MIN_INTERTRIAL_INTERVAL_MS = 3000;
+    const MAX_INTERTRIAL_INTERVAL_MS = 8000;
     const SQUARE_FLASH_DURATION_MS = 300;
     const SQUARE_FLASH_DELAY_MS = 0;
     const GROUP_SQUARE_COLORS = {
@@ -33,7 +35,10 @@ document.addEventListener('DOMContentLoaded', () => {
     let isTransitioning = false;
     let squareTimer = null;
     let squareResetTimer = null;
+    let intertrialTimer = null;
     let hasSquareBeenShownForCurrentVideo = false;
+    let hasPlayBeenRequestedForCurrentVideo = false;
+    let pendingIntertrialIntervalMs = 0;
 
     let sessionData = {};
     let allTrialsData = [];
@@ -87,6 +92,8 @@ document.addEventListener('DOMContentLoaded', () => {
             experiment_config: {
                 total_videos_configured: VIDEO_FILES.length,
                 video_files: VIDEO_FILES,
+                min_intertrial_interval_ms: MIN_INTERTRIAL_INTERVAL_MS,
+                max_intertrial_interval_ms: MAX_INTERTRIAL_INTERVAL_MS,
                 square_flash_delay_ms: SQUARE_FLASH_DELAY_MS,
                 square_flash_duration_ms: SQUARE_FLASH_DURATION_MS,
                 baseline_square_color: BASELINE_SQUARE_COLOR,
@@ -101,6 +108,8 @@ document.addEventListener('DOMContentLoaded', () => {
         playlist = VIDEO_FILES.map(parseVideoFile);
         shuffleArray(playlist);
         currentVideoIndex = 0;
+        pendingIntertrialIntervalMs = 0;
+        preloadVideoFiles();
         updateTrialDisplay();
         playCurrentVideo();
     }
@@ -114,14 +123,26 @@ document.addEventListener('DOMContentLoaded', () => {
         const currentTrial = playlist[currentVideoIndex];
         isTransitioning = false;
         hasSquareBeenShownForCurrentVideo = false;
+        hasPlayBeenRequestedForCurrentVideo = false;
         videoPlayStart = null;
         clearSquareTimers();
+        clearIntertrialTimer();
+        currentTrial.intertrialIntervalBeforeMs = pendingIntertrialIntervalMs;
+        pendingIntertrialIntervalMs = 0;
         cornerSquareElement.style.backgroundColor = BASELINE_SQUARE_COLOR;
         updateTrialDisplay();
+        showBlackVideoScreen();
 
         stimulusVideo.src = currentTrial.videoPath;
         stimulusVideo.load();
+    }
 
+    function handleVideoCanPlay() {
+        if (hasPlayBeenRequestedForCurrentVideo || currentVideoIndex >= playlist.length) {
+            return;
+        }
+
+        hasPlayBeenRequestedForCurrentVideo = true;
         const playPromise = stimulusVideo.play();
         if (playPromise && typeof playPromise.catch === 'function') {
             playPromise.catch((error) => {
@@ -136,6 +157,7 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
 
+        stimulusVideo.classList.remove('video-loading');
         const currentTrial = playlist[currentVideoIndex];
         currentTrial.startTimestampMs = Date.now();
         videoPlayStart = currentTrial.startTimestampMs;
@@ -172,7 +194,7 @@ document.addEventListener('DOMContentLoaded', () => {
         isTransitioning = true;
         recordCurrentTrial();
         currentVideoIndex++;
-        playCurrentVideo();
+        scheduleNextVideo();
     }
 
     function handleVideoError() {
@@ -205,6 +227,7 @@ document.addEventListener('DOMContentLoaded', () => {
             square_group: finishedTrial.controlOrBend,
             square_planned_delay_ms: finishedTrial.squarePlannedDelayMs,
             square_offset_from_video_start_ms: finishedTrial.squareOffsetMs,
+            intertrial_interval_before_ms: finishedTrial.intertrialIntervalBeforeMs,
             trial_start_ts: ((finishedTrial.startTimestampMs || 0) - sessionStartMs) / 1000,
             trial_end_ts: (Date.now() - sessionStartMs) / 1000,
             square_ts: ((finishedTrial.squareAppearanceTimestampMs || 0) - sessionStartMs) / 1000,
@@ -218,6 +241,8 @@ document.addEventListener('DOMContentLoaded', () => {
         experimentArea.classList.add('hidden');
         endScreen.classList.remove('hidden');
         clearSquareTimers();
+        clearIntertrialTimer();
+        showBlackVideoScreen();
         stimulusVideo.removeAttribute('src');
         stimulusVideo.load();
 
@@ -235,11 +260,44 @@ document.addEventListener('DOMContentLoaded', () => {
         totalTrialsDisplayElement.textContent = String(playlist.length || VIDEO_FILES.length);
     }
 
+    function scheduleNextVideo() {
+        showBlackVideoScreen();
+
+        if (currentVideoIndex >= playlist.length) {
+            finishExperiment();
+            return;
+        }
+
+        pendingIntertrialIntervalMs = randomInteger(MIN_INTERTRIAL_INTERVAL_MS, MAX_INTERTRIAL_INTERVAL_MS);
+        playlist[currentVideoIndex].intertrialIntervalBeforeMs = pendingIntertrialIntervalMs;
+        updateTrialDisplay();
+        intertrialTimer = setTimeout(playCurrentVideo, pendingIntertrialIntervalMs);
+    }
+
+    function showBlackVideoScreen() {
+        stimulusVideo.classList.add('video-loading');
+    }
+
+    function preloadVideoFiles() {
+        VIDEO_FILES.forEach((fileName) => {
+            const preloadLink = document.createElement('link');
+            preloadLink.rel = 'preload';
+            preloadLink.as = 'video';
+            preloadLink.href = `video/${fileName}`;
+            document.head.appendChild(preloadLink);
+        });
+    }
+
     function clearSquareTimers() {
         clearTimeout(squareTimer);
         clearTimeout(squareResetTimer);
         squareTimer = null;
         squareResetTimer = null;
+    }
+
+    function clearIntertrialTimer() {
+        clearTimeout(intertrialTimer);
+        intertrialTimer = null;
     }
 
     startButton.addEventListener('click', () => {
@@ -253,10 +311,15 @@ document.addEventListener('DOMContentLoaded', () => {
         initializeVideoPlayback();
     });
 
+    stimulusVideo.addEventListener('canplay', handleVideoCanPlay);
     stimulusVideo.addEventListener('playing', handleVideoPlaying);
     stimulusVideo.addEventListener('ended', handleVideoEnded);
     stimulusVideo.addEventListener('error', handleVideoError);
 });
+
+function randomInteger(min, max) {
+    return Math.floor(Math.random() * (max - min + 1)) + min;
+}
 
 function shuffleArray(array) {
     for (let i = array.length - 1; i > 0; i--) {
