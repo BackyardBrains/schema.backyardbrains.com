@@ -63,7 +63,9 @@
     starting_angle: 0,
     ending_angle: 0,
     actual_angle: 0,
-    perceived_angle: row[1] === 'tricep' ? -row[2] : row[2],
+    perceived_angle: row[2],
+    signed_perceived_angle: null,
+    direction: '',
     felt_rotation: Math.abs(row[2]) > 0,
     source: 'google-drive',
     created_at: '2026-05-19T19:07:57Z'

@@ -10,8 +10,8 @@
       lede: 'Perceived chair rotation after biceps or triceps tendon vibration while the chair remained fixed.',
       sheet: data.docs && data.docs.chairSheet,
       records: data.chair || [],
-      primaryTitle: 'Mean Perceived Rotation',
-      secondaryTitle: 'Individual Rotation Reports',
+      primaryTitle: 'Mean Perceived Rotation Magnitude',
+      secondaryTitle: 'Individual Rotation Magnitudes',
       tableTitle: 'Chair Rotation Records'
     },
     floor: {
@@ -318,8 +318,8 @@
     const tricep = byTendon.find(row => row.name === 'tricep') || { mean: 0 };
     const felt = records.filter(record => Math.abs(record.perceived_angle) > 0).length;
 
-    els.stats.textContent = `Records: ${records.length} • Felt rotation: ${felt} • Biceps mean: ${fmt(bicep.mean, 2)}° • Triceps mean: ${fmt(tricep.mean, 2)}°`;
-    els.chartNote.textContent = 'Signed rose plots encode opposite rotation directions. Zero-response participants remain at the center instead of inflating a bar.';
+    els.stats.textContent = `Records: ${records.length} • Felt rotation: ${felt} • Biceps mean magnitude: ${fmt(bicep.mean, 2)}° • Triceps mean magnitude: ${fmt(tricep.mean, 2)}°`;
+    els.chartNote.textContent = 'The source rows available here record perceived rotation magnitude, not a complete signed direction for every participant. No plus/minus sign is assigned without that column.';
 
     drawRose(els.primaryCanvas, [
       { angle: bicep.mean, color: COLORS.bicep, width: 5, pointRadius: 6, markOuter: true },
@@ -328,8 +328,8 @@
       maxAngle: 90,
       direction: item => item.angle,
       legend: [
-        { color: COLORS.bicep, label: 'biceps mean' },
-        { color: COLORS.tricep, label: 'triceps mean' }
+        { color: COLORS.bicep, label: 'biceps mean magnitude' },
+        { color: COLORS.tricep, label: 'triceps mean magnitude' }
       ]
     });
 
@@ -347,10 +347,11 @@
       ]
     });
 
-    table(['Participant', 'Tendon', 'Perceived angle', 'Felt rotation'], records.map(record => [
+    table(['Participant', 'Tendon', 'Perceived magnitude', 'Direction', 'Felt rotation'], records.map(record => [
       record.participant_name,
       record.tendon,
       `${fmt(record.perceived_angle)}°`,
+      record.direction || 'not recorded',
       record.felt_rotation ? 'Y' : 'N'
     ]));
     els.recordsCount.textContent = `${records.length} records`;
