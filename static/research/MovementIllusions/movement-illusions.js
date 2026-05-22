@@ -233,13 +233,26 @@
       ctx.moveTo(cx, cy);
       ctx.lineTo(end.x, end.y);
       ctx.stroke();
-      ctx.beginPath();
-      ctx.arc(end.x, end.y, isHovered ? Math.max(item.pointRadius || 4, 7) : (item.pointRadius || 4), 0, Math.PI * 2);
-      ctx.fill();
-      if (isHovered) {
-        ctx.strokeStyle = COLORS.ink;
-        ctx.lineWidth = 2;
+      if (item.arrow) {
+        const headLength = Math.max(12, ctx.lineWidth * 3.2);
+        const radians = (theta - 90) * Math.PI / 180;
+        const left = radians + Math.PI - Math.PI / 7;
+        const right = radians + Math.PI + Math.PI / 7;
+        ctx.beginPath();
+        ctx.moveTo(end.x, end.y);
+        ctx.lineTo(end.x + Math.cos(left) * headLength, end.y + Math.sin(left) * headLength);
+        ctx.moveTo(end.x, end.y);
+        ctx.lineTo(end.x + Math.cos(right) * headLength, end.y + Math.sin(right) * headLength);
         ctx.stroke();
+      } else {
+        ctx.beginPath();
+        ctx.arc(end.x, end.y, isHovered ? Math.max(item.pointRadius || 4, 7) : (item.pointRadius || 4), 0, Math.PI * 2);
+        ctx.fill();
+        if (isHovered) {
+          ctx.strokeStyle = COLORS.ink;
+          ctx.lineWidth = 2;
+          ctx.stroke();
+        }
       }
       if (item.markOuter) {
         ctx.globalAlpha = 0.16;
@@ -547,7 +560,7 @@
         color: COLORS.bicep,
         alpha: 1,
         width: 5,
-        pointRadius: 7,
+        arrow: true,
         markOuter: true,
         lengthScale: 1.5
       },
@@ -556,7 +569,7 @@
         color: COLORS.tricep,
         alpha: 1,
         width: 5,
-        pointRadius: 7,
+        arrow: true,
         markOuter: true,
         lengthScale: 1.5
       }
@@ -612,8 +625,8 @@
     }
 
     drawRose(els.primaryCanvas, [
-      { angle: bicepMean, color: COLORS.bicep, width: 5, pointRadius: 6, markOuter: true, lengthScale: 1.5 },
-      { angle: tricepMean, color: COLORS.tricep, width: 5, pointRadius: 6, markOuter: true, lengthScale: 1.5 }
+      { angle: bicepMean, color: COLORS.bicep, width: 5, arrow: true, markOuter: true, lengthScale: 1.5 },
+      { angle: tricepMean, color: COLORS.tricep, width: 5, arrow: true, markOuter: true, lengthScale: 1.5 }
     ], {
       maxAngle: 90,
       unitLength: true,
@@ -646,7 +659,7 @@
     els.chartNote.textContent = 'The rose view preserves angle as angle; the table keeps the exact participant values visible.';
 
     drawRose(els.primaryCanvas, [
-      { angle: summary.mean, color: COLORS.floor, width: 5, pointRadius: 7, markOuter: true }
+      { angle: summary.mean, color: COLORS.floor, width: 5, arrow: true, markOuter: true }
     ], {
       maxAngle: 60,
       direction: item => item.angle,
