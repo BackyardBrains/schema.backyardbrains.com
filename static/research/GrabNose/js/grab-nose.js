@@ -287,9 +287,21 @@
     const res = await fetch('/api/research/grab-nose/data', { credentials: 'same-origin' });
     if (!res.ok) throw new Error('Failed to load grab-nose data');
     const data = await res.json();
-    state.records = data.records || [];
-    state.summary = data.summary || {};
+    const fallbackRecords = (window.RESEARCH_DATA && window.RESEARCH_DATA.nose) || [];
+    state.records = data.records && data.records.length ? data.records : fallbackRecords;
+    state.summary = data.records && data.records.length ? (data.summary || {}) : summarizeGrabNose(state.records);
     renderAll();
+  }
+
+  function summarizeGrabNose(records) {
+    const diffs = records.map(record => Number(record.angle_difference)).filter(Number.isFinite);
+    const attempts = records.map(record => Number(record.attempts)).filter(Number.isFinite);
+    return {
+      record_count: records.length,
+      participant_count: new Set(records.map(record => record.participant_id).filter(Boolean)).size,
+      mean_angle_difference: diffs.length ? diffs.reduce((sum, value) => sum + value, 0) / diffs.length : null,
+      mean_attempts: attempts.length ? attempts.reduce((sum, value) => sum + value, 0) / attempts.length : null
+    };
   }
 
   async function importSheet(event) {
