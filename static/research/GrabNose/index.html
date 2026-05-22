@@ -5,9 +5,8 @@
 <link rel="stylesheet" href="/results/css/results.css">
 <link rel="stylesheet" href="/research/RHITemp/css/rhi-temp.css">
 <link rel="stylesheet" href="/research/GrabNose/css/grab-nose.css">
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
-<body>
+<body class="grab-nose-page">
   <div class="app-bar">
     <div class="app-bar-left">
       <span class="app-logo">BYB</span>
@@ -27,26 +26,12 @@
       <div class="hero-copy">
         <p class="eyebrow">Proprioception</p>
         <h1>Grab Nose Research</h1>
-        <p class="lede">Review forearm angle before and after blindfolded triceps vibration, plus the number of attempts needed to grab the nose.</p>
+        <p class="lede">Blindfolded participants tried to touch their nose after triceps vibration shifted their perceived arm position.</p>
         <div id="stats" class="stats">Loading data...</div>
         <div class="header-actions">
-          <a class="download" href="/api/research/grab-nose/export.csv" download>Export CSV</a>
-          <button id="clearData" class="danger-btn" type="button">Clear Data</button>
+          <a id="sourceSheet" class="download" href="https://docs.google.com/spreadsheets/d/13FRF6_zxYc20K1N2sfxAXrXpJCjtyUGvLms9Lrq8_u4/edit" target="_blank" rel="noopener">Open Source Sheet</a>
         </div>
       </div>
-      <form id="sheetImportForm" class="sheet-import-panel" style="display:none">
-        <p class="eyebrow">Import</p>
-        <h2>Google Sheets API</h2>
-        <label>
-          Google Sheet URL
-          <input id="sheetUrl" type="url" value="https://docs.google.com/spreadsheets/d/13FRF6_zxYc20K1N2sfxAXrXpJCjtyUGvLms9Lrq8_u4/edit?gid=0#gid=0">
-        </label>
-        <div class="sheet-actions">
-          <a id="viewSheet" class="sheet-link" href="https://docs.google.com/spreadsheets/d/13FRF6_zxYc20K1N2sfxAXrXpJCjtyUGvLms9Lrq8_u4/edit?gid=0#gid=0" target="_blank" rel="noopener">View Sheet</a>
-          <button type="submit">Import Google Sheet</button>
-        </div>
-        <div id="sheetStatus" class="status-line"></div>
-      </form>
     </div>
     <hr>
   </header>
@@ -57,37 +42,82 @@
   </div>
 
   <main id="researchApp" class="research-shell">
-    <section class="chart-grid grab-chart-grid">
-      <article class="chart-card">
-        <div class="card-header">
-          <div>
-            <p class="eyebrow">Plot 1</p>
-            <h2>Mean Delta Angle</h2>
-          </div>
-        </div>
-        <div class="mean-delta-chart-wrap">
-          <canvas id="differenceChart"></canvas>
-        </div>
-        <p id="deltaSummary" class="chart-note">Positive values mean the arm angle increased after vibration.</p>
+    <section class="grab-summary-grid" aria-label="Grab nose summary">
+      <article>
+        <span class="eyebrow">Records</span>
+        <strong id="recordMetric">--</strong>
       </article>
-
-      <article class="chart-card">
-        <div class="card-header">
-          <div>
-            <p class="eyebrow">Plot 2</p>
-            <h2>Forearm Angle Before and After Vibration</h2>
-          </div>
-        </div>
-        <canvas id="angleChart" height="260"></canvas>
+      <article>
+        <span class="eyebrow">Mean Shift</span>
+        <strong id="shiftMetric">--</strong>
+      </article>
+      <article>
+        <span class="eyebrow">Shifted Up</span>
+        <strong id="directionMetric">--</strong>
+      </article>
+      <article>
+        <span class="eyebrow">Attempts Logged</span>
+        <strong id="attemptMetric">--</strong>
       </article>
     </section>
 
-    <div id="status" class="status-line data-grid-status"></div>
+    <section class="grab-figure-grid">
+      <article class="chart-card grab-mean-card">
+        <div class="card-header">
+          <div>
+            <p class="eyebrow">Plot 1</p>
+            <h2>Mean Perceived Arm Angle Shift</h2>
+          </div>
+        </div>
+        <div class="grab-canvas-wrap grab-canvas-wrap--compact">
+          <canvas id="meanShiftCanvas"></canvas>
+        </div>
+        <p id="meanShiftNote" class="chart-note"></p>
+      </article>
+
+      <article class="chart-card grab-participant-card">
+        <div class="card-header">
+          <div>
+            <p class="eyebrow">Plot 2</p>
+            <h2>Participant Before/After Pairs</h2>
+          </div>
+        </div>
+        <div class="grab-canvas-wrap">
+          <canvas id="participantShiftCanvas"></canvas>
+        </div>
+        <p id="participantShiftNote" class="chart-note"></p>
+      </article>
+
+      <article class="chart-card grab-attempt-card">
+        <div class="card-header">
+          <div>
+            <p class="eyebrow">Plot 3</p>
+            <h2>Nose-Finding Attempts</h2>
+          </div>
+        </div>
+        <div class="grab-canvas-wrap grab-canvas-wrap--small">
+          <canvas id="attemptsCanvas"></canvas>
+        </div>
+        <p id="attemptsNote" class="chart-note"></p>
+      </article>
+
+      <article class="chart-card grab-comments-card">
+        <div class="card-header">
+          <div>
+            <p class="eyebrow">Observation Notes</p>
+            <h2>What Participants Said or Did</h2>
+          </div>
+        </div>
+        <div id="commentList" class="grab-comment-list"></div>
+      </article>
+    </section>
+
+    <div id="status" class="status-line data-grid-status" aria-live="polite"></div>
 
     <section class="results data-table-card">
       <div class="card-header">
         <div>
-          <p class="eyebrow">Stored Data</p>
+          <p class="eyebrow">Raw Data</p>
           <h2>Grab Nose Records</h2>
         </div>
         <div id="recordsCount" class="stats"></div>
@@ -95,7 +125,8 @@
       <table>
         <thead>
           <tr>
-            <th>Participant</th>
+            <th class="num">Subject ID</th>
+            <th>Name</th>
             <th>Age</th>
             <th>Sex</th>
             <th class="num">Start</th>
@@ -112,6 +143,5 @@
   </main>
 
   <script src="/research/RHITemp/js/research-auth.js"></script>
-  <script src="/research/data/movement-illusions.js"></script>
   <script src="/research/GrabNose/js/grab-nose.js"></script>
 </body>

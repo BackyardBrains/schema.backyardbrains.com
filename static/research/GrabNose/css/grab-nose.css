@@ -3,6 +3,98 @@
   align-items: stretch;
 }
 
+.grab-nose-page .research-shell {
+  max-width: 1180px;
+}
+
+.grab-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.grab-summary-grid article {
+  background: #ffffff;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  border-radius: 8px;
+  box-shadow: 0 18px 45px rgba(0, 0, 0, 0.04);
+  padding: 16px 18px;
+}
+
+.grab-summary-grid strong {
+  color: #151515;
+  display: block;
+  font-size: clamp(24px, 4vw, 38px);
+  letter-spacing: 0;
+  line-height: 1;
+  margin-top: 8px;
+}
+
+.grab-figure-grid {
+  display: grid;
+  gap: 16px;
+  grid-template-columns: minmax(260px, 0.85fr) minmax(520px, 1.8fr);
+  margin-bottom: 16px;
+}
+
+.grab-figure-grid .chart-card {
+  min-width: 0;
+}
+
+.grab-comments-card {
+  display: flex;
+  flex-direction: column;
+}
+
+.grab-canvas-wrap {
+  height: 430px;
+  min-height: 320px;
+}
+
+.grab-canvas-wrap--compact {
+  height: 300px;
+  min-height: 260px;
+}
+
+.grab-canvas-wrap--small {
+  height: 280px;
+  min-height: 240px;
+}
+
+.grab-canvas-wrap canvas {
+  height: 100% !important;
+  width: 100% !important;
+}
+
+.grab-comment-list {
+  display: grid;
+  gap: 10px;
+}
+
+.grab-comment-list blockquote {
+  background: #f8f8f6;
+  border-left: 3px solid #ff805f;
+  border-radius: 0 8px 8px 0;
+  margin: 0;
+  padding: 12px 14px;
+}
+
+.grab-comment-list p {
+  color: #242424;
+  font-size: 14px;
+  line-height: 1.35;
+  margin: 0;
+}
+
+.grab-comment-list cite {
+  color: #6f6f6f;
+  display: block;
+  font-size: 12px;
+  font-style: normal;
+  margin-top: 8px;
+}
+
 .mean-delta-chart-wrap {
   height: 340px;
 }
@@ -39,6 +131,14 @@
     grid-template-columns: 1fr;
   }
 
+  .grab-summary-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .grab-figure-grid {
+    grid-template-columns: 1fr;
+  }
+
   .chair-extra-grid {
     grid-template-columns: repeat(3, minmax(280px, 1fr));
   }
@@ -47,6 +147,17 @@
 @media (max-width: 760px) {
   .grab-chart-grid {
     grid-template-columns: 1fr;
+  }
+
+  .grab-summary-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .grab-canvas-wrap,
+  .grab-canvas-wrap--compact,
+  .grab-canvas-wrap--small {
+    height: 300px;
+    min-height: 260px;
   }
 
   .chair-extra-grid {

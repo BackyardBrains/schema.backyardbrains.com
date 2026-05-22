@@ -878,6 +878,7 @@ GRAB_NOSE_CSV_FIELDS = (
     'ending_angle', 'angle_difference', 'attempts', 'location', 'comments',
     'source', 'collector', 'created_at'
 )
+GRAB_NOSE_SHEET_URL = 'https://docs.google.com/spreadsheets/d/13FRF6_zxYc20K1N2sfxAXrXpJCjtyUGvLms9Lrq8_u4/edit?gid=0#gid=0'
 
 
 def _grab_nose_dir():
@@ -1021,6 +1022,65 @@ def _parse_grab_nose_rows(headers, rows, collector='', source='google-sheet'):
             collector=collector,
         )
         if record:
+            records.append(record)
+    return records
+
+
+def _parse_structured_grab_nose_rows(data_headers, data_rows, participant_headers, participant_rows,
+                                    collector='', source='google-sheet'):
+    participants = {}
+    for index, row_values in enumerate(participant_rows):
+        row = {str(participant_headers[i] if i < len(participant_headers) else f'column_{i + 1}'): row_values[i]
+               for i in range(len(row_values))}
+        subject_id = str(_find_row_value(row, ('Subject ID', 'Subject', 'ID')) or index + 1).strip()
+        if not subject_id:
+            continue
+        name = str(_find_row_value(row, ('Name', 'Participant')) or '').strip()
+        if not name:
+            name = f'Subject {subject_id}'
+        participants[subject_id] = {
+            'subject_id': subject_id,
+            'participant_id': f'subject-{subject_id}',
+            'participant_name': name,
+            'age': _find_row_value(row, ('Age',)),
+            'sex': _find_row_value(row, ('Sex',)),
+            'attempts': _find_row_value(row, ('Attempts', 'Amount of attempts to grab nose')),
+            'location': _find_row_value(row, ('Location', 'Place')),
+            'comments': _find_row_value(row, ('Comments', 'Comments: ', 'Comment', 'Notes')),
+        }
+
+    records = []
+    for index, row_values in enumerate(data_rows):
+        row = {str(data_headers[i] if i < len(data_headers) else f'column_{i + 1}'): row_values[i]
+               for i in range(len(row_values))}
+        subject_id = str(_find_row_value(row, ('Subject ID', 'Subject', 'ID')) or '').strip()
+        if not subject_id:
+            continue
+        participant = participants.get(subject_id, {
+            'participant_id': f'subject-{subject_id}',
+            'participant_name': f'Subject {subject_id}',
+            'age': '',
+            'sex': '',
+            'attempts': None,
+            'location': '',
+            'comments': '',
+        })
+        record = _new_grab_nose_record(
+            participant.get('participant_id'),
+            participant.get('participant_name'),
+            _find_row_value(row, ('Starting Angle', 'Start', 'Start Angle', 'Before Angle', 'Before')),
+            _find_row_value(row, ('Ending Angle', 'End', 'End Angle', 'After Angle', 'After')),
+            angle_difference=_find_row_value(row, ('Angle Difference', 'Change', 'Difference')),
+            attempts=participant.get('attempts'),
+            age=participant.get('age'),
+            sex=participant.get('sex'),
+            location=participant.get('location'),
+            comments=participant.get('comments'),
+            source=source,
+            collector=collector,
+        )
+        if record:
+            record['subject_id'] = subject_id
             records.append(record)
     return records
 
@@ -1292,6 +1352,34 @@ def _fetch_google_sheet_values(sheet_url):
     return values[0], values[1:], selected_title
 
 
+def _fetch_google_sheet_tab_values(sheet_url, title):
+    if not requests:
+        raise RuntimeError('requests is not available')
+    sheet_id, _ = _parse_google_sheet_url(sheet_url)
+    headers, params = _google_sheets_auth()
+    values_url = f"https://sheets.googleapis.com/v4/spreadsheets/{sheet_id}/values/{_google_sheet_values_range(title)}"
+    response = requests.get(
+        values_url,
+        headers=headers,
+        params={**params, 'majorDimension': 'ROWS', 'valueRenderOption': 'UNFORMATTED_VALUE'},
+        timeout=20,
+    )
+    response.raise_for_status()
+    values = response.json().get('values') or []
+    if not values:
+        return [], []
+    return values[0], values[1:]
+
+
+def _fetch_grab_nose_sheet_records(sheet_url=GRAB_NOSE_SHEET_URL):
+    data_headers, data_rows = _fetch_google_sheet_tab_values(sheet_url, 'Data')
+    participant_headers, participant_rows = _fetch_google_sheet_tab_values(sheet_url, 'Participants')
+    records = _parse_structured_grab_nose_rows(data_headers, data_rows, participant_headers, participant_rows)
+    if records:
+        return records
+    return _parse_grab_nose_rows(data_headers, data_rows)
+
+
 def _fetch_google_participant_metadata(sheet_url):
     if not requests:
         return {}
@@ -1551,9 +1639,18 @@ def rhi_temp_export_csv():
 @app.get('/api/research/grab-nose/data')
 @require_results_auth
 def grab_nose_data():
-    records = _load_grab_nose_records()
+    try:
+        records = _fetch_grab_nose_sheet_records()
+    except Exception as e:
+        app.logger.exception('grab-nose source sheet load failed')
+        return jsonify({
+            'status': 'error',
+            'error': 'Could not load grab-nose records from the source Google Sheet',
+            'service_account_email': _google_service_account_email(),
+        }), 502
     return jsonify({
         'status': 'ok',
+        'source': 'google-sheet',
         'records': records,
         'summary': _summarize_grab_nose(records),
     })
