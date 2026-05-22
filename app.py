@@ -1071,7 +1071,7 @@ def _parse_structured_grab_nose_rows(data_headers, data_rows, participant_header
             _find_row_value(row, ('Starting Angle', 'Start', 'Start Angle', 'Before Angle', 'Before')),
             _find_row_value(row, ('Ending Angle', 'End', 'End Angle', 'After Angle', 'After')),
             angle_difference=_find_row_value(row, ('Angle Difference', 'Change', 'Difference')),
-            attempts=participant.get('attempts'),
+            attempts=_find_row_value(row, ('Grab Attempts', 'Attempts', 'Nose Attempts')) or participant.get('attempts'),
             age=participant.get('age'),
             sex=participant.get('sex'),
             location=participant.get('location'),
