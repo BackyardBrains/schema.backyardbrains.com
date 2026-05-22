@@ -31,7 +31,8 @@
     after: '#ff805f',
     line: '#a7aaa8',
     positive: '#7a8a38',
-    negative: '#b7574b'
+    negative: '#b7574b',
+    target: '#7a8a38'
   };
 
   function setStatus(message, isError) {
@@ -134,7 +135,7 @@
   }
 
   function elbowAnglePoint(cx, cy, radius, degrees) {
-    const radians = (180 - Number(degrees)) * Math.PI / 180;
+    const radians = (Number(degrees) - 180) * Math.PI / 180;
     return {
       x: cx + Math.cos(radians) * radius,
       y: cy + Math.sin(radians) * radius
@@ -142,7 +143,7 @@
   }
 
   function drawElbowAngleFrame(ctx, cx, cy, radius, options = {}) {
-    const ticks = options.ticks || [40, 60, 90, 120, 150, 180];
+    const ticks = options.ticks || [40, 55, 70, 90, 120, 180];
     const labelEvery = new Set(options.labelTicks || ticks);
     ctx.save();
     ctx.strokeStyle = COLORS.grid;
@@ -170,10 +171,33 @@
       }
     });
 
-    const straight = elbowAnglePoint(cx, cy, radius + 28, 180);
-    ctx.textAlign = 'left';
-    ctx.font = '700 12px system-ui, -apple-system, BlinkMacSystemFont, sans-serif';
-    ctx.fillText('180° straight forward', straight.x - 4, straight.y);
+    const upperArm = elbowAnglePoint(cx, cy, radius * 0.92, 40);
+    ctx.save();
+    ctx.setLineDash([4, 4]);
+    ctx.strokeStyle = 'rgba(122, 138, 56, 0.55)';
+    ctx.beginPath();
+    ctx.moveTo(cx, cy);
+    ctx.lineTo(upperArm.x, upperArm.y);
+    ctx.stroke();
+    ctx.restore();
+
+    const noseA = elbowAnglePoint(cx, cy, radius * 1.08, 50);
+    const noseB = elbowAnglePoint(cx, cy, radius * 1.08, 55);
+    ctx.strokeStyle = COLORS.target;
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.moveTo(noseA.x, noseA.y);
+    ctx.lineTo(noseB.x, noseB.y);
+    ctx.stroke();
+
+    if (options.showContextLabels !== false) {
+      ctx.font = '700 12px system-ui, -apple-system, BlinkMacSystemFont, sans-serif';
+      ctx.fillStyle = COLORS.target;
+      ctx.textAlign = 'left';
+      ctx.fillText('50-55° nose target', noseB.x + 6, noseB.y - 4);
+      ctx.fillStyle = COLORS.muted;
+      ctx.fillText('upper arm ~40°', upperArm.x + 4, upperArm.y - 12);
+    }
     ctx.restore();
   }
 
@@ -234,7 +258,11 @@
     const radius = Math.min(width, height) * 0.28;
 
     ctx.save();
-    drawElbowAngleFrame(ctx, cx, cy, radius, { ticks: [40, 60, 90, 120, 150, 180], labelTicks: [60, 90] });
+    drawElbowAngleFrame(ctx, cx, cy, radius, {
+      ticks: [40, 55, 70, 90, 120, 180],
+      labelTicks: [40, 55, 70, 90],
+      showContextLabels: false
+    });
     drawAngleArrow(ctx, cx, cy, radius * 1.12, before, COLORS.before, 5);
     drawAngleArrow(ctx, cx, cy, radius * 1.28, after, COLORS.after, 5);
     drawLegend(ctx, [
@@ -248,9 +276,10 @@
     ctx.font = '12px system-ui, -apple-system, BlinkMacSystemFont, sans-serif';
     ctx.fillStyle = COLORS.muted;
     ctx.fillText(`${fmt(before)}° -> ${fmt(after)}°`, width * 0.68, height * 0.45);
+    ctx.fillText('higher angle = farther from head', width * 0.68, height * 0.53);
     ctx.restore();
 
-    els.meanShiftNote.textContent = `Angles are elbow-centered: 180° is straight forward toward the face. Mean arrows show the perceived forearm direction before and after vibration.`;
+    els.meanShiftNote.textContent = 'Angles are elbow-centered in the body frame: dashed 40° marks the upper arm, the green 50-55° band is the nose-touch target, and larger angles rotate the forearm away from the head.';
   }
 
   function drawParticipantShift(summary) {
@@ -262,7 +291,11 @@
     state.participantHitboxes = [];
 
     ctx.save();
-    drawElbowAngleFrame(ctx, cx, cy, radius, { ticks: [40, 60, 90, 120, 150, 180], labelTicks: [40, 60, 90, 120, 150] });
+    drawElbowAngleFrame(ctx, cx, cy, radius, {
+      ticks: [40, 55, 70, 90, 120, 180],
+      labelTicks: [40, 55, 70, 90, 120],
+      showContextLabels: false
+    });
 
     rows.forEach((record, index) => {
       const before = elbowAnglePoint(cx, cy, radius, Number(record.starting_angle));
