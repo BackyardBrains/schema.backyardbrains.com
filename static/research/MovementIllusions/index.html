@@ -5,7 +5,6 @@
 <link rel="stylesheet" href="/results/css/results.css">
 <link rel="stylesheet" href="/research/RHITemp/css/rhi-temp.css">
 <link rel="stylesheet" href="/research/GrabNose/css/grab-nose.css">
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
 <body>
   <div class="app-bar">
@@ -51,7 +50,7 @@
             <h2 id="primaryChartTitle">Mean Response</h2>
           </div>
         </div>
-        <div class="mean-delta-chart-wrap">
+        <div class="mean-delta-chart-wrap movement-chart-wrap">
           <canvas id="primaryChart"></canvas>
         </div>
         <p id="chartNote" class="chart-note"></p>
@@ -64,7 +63,9 @@
             <h2 id="secondaryChartTitle">Participant Values</h2>
           </div>
         </div>
-        <canvas id="secondaryChart" height="260"></canvas>
+        <div class="mean-delta-chart-wrap movement-chart-wrap">
+          <canvas id="secondaryChart"></canvas>
+        </div>
       </article>
     </section>
 

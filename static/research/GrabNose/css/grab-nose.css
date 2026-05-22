@@ -12,6 +12,12 @@
   height: 100% !important;
 }
 
+.movement-chart-wrap {
+  height: min(440px, 62vw);
+  min-height: 300px;
+  max-height: 440px;
+}
+
 .grab-chart-grid .card-header h2 {
   font-size: 18px;
 }
