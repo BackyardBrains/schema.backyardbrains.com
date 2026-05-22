@@ -115,6 +115,12 @@
   max-height: 320px;
 }
 
+.movement-cafe-page .movement-primary-grid .movement-chart-wrap {
+  height: min(520px, 72vw);
+  max-height: 520px;
+  min-height: 420px;
+}
+
 .chair-extra-grid {
   grid-template-columns: repeat(3, minmax(280px, 1fr));
   align-items: stretch;

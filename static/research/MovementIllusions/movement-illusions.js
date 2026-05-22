@@ -394,19 +394,21 @@
 
   function drawRateComparison(canvas, cafe) {
     const { ctx, width, height } = prepareCanvas(canvas);
-    const plot = { left: 70, right: width - 30, top: 42, bottom: height - 64 };
+    const plot = { left: 70, right: width - 26, top: 62, bottom: height - 70 };
     const staredRate = cafe.stared_lookbacks / cafe.record_count;
     const controlRate = cafe.control_lookbacks / cafe.record_count;
-    const y = rate => plot.bottom - rate * (plot.bottom - plot.top) / 0.5;
-    const x1 = plot.left + (plot.right - plot.left) * 0.28;
-    const x2 = plot.left + (plot.right - plot.left) * 0.72;
+    const maxRate = 0.5;
+    const y = rate => plot.bottom - rate * (plot.bottom - plot.top) / maxRate;
+    const x1 = plot.left + (plot.right - plot.left) * 0.32;
+    const x2 = plot.left + (plot.right - plot.left) * 0.68;
+    const barWidth = Math.min(74, (plot.right - plot.left) * 0.22);
 
     ctx.strokeStyle = COLORS.grid;
     ctx.fillStyle = COLORS.muted;
     ctx.lineWidth = 1;
     ctx.textAlign = 'right';
     ctx.textBaseline = 'middle';
-    for (let tick = 0; tick <= 0.5; tick += 0.1) {
+    for (let tick = 0; tick <= maxRate + 0.001; tick += 0.1) {
       const yy = y(tick);
       ctx.beginPath();
       ctx.moveTo(plot.left, yy);
@@ -416,10 +418,11 @@
     }
 
     ctx.strokeStyle = COLORS.ink;
-    ctx.lineWidth = 2;
+    ctx.lineWidth = 1.5;
     ctx.beginPath();
-    ctx.moveTo(x1, y(controlRate));
-    ctx.lineTo(x2, y(staredRate));
+    ctx.moveTo(plot.left, plot.top);
+    ctx.lineTo(plot.left, plot.bottom);
+    ctx.lineTo(plot.right, plot.bottom);
     ctx.stroke();
 
     [
@@ -428,54 +431,124 @@
     ].forEach(point => {
       const yy = y(point.value);
       ctx.fillStyle = point.color;
+      ctx.globalAlpha = 0.88;
+      ctx.fillRect(point.x - barWidth / 2, yy, barWidth, plot.bottom - yy);
+      ctx.globalAlpha = 1;
+      ctx.strokeStyle = COLORS.ink;
+      ctx.lineWidth = 1.2;
+      ctx.strokeRect(point.x - barWidth / 2, yy, barWidth, plot.bottom - yy);
+      ctx.fillStyle = point.color;
       ctx.beginPath();
-      ctx.arc(point.x, yy, 8, 0, Math.PI * 2);
+      ctx.arc(point.x, yy, 4, 0, Math.PI * 2);
       ctx.fill();
       ctx.fillStyle = COLORS.ink;
       ctx.textAlign = 'center';
-      ctx.fillText(point.label, point.x, plot.bottom + 26);
+      ctx.fillText(point.label, point.x, plot.bottom + 24);
       ctx.font = '700 17px system-ui, -apple-system, BlinkMacSystemFont, sans-serif';
-      ctx.fillText(`${fmt(point.value * 100, 1)}%`, point.x, yy - 24);
+      ctx.fillText(`${fmt(point.value * 100, 1)}%`, point.x, Math.max(plot.top + 22, yy - 10));
       ctx.font = '13px system-ui, -apple-system, BlinkMacSystemFont, sans-serif';
-      ctx.fillText(`${point.count}/${cafe.record_count}`, point.x, yy - 43);
+      ctx.fillText(`${point.count}/${cafe.record_count}`, point.x, Math.max(plot.top + 40, yy + 12));
     });
+
+    const bracketY = plot.top + 20;
+    ctx.strokeStyle = COLORS.ink;
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.moveTo(x1, bracketY + 12);
+    ctx.lineTo(x1, bracketY);
+    ctx.lineTo(x2, bracketY);
+    ctx.lineTo(x2, bracketY + 12);
+    ctx.stroke();
+    ctx.fillStyle = COLORS.ink;
+    ctx.textAlign = 'center';
+    ctx.font = '700 18px system-ui, -apple-system, BlinkMacSystemFont, sans-serif';
+    ctx.fillText('**', (x1 + x2) / 2, bracketY - 10);
+    ctx.font = '12px system-ui, -apple-system, BlinkMacSystemFont, sans-serif';
+    ctx.fillText(`McNemar p=${cafe.two_sided_p}`, (x1 + x2) / 2, bracketY - 27);
 
     ctx.textAlign = 'left';
     ctx.fillStyle = COLORS.ink;
-    ctx.fillText(`paired difference +${fmt(cafe.absolute_increase_points, 1)} points`, plot.left, height - 28);
+    ctx.font = '13px system-ui, -apple-system, BlinkMacSystemFont, sans-serif';
+    ctx.fillText(`Paired difference +${fmt(cafe.absolute_increase_points, 1)} percentage points`, plot.left, height - 28);
     ctx.fillText(`95% CI +${fmt(cafe.ci95_low_points, 1)} to +${fmt(cafe.ci95_high_points, 1)}; McNemar p=${cafe.two_sided_p}`, plot.left, height - 10);
   }
 
   function drawDiscordantPairs(canvas, cafe) {
     const { ctx, width, height } = prepareCanvas(canvas);
-    const total = cafe.discordant_subjects;
-    const cols = 11;
-    const cell = Math.min(28, (width - 80) / cols);
-    const startX = (width - cols * cell) / 2;
-    const startY = Math.max(58, height * 0.25);
+    const both = cafe.stared_lookbacks - cafe.stared_only;
+    const neither = cafe.record_count - both - cafe.stared_only - cafe.control_only;
+    const cellSize = Math.min(108, Math.max(80, (Math.min(width - 210, height - 240)) / 2));
+    const grid = {
+      left: Math.max(128, (width - cellSize * 2) / 2),
+      top: 150,
+      cell: cellSize
+    };
+    const cells = [
+      { row: 0, col: 0, value: neither, label: 'Neither looked back', color: '#f2f2f0' },
+      { row: 0, col: 1, value: cafe.stared_only, label: 'Stared only', color: COLORS.staredOnly, highlight: true },
+      { row: 1, col: 0, value: cafe.control_only, label: 'Control only', color: COLORS.controlOnly, highlight: true },
+      { row: 1, col: 1, value: both, label: 'Both trials', color: '#d9e7f2' }
+    ];
 
-    for (let i = 0; i < total; i += 1) {
-      const row = Math.floor(i / cols);
-      const col = i % cols;
-      const x = startX + col * cell + cell / 2;
-      const y = startY + row * cell + cell / 2;
-      ctx.fillStyle = i < cafe.stared_only ? COLORS.staredOnly : COLORS.controlOnly;
-      ctx.beginPath();
-      ctx.arc(x, y, cell * 0.32, 0, Math.PI * 2);
-      ctx.fill();
-    }
-
+    ctx.save();
     ctx.fillStyle = COLORS.ink;
     ctx.textAlign = 'center';
-    ctx.font = '700 18px system-ui, -apple-system, BlinkMacSystemFont, sans-serif';
-    ctx.fillText('Only subjects who changed behavior enter McNemar test', width / 2, 30);
+    ctx.font = '700 16px system-ui, -apple-system, BlinkMacSystemFont, sans-serif';
+    ctx.fillText('Paired outcomes for McNemar test', width / 2, 28);
+    ctx.font = '12px system-ui, -apple-system, BlinkMacSystemFont, sans-serif';
+    ctx.fillStyle = COLORS.muted;
+    ctx.fillText('Each subject contributes one looked-at trial and one looked-away trial.', width / 2, 50);
+
+    ctx.fillStyle = COLORS.ink;
+    ctx.font = '700 12px system-ui, -apple-system, BlinkMacSystemFont, sans-serif';
+    ctx.fillText('Experimenter', grid.left + grid.cell, grid.top - 72);
+    ctx.fillText('Looked at Subject', grid.left + grid.cell, grid.top - 56);
+    ctx.font = '12px system-ui, -apple-system, BlinkMacSystemFont, sans-serif';
+    ctx.fillStyle = COLORS.muted;
+    ctx.fillText('Subject Ignored', grid.left + grid.cell * 0.5, grid.top - 24);
+    ctx.fillText('Subject Looked Back', grid.left + grid.cell * 1.5, grid.top - 24);
+    ctx.save();
+    ctx.translate(grid.left - 98, grid.top + grid.cell);
+    ctx.rotate(-Math.PI / 2);
+    ctx.fillStyle = COLORS.ink;
+    ctx.font = '700 12px system-ui, -apple-system, BlinkMacSystemFont, sans-serif';
+    ctx.fillText('Experimenter Looked Away', 0, 0);
+    ctx.fillText('from Subject', 0, 16);
+    ctx.restore();
+    ctx.textAlign = 'right';
+    ctx.font = '12px system-ui, -apple-system, BlinkMacSystemFont, sans-serif';
+    ctx.fillStyle = COLORS.muted;
+    ctx.fillText('Subject', grid.left - 10, grid.top + grid.cell * 0.40);
+    ctx.fillText('Ignored', grid.left - 10, grid.top + grid.cell * 0.58);
+    ctx.fillText('Subject', grid.left - 10, grid.top + grid.cell * 1.40);
+    ctx.fillText('Looked Back', grid.left - 10, grid.top + grid.cell * 1.58);
+
+    cells.forEach(cell => {
+      const x = grid.left + cell.col * grid.cell;
+      const y = grid.top + cell.row * grid.cell;
+      ctx.fillStyle = cell.color;
+      ctx.globalAlpha = cell.highlight ? 0.88 : 0.8;
+      ctx.fillRect(x, y, grid.cell, grid.cell);
+      ctx.globalAlpha = 1;
+      ctx.strokeStyle = cell.highlight ? COLORS.ink : COLORS.grid;
+      ctx.lineWidth = cell.highlight ? 2 : 1;
+      ctx.strokeRect(x, y, grid.cell, grid.cell);
+      ctx.textAlign = 'center';
+      ctx.fillStyle = cell.highlight ? '#ffffff' : COLORS.ink;
+      ctx.font = '700 25px system-ui, -apple-system, BlinkMacSystemFont, sans-serif';
+      ctx.fillText(String(cell.value), x + grid.cell / 2, y + grid.cell * 0.48);
+    });
+
+    const noteY = grid.top + grid.cell * 2 + 22;
+    ctx.textAlign = 'center';
+    ctx.fillStyle = COLORS.ink;
     ctx.font = '13px system-ui, -apple-system, BlinkMacSystemFont, sans-serif';
-    ctx.fillText(`${cafe.stared_only} looked back only when stared at`, width / 2, startY + cell * 3.3);
-    ctx.fillText(`${cafe.control_only} looked back only in control`, width / 2, startY + cell * 4.0);
-    drawLegend(ctx, width, [
-      { color: COLORS.staredOnly, label: 'stared only' },
-      { color: COLORS.controlOnly, label: 'control only' }
-    ]);
+    ctx.fillText('McNemar compares only discordant pairs:', width / 2, noteY);
+    ctx.font = '700 16px system-ui, -apple-system, BlinkMacSystemFont, sans-serif';
+    ctx.fillText(`${cafe.stared_only} stared-only vs ${cafe.control_only} control-only`, width / 2, noteY + 22);
+    ctx.font = '13px system-ui, -apple-system, BlinkMacSystemFont, sans-serif';
+    ctx.fillText(`odds ratio ${fmt(cafe.paired_odds_ratio, 1)}x; two-sided p=${cafe.two_sided_p}`, width / 2, noteY + 42);
+    ctx.restore();
   }
 
   function drawChairTooltip(ctx, width, height, participant) {
@@ -812,7 +885,12 @@
   function renderCafe() {
     const cafe = cfg.records;
     els.stats.textContent = `N=${cafe.record_count} • Staring: ${fmt(cafe.stared_lookbacks / cafe.record_count * 100, 1)}% • Control: ${fmt(cafe.control_lookbacks / cafe.record_count * 100, 1)}% • McNemar p=${cafe.two_sided_p}`;
-    els.chartNote.textContent = `${cafe.conclusion} The figure shows the paired change rather than two independent bars.`;
+    els.primaryTitle.textContent = 'Look-Back Rate by Condition';
+    els.secondaryTitle.textContent = 'Paired Outcomes for McNemar Test';
+    els.chartNote.textContent = `${cafe.conclusion} Bars show the observed condition rates; the significance bracket uses the paired McNemar test.`;
+    if (els.secondaryChartNote) {
+      els.secondaryChartNote.textContent = 'Rows show the trial where the experimenter looked away from the subject. Columns show the trial where the experimenter looked at the subject. McNemar uses the two highlighted discordant cells.';
+    }
     drawRateComparison(els.primaryCanvas, cafe);
     drawDiscordantPairs(els.secondaryCanvas, cafe);
     table(['Measure', 'Value'], [
@@ -872,6 +950,7 @@
   }
 
   function init() {
+    document.body.classList.add(`movement-${experiment}-page`);
     els.kicker.textContent = cfg.kicker;
     els.title.textContent = cfg.title;
     els.lede.textContent = cfg.lede;
