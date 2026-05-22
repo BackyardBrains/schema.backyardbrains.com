@@ -12,7 +12,7 @@
       records: data.chair || [],
       summary: data.chairSummary || {},
       primaryTitle: 'Mean Signed Perceived Rotation',
-      secondaryTitle: 'Individual Signed Rotation Reports',
+      secondaryTitle: 'Feelers vs. Non-Feelers',
       tableTitle: 'Chair Rotation Records'
     },
     floor: {
@@ -305,6 +305,62 @@
     ]);
   }
 
+  function drawFeelerCounts(canvas, records) {
+    const { ctx, width, height } = prepareCanvas(canvas);
+    const groups = ['bicep', 'tricep'].map(tendon => {
+      const rows = records.filter(record => record.tendon === tendon);
+      return {
+        tendon,
+        rows,
+        feelers: rows.filter(record => Math.abs(record.perceived_angle) > 0).length,
+        nonFeelers: rows.filter(record => Math.abs(record.perceived_angle) === 0).length
+      };
+    });
+    const dotRadius = 6;
+    const gap = 18;
+    const startX = Math.max(150, width * 0.28);
+    const rowGap = Math.max(84, height * 0.26);
+    const startY = height * 0.34;
+
+    ctx.save();
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'middle';
+    ctx.font = '700 16px system-ui, -apple-system, BlinkMacSystemFont, sans-serif';
+    ctx.fillStyle = COLORS.ink;
+    ctx.fillText('nonzero perceived rotation = feeler', 24, 34);
+
+    groups.forEach((group, rowIndex) => {
+      const y = startY + rowIndex * rowGap;
+      const color = group.tendon === 'bicep' ? COLORS.bicep : COLORS.tricep;
+      ctx.font = '700 15px system-ui, -apple-system, BlinkMacSystemFont, sans-serif';
+      ctx.fillStyle = COLORS.ink;
+      ctx.textAlign = 'right';
+      ctx.fillText(group.tendon === 'bicep' ? 'Biceps' : 'Triceps', startX - 26, y);
+      ctx.font = '13px system-ui, -apple-system, BlinkMacSystemFont, sans-serif';
+      ctx.fillStyle = COLORS.muted;
+      ctx.fillText(`${group.feelers} feelers / ${group.nonFeelers} non-feelers`, startX - 26, y + 22);
+
+      group.rows.forEach((record, index) => {
+        const isFeeler = Math.abs(record.perceived_angle) > 0;
+        const x = startX + index * gap;
+        ctx.fillStyle = isFeeler ? color : '#d8d8d8';
+        ctx.strokeStyle = isFeeler ? color : '#9a9a9a';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.arc(x, y, dotRadius, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.stroke();
+      });
+    });
+
+    drawLegend(ctx, width, [
+      { color: COLORS.bicep, label: 'biceps feeler' },
+      { color: COLORS.tricep, label: 'triceps feeler' },
+      { color: '#d8d8d8', label: 'non-feeler' }
+    ]);
+    ctx.restore();
+  }
+
   function table(headers, rows) {
     els.tableHead.innerHTML = `<tr>${headers.map(header => `<th>${escapeHtml(header)}</th>`).join('')}</tr>`;
     els.tableBody.innerHTML = rows.map(row => (
@@ -336,25 +392,12 @@
       ]
     });
 
-    drawRose(els.secondaryCanvas, records.map(record => ({
-      angle: record.perceived_angle,
-      color: record.tendon === 'bicep' ? COLORS.bicep : COLORS.tricep,
-      alpha: Math.abs(record.perceived_angle) > 0 ? 0.7 : 0.25,
-      pointRadius: Math.abs(record.perceived_angle) > 0 ? 3.5 : 2
-    })), {
-      maxAngle: 90,
-      direction: item => item.angle,
-      legend: [
-        { color: COLORS.bicep, label: 'biceps' },
-        { color: COLORS.tricep, label: 'triceps' }
-      ]
-    });
+    drawFeelerCounts(els.secondaryCanvas, records);
 
-    table(['Participant', 'Tendon', 'Signed perceived angle', 'Direction', 'Felt rotation'], records.map(record => [
+    table(['Participant', 'Tendon', 'Signed perceived angle', 'Felt rotation'], records.map(record => [
       record.participant_name,
       record.tendon,
       `${fmt(record.perceived_angle)}°`,
-      record.direction || 'none',
       record.felt_rotation ? 'Y' : 'N'
     ]));
     els.recordsCount.textContent = `${records.length} records`;
