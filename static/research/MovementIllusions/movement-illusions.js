@@ -10,8 +10,9 @@
       lede: 'Perceived chair rotation after biceps or triceps tendon vibration while the chair remained fixed.',
       sheet: data.docs && data.docs.chairSheet,
       records: data.chair || [],
-      primaryTitle: 'Mean Perceived Rotation Magnitude',
-      secondaryTitle: 'Individual Rotation Magnitudes',
+      summary: data.chairSummary || {},
+      primaryTitle: 'Mean Signed Perceived Rotation',
+      secondaryTitle: 'Individual Signed Rotation Reports',
       tableTitle: 'Chair Rotation Records'
     },
     floor: {
@@ -316,20 +317,22 @@
     const byTendon = meanBy(records, 'tendon', 'perceived_angle');
     const bicep = byTendon.find(row => row.name === 'bicep') || { mean: 0 };
     const tricep = byTendon.find(row => row.name === 'tricep') || { mean: 0 };
+    const bicepMean = Number.isFinite(Number(cfg.summary.bicep_mean)) ? Number(cfg.summary.bicep_mean) : bicep.mean;
+    const tricepMean = Number.isFinite(Number(cfg.summary.tricep_mean)) ? Number(cfg.summary.tricep_mean) : tricep.mean;
     const felt = records.filter(record => Math.abs(record.perceived_angle) > 0).length;
 
-    els.stats.textContent = `Records: ${records.length} • Felt rotation: ${felt} • Biceps mean magnitude: ${fmt(bicep.mean, 2)}° • Triceps mean magnitude: ${fmt(tricep.mean, 2)}°`;
-    els.chartNote.textContent = 'The source rows available here record perceived rotation magnitude, not a complete signed direction for every participant. No plus/minus sign is assigned without that column.';
+    els.stats.textContent = `Records: ${records.length} • Felt rotation: ${felt} • Biceps mean: ${fmt(bicepMean, 2)}° • Triceps mean: ${fmt(tricepMean, 2)}°`;
+    els.chartNote.textContent = 'Signed angles and mean values come from the Bicep Data and Tricep Data tabs. Participant notes come from the Participants tab.';
 
     drawRose(els.primaryCanvas, [
-      { angle: bicep.mean, color: COLORS.bicep, width: 5, pointRadius: 6, markOuter: true },
-      { angle: tricep.mean, color: COLORS.tricep, width: 5, pointRadius: 6, markOuter: true }
+      { angle: bicepMean, color: COLORS.bicep, width: 5, pointRadius: 6, markOuter: true },
+      { angle: tricepMean, color: COLORS.tricep, width: 5, pointRadius: 6, markOuter: true }
     ], {
       maxAngle: 90,
       direction: item => item.angle,
       legend: [
-        { color: COLORS.bicep, label: 'biceps mean magnitude' },
-        { color: COLORS.tricep, label: 'triceps mean magnitude' }
+        { color: COLORS.bicep, label: 'biceps mean' },
+        { color: COLORS.tricep, label: 'triceps mean' }
       ]
     });
 
@@ -347,11 +350,11 @@
       ]
     });
 
-    table(['Participant', 'Tendon', 'Perceived magnitude', 'Direction', 'Felt rotation'], records.map(record => [
+    table(['Participant', 'Tendon', 'Signed perceived angle', 'Direction', 'Felt rotation'], records.map(record => [
       record.participant_name,
       record.tendon,
       `${fmt(record.perceived_angle)}°`,
-      record.direction || 'not recorded',
+      record.direction || 'none',
       record.felt_rotation ? 'Y' : 'N'
     ]));
     els.recordsCount.textContent = `${records.length} records`;

@@ -40,21 +40,21 @@
   }));
 
   const chair = [
-    ['Rose', 'bicep', 25.1], ['Rose', 'tricep', 0],
+    ['Rose', 'bicep', -25.1], ['Rose', 'tricep', 0],
     ['Sophia', 'bicep', 0], ['Sophia', 'tricep', 16],
     ['Valencia', 'bicep', 0],
     ['Josie', 'tricep', 34.5], ['Josie', 'bicep', 0],
-    ['Alex', 'tricep', 35.7], ['Alex', 'bicep', 5],
+    ['Alex', 'tricep', 35.7], ['Alex', 'bicep', -5],
     ['Zorica', 'bicep', 0], ['Zorica', 'tricep', 0],
-    ['Ebony', 'tricep', 0], ['Ebony', 'bicep', 21],
+    ['Ebony', 'tricep', 0], ['Ebony', 'bicep', -21],
     ['old guy', 'tricep', 0], ['old guy', 'bicep', 0],
-    ['Alita', 'tricep', 41.3], ['Alita', 'bicep', 36.4],
-    ['Noah', 'tricep', 82], ['Noah', 'bicep', 45.3],
-    ['Leah', 'tricep', 0], ['Leah', 'bicep', 90],
-    ['Michigan Sweatshirt', 'tricep', 0], ['Michigan Sweatshirt', 'bicep', 19.6],
+    ['Alita', 'tricep', 41.3], ['Alita', 'bicep', -36.4],
+    ['Noah', 'tricep', 82], ['Noah', 'bicep', -45.3],
+    ['Leah', 'tricep', 0], ['Leah', 'bicep', -90],
+    ['Michigan Sweatshirt', 'tricep', 0], ['Michigan Sweatshirt', 'bicep', -19.6],
     ['Jacob', 'tricep', 0], ['Jacob', 'bicep', 0],
-    ['Purple Sweater White', 'bicep', 20.27], ['Purple Sweater White', 'tricep', 15],
-    ['Big Demonia', 'tricep', 55.3], ['Big Demonia', 'bicep', 90.6],
+    ['Purple Sweater White', 'bicep', -20.27], ['Purple Sweater White', 'tricep', 15],
+    ['Big Demonia', 'tricep', 55.3], ['Big Demonia', 'bicep', -90.6],
     ['Ivan', 'bicep', 0], ['Ivan', 'tricep', 0]
   ].map((row, index) => ({
     id: `chair-${index + 1}`,
@@ -64,8 +64,8 @@
     ending_angle: 0,
     actual_angle: 0,
     perceived_angle: row[2],
-    signed_perceived_angle: null,
-    direction: '',
+    signed_perceived_angle: row[2],
+    direction: row[2] < 0 ? 'negative' : (row[2] > 0 ? 'positive' : ''),
     felt_rotation: Math.abs(row[2]) > 0,
     source: 'google-drive',
     created_at: '2026-05-19T19:07:57Z'
@@ -123,6 +123,11 @@
     ...(window.RESEARCH_DATA || {}),
     nose,
     chair,
+    chairSummary: {
+      source_tabs: ['Bicep Data', 'Tricep Data', 'Participants'],
+      bicep_mean: -23.5513333333333,
+      tricep_mean: 19.9857142857143
+    },
     floor,
     cafe,
     docs: {
