@@ -47,6 +47,10 @@
     primaryTitle: document.getElementById('primaryChartTitle'),
     secondaryTitle: document.getElementById('secondaryChartTitle'),
     chartNote: document.getElementById('chartNote'),
+    secondaryChartNote: document.getElementById('secondaryChartNote'),
+    individualChartNote: document.getElementById('individualChartNote'),
+    bicepFeelChartNote: document.getElementById('bicepFeelChartNote'),
+    tricepFeelChartNote: document.getElementById('tricepFeelChartNote'),
     tableTitle: document.getElementById('tableTitle'),
     recordsCount: document.getElementById('recordsCount'),
     tableHead: document.getElementById('tableHead'),
@@ -54,6 +58,9 @@
     primaryCanvas: document.getElementById('primaryChart'),
     secondaryCanvas: document.getElementById('secondaryChart'),
     chairExtraPlots: document.getElementById('chairExtraPlots'),
+    individualTitle: document.getElementById('individualChartTitle'),
+    bicepFeelTitle: document.getElementById('bicepFeelChartTitle'),
+    tricepFeelTitle: document.getElementById('tricepFeelChartTitle'),
     individualCanvas: document.getElementById('individualChart'),
     bicepFeelCanvas: document.getElementById('bicepFeelChart'),
     tricepFeelCanvas: document.getElementById('tricepFeelChart')
@@ -430,8 +437,8 @@
     const dotRadius = 6;
     const gap = Math.min(28, Math.max(14, (width - 190) / Math.max(1, participants.length - 1)));
     const startX = Math.max(150, width * 0.28);
-    const rowGap = Math.max(84, height * 0.26);
-    const startY = height * 0.34;
+    const rowGap = Math.max(126, height * 0.38);
+    const startY = height * 0.26;
     state.chairHoverHitboxes = [];
 
     ctx.save();
@@ -586,10 +593,31 @@
     const tricep = byTendon.find(row => row.name === 'tricep') || { mean: 0 };
     const bicepMean = Number.isFinite(Number(cfg.summary.bicep_mean)) ? Number(cfg.summary.bicep_mean) : bicep.mean;
     const tricepMean = Number.isFinite(Number(cfg.summary.tricep_mean)) ? Number(cfg.summary.tricep_mean) : tricep.mean;
+    const bicepRows = records.filter(record => record.tendon === 'bicep');
+    const tricepRows = records.filter(record => record.tendon === 'tricep');
+    const feelerRows = records.filter(record => Math.abs(record.perceived_angle) > 0);
+    const nonFeelerRows = records.filter(record => Math.abs(record.perceived_angle) === 0);
     const felt = records.filter(record => Math.abs(record.perceived_angle) > 0).length;
 
     els.stats.textContent = `Records: ${records.length} • Felt rotation: ${felt} • Biceps mean: ${fmt(bicepMean, 2)}° • Triceps mean: ${fmt(tricepMean, 2)}°`;
     els.chartNote.textContent = 'Signed angles and mean values come from the Bicep Data and Tricep Data tabs. In rose plots, individual rays use unit length; mean arrows use 1.5x length.';
+    els.primaryTitle.textContent = `Mean Signed Perceived Rotation (biceps n=${bicepRows.length}, triceps n=${tricepRows.length})`;
+    els.secondaryTitle.textContent = `Feelers vs. Non-Feelers (n=${chairParticipants(records).length} paired participants)`;
+    if (els.individualTitle) els.individualTitle.textContent = `Individual Signed Rotation Reports (n=${records.length})`;
+    if (els.bicepFeelTitle) els.bicepFeelTitle.textContent = `Bicep vs Tricep (Feelers, n=${feelerRows.length})`;
+    if (els.tricepFeelTitle) els.tricepFeelTitle.textContent = `Bicep vs Tricep (Non-Feelers, n=${nonFeelerRows.length})`;
+    if (els.secondaryChartNote) {
+      els.secondaryChartNote.textContent = 'Each column is one participant in order. Hover any circle to highlight the participant pair here and in Plots 3-5.';
+    }
+    if (els.individualChartNote) {
+      els.individualChartNote.textContent = 'All signed participant reports, with biceps and triceps overlaid on the same rose plot.';
+    }
+    if (els.bicepFeelChartNote) {
+      els.bicepFeelChartNote.textContent = 'Only participants with nonzero perceived rotation; mean arrows compare biceps and triceps among feelers.';
+    }
+    if (els.tricepFeelChartNote) {
+      els.tricepFeelChartNote.textContent = 'Only participants with zero perceived rotation; both tendon means sit at zero.';
+    }
 
     drawRose(els.primaryCanvas, [
       { angle: bicepMean, color: COLORS.bicep, width: 5, pointRadius: 6, markOuter: true, lengthScale: 1.5 },

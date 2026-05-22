@@ -19,14 +19,14 @@
 }
 
 .chair-extra-grid {
-  grid-template-columns: repeat(3, minmax(260px, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
 .grab-chart-grid .card-header h2 {
   font-size: 18px;
 }
 
-@media (max-width: 1050px) {
+@media (max-width: 900px) {
   .grab-chart-grid {
     grid-template-columns: 1fr;
   }
