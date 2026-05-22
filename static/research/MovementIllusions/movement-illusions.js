@@ -52,7 +52,11 @@
     tableHead: document.getElementById('tableHead'),
     tableBody: document.getElementById('tableBody'),
     primaryCanvas: document.getElementById('primaryChart'),
-    secondaryCanvas: document.getElementById('secondaryChart')
+    secondaryCanvas: document.getElementById('secondaryChart'),
+    chairExtraPlots: document.getElementById('chairExtraPlots'),
+    individualCanvas: document.getElementById('individualChart'),
+    bicepFeelCanvas: document.getElementById('bicepFeelChart'),
+    tricepFeelCanvas: document.getElementById('tricepFeelChart')
   };
 
   const COLORS = {
@@ -361,6 +365,63 @@
     ctx.restore();
   }
 
+  function drawChairIndividualRose(canvas, records) {
+    drawRose(canvas, records.map(record => ({
+      angle: record.perceived_angle,
+      color: record.tendon === 'bicep' ? COLORS.bicep : COLORS.tricep,
+      alpha: Math.abs(record.perceived_angle) > 0 ? 0.72 : 0.28,
+      pointRadius: Math.abs(record.perceived_angle) > 0 ? 3.5 : 2
+    })), {
+      maxAngle: 90,
+      direction: item => item.angle,
+      legend: [
+        { color: COLORS.bicep, label: 'biceps' },
+        { color: COLORS.tricep, label: 'triceps' }
+      ]
+    });
+  }
+
+  function drawTendonFeelerRose(canvas, records, tendon) {
+    const rows = records.filter(record => record.tendon === tendon);
+    const feelers = rows.filter(record => Math.abs(record.perceived_angle) > 0);
+    const nonFeelers = rows.filter(record => Math.abs(record.perceived_angle) === 0);
+    const feelerSummary = summarize(feelers.map(record => record.perceived_angle));
+    const nonFeelerSummary = summarize(nonFeelers.map(record => record.perceived_angle));
+    const tendonColor = tendon === 'bicep' ? COLORS.bicep : COLORS.tricep;
+
+    drawRose(canvas, [
+      ...rows.map(record => ({
+        angle: record.perceived_angle,
+        color: Math.abs(record.perceived_angle) > 0 ? tendonColor : '#d8d8d8',
+        alpha: Math.abs(record.perceived_angle) > 0 ? 0.56 : 0.5,
+        pointRadius: Math.abs(record.perceived_angle) > 0 ? 3.5 : 2.5,
+        width: 1.4
+      })),
+      {
+        angle: feelerSummary.mean,
+        color: tendonColor,
+        alpha: 1,
+        width: 5,
+        pointRadius: 7,
+        markOuter: true
+      },
+      {
+        angle: nonFeelerSummary.mean,
+        color: '#777777',
+        alpha: 1,
+        width: 5,
+        pointRadius: 7
+      }
+    ], {
+      maxAngle: 90,
+      direction: item => item.angle,
+      legend: [
+        { color: tendonColor, label: `feeler mean ${fmt(feelerSummary.mean, 1)}°` },
+        { color: '#777777', label: `non-feeler mean ${fmt(nonFeelerSummary.mean, 1)}°` }
+      ]
+    });
+  }
+
   function table(headers, rows) {
     els.tableHead.innerHTML = `<tr>${headers.map(header => `<th>${escapeHtml(header)}</th>`).join('')}</tr>`;
     els.tableBody.innerHTML = rows.map(row => (
@@ -393,6 +454,9 @@
     });
 
     drawFeelerCounts(els.secondaryCanvas, records);
+    drawChairIndividualRose(els.individualCanvas, records);
+    drawTendonFeelerRose(els.bicepFeelCanvas, records, 'bicep');
+    drawTendonFeelerRose(els.tricepFeelCanvas, records, 'tricep');
 
     table(['Participant', 'Tendon', 'Signed perceived angle', 'Felt rotation'], records.map(record => [
       record.participant_name,
@@ -459,6 +523,7 @@
   }
 
   function render() {
+    if (els.chairExtraPlots) els.chairExtraPlots.style.display = experiment === 'chair' ? '' : 'none';
     if (experiment === 'floor') renderFloor();
     else if (experiment === 'cafe') renderCafe();
     else renderChair();
