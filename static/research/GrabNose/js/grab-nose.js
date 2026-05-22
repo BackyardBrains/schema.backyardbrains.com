@@ -133,6 +133,55 @@
     ctx.restore();
   }
 
+  function elbowAnglePoint(cx, cy, radius, degrees) {
+    const radians = (180 - Number(degrees)) * Math.PI / 180;
+    return {
+      x: cx + Math.cos(radians) * radius,
+      y: cy + Math.sin(radians) * radius
+    };
+  }
+
+  function drawElbowAngleFrame(ctx, cx, cy, radius, options = {}) {
+    const ticks = options.ticks || [40, 60, 90, 120, 150, 180];
+    const labelEvery = new Set(options.labelTicks || ticks);
+    ctx.save();
+    ctx.strokeStyle = COLORS.grid;
+    ctx.fillStyle = COLORS.muted;
+    ctx.lineWidth = 1;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+
+    [0.35, 0.7, 1].forEach((scale) => {
+      ctx.beginPath();
+      ctx.arc(cx, cy, radius * scale, 0, Math.PI * 2);
+      ctx.stroke();
+    });
+
+    ticks.forEach((tick) => {
+      const inner = elbowAnglePoint(cx, cy, radius * 0.08, tick);
+      const outer = elbowAnglePoint(cx, cy, radius, tick);
+      ctx.beginPath();
+      ctx.moveTo(inner.x, inner.y);
+      ctx.lineTo(outer.x, outer.y);
+      ctx.stroke();
+      if (labelEvery.has(tick)) {
+        const label = elbowAnglePoint(cx, cy, radius + 20, tick);
+        ctx.fillText(`${tick}°`, label.x, label.y);
+      }
+    });
+
+    const straight = elbowAnglePoint(cx, cy, radius + 28, 180);
+    ctx.textAlign = 'left';
+    ctx.font = '700 12px system-ui, -apple-system, BlinkMacSystemFont, sans-serif';
+    ctx.fillText('180° straight forward', straight.x - 4, straight.y);
+    ctx.restore();
+  }
+
+  function drawAngleArrow(ctx, cx, cy, radius, degrees, color, width) {
+    const end = elbowAnglePoint(cx, cy, radius, degrees);
+    drawArrow(ctx, cx, cy, end.x, end.y, color, width);
+  }
+
   function drawLegend(ctx, items, x, y) {
     ctx.save();
     ctx.textAlign = 'left';
@@ -180,111 +229,76 @@
     const before = summary.beforeSummary.mean;
     const after = summary.afterSummary.mean;
     const delta = summary.deltaSummary.mean;
-    const minAngle = Math.min(before, after) - 18;
-    const maxAngle = Math.max(before, after) + 18;
-    const plot = { left: 54, right: width - 28, top: 58, bottom: height - 54 };
-    const x = value => plot.left + ((value - minAngle) / (maxAngle - minAngle || 1)) * (plot.right - plot.left);
-    const y = height * 0.52;
+    const cx = width * 0.36;
+    const cy = height * 0.47;
+    const radius = Math.min(width, height) * 0.28;
 
     ctx.save();
-    ctx.strokeStyle = COLORS.grid;
-    ctx.lineWidth = 1;
-    ctx.beginPath();
-    ctx.moveTo(plot.left, y);
-    ctx.lineTo(plot.right, y);
-    ctx.stroke();
-    [Math.round(minAngle), Math.round((minAngle + maxAngle) / 2), Math.round(maxAngle)].forEach((tick) => {
-      const tx = x(tick);
-      ctx.beginPath();
-      ctx.moveTo(tx, y - 6);
-      ctx.lineTo(tx, y + 6);
-      ctx.stroke();
-      ctx.fillStyle = COLORS.muted;
-      ctx.textAlign = 'center';
-      ctx.fillText(`${tick}°`, tx, y + 28);
-    });
-
-    drawArrow(ctx, x(before), y, x(after), y, COLORS.after, 5);
-    ctx.fillStyle = COLORS.before;
-    ctx.beginPath();
-    ctx.arc(x(before), y, 7, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.fillStyle = COLORS.ink;
-    ctx.textAlign = 'center';
-    ctx.font = '700 14px system-ui, -apple-system, BlinkMacSystemFont, sans-serif';
-    ctx.fillText(`${fmt(before)}°`, x(before), y - 26);
-    ctx.fillText(`${fmt(after)}°`, x(after), y + 46);
-    ctx.font = '700 22px system-ui, -apple-system, BlinkMacSystemFont, sans-serif';
-    ctx.fillText(`+${fmt(delta)}°`, (x(before) + x(after)) / 2, y - 58);
+    drawElbowAngleFrame(ctx, cx, cy, radius, { ticks: [40, 60, 90, 120, 150, 180], labelTicks: [60, 90] });
+    drawAngleArrow(ctx, cx, cy, radius * 1.12, before, COLORS.before, 5);
+    drawAngleArrow(ctx, cx, cy, radius * 1.28, after, COLORS.after, 5);
     drawLegend(ctx, [
-      { color: COLORS.before, label: 'before' },
-      { color: COLORS.after, label: 'after' }
-    ], plot.left, 24);
+      { color: COLORS.before, label: 'before mean' },
+      { color: COLORS.after, label: 'after mean' }
+    ], Math.max(24, width * 0.2), 24);
+    ctx.fillStyle = COLORS.ink;
+    ctx.font = '700 22px system-ui, -apple-system, BlinkMacSystemFont, sans-serif';
+    ctx.textAlign = 'left';
+    ctx.fillText(`+${fmt(delta)}°`, width * 0.68, height * 0.35);
+    ctx.font = '12px system-ui, -apple-system, BlinkMacSystemFont, sans-serif';
+    ctx.fillStyle = COLORS.muted;
+    ctx.fillText(`${fmt(before)}° -> ${fmt(after)}°`, width * 0.68, height * 0.45);
     ctx.restore();
 
-    els.meanShiftNote.textContent = `Mean arm angle increased from ${fmt(before)}° to ${fmt(after)}° after vibration. The arrow is the mean shift; dots are reserved for individual observations.`;
+    els.meanShiftNote.textContent = `Angles are elbow-centered: 180° is straight forward toward the face. Mean arrows show the perceived forearm direction before and after vibration.`;
   }
 
   function drawParticipantShift(summary) {
     const rows = summary.rows;
     const { ctx, width, height } = prepareCanvas(els.participantShiftCanvas);
-    const angles = rows.flatMap(record => [Number(record.starting_angle), Number(record.ending_angle)]);
-    const minAngle = Math.min(...angles) - 8;
-    const maxAngle = Math.max(...angles) + 8;
-    const plot = { left: 52, right: width - 22, top: 48, bottom: height - 64 };
-    const xForIndex = index => plot.left + (index / Math.max(1, rows.length - 1)) * (plot.right - plot.left);
-    const yForAngle = value => plot.bottom - ((value - minAngle) / (maxAngle - minAngle || 1)) * (plot.bottom - plot.top);
+    const cx = width * 0.5;
+    const cy = height * 0.46;
+    const radius = Math.min(width * 0.42, height * 0.34);
     state.participantHitboxes = [];
 
     ctx.save();
-    ctx.strokeStyle = COLORS.grid;
-    ctx.fillStyle = COLORS.muted;
-    ctx.lineWidth = 1;
-    ctx.textAlign = 'right';
-    ctx.textBaseline = 'middle';
-    for (let tick = Math.ceil(minAngle / 20) * 20; tick <= maxAngle; tick += 20) {
-      const y = yForAngle(tick);
-      ctx.beginPath();
-      ctx.moveTo(plot.left, y);
-      ctx.lineTo(plot.right, y);
-      ctx.stroke();
-      ctx.fillText(`${tick}°`, plot.left - 8, y);
-    }
+    drawElbowAngleFrame(ctx, cx, cy, radius, { ticks: [40, 60, 90, 120, 150, 180], labelTicks: [40, 60, 90, 120, 150] });
 
     rows.forEach((record, index) => {
-      const x = xForIndex(index);
-      const beforeY = yForAngle(Number(record.starting_angle));
-      const afterY = yForAngle(Number(record.ending_angle));
+      const before = elbowAnglePoint(cx, cy, radius, Number(record.starting_angle));
+      const after = elbowAnglePoint(cx, cy, radius, Number(record.ending_angle));
       const isHovered = index === state.hoverIndex;
       ctx.strokeStyle = Number(record.angle_difference) >= 0 ? COLORS.line : COLORS.negative;
-      ctx.globalAlpha = isHovered ? 1 : 0.62;
+      ctx.globalAlpha = isHovered ? 1 : 0.34;
       ctx.lineWidth = isHovered ? 3 : 1.4;
       ctx.beginPath();
-      ctx.moveTo(x, beforeY);
-      ctx.lineTo(x, afterY);
+      ctx.moveTo(before.x, before.y);
+      ctx.lineTo(after.x, after.y);
       ctx.stroke();
       ctx.globalAlpha = 1;
       ctx.fillStyle = COLORS.before;
       ctx.beginPath();
-      ctx.arc(x, beforeY, isHovered ? 7 : 4.5, 0, Math.PI * 2);
+      ctx.arc(before.x, before.y, isHovered ? 7 : 4.5, 0, Math.PI * 2);
       ctx.fill();
       ctx.fillStyle = COLORS.after;
       ctx.beginPath();
-      ctx.arc(x, afterY, isHovered ? 7 : 4.5, 0, Math.PI * 2);
+      ctx.arc(after.x, after.y, isHovered ? 7 : 4.5, 0, Math.PI * 2);
       ctx.fill();
-      if (index % 2 === 0) {
-        ctx.fillStyle = COLORS.muted;
-        ctx.font = '11px system-ui, -apple-system, BlinkMacSystemFont, sans-serif';
-        ctx.textAlign = 'center';
-        ctx.fillText(subjectLabel(index), x, plot.bottom + 22);
+      if (isHovered) {
+        ctx.strokeStyle = COLORS.ink;
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.arc(before.x, before.y, 9, 0, Math.PI * 2);
+        ctx.arc(after.x, after.y, 9, 0, Math.PI * 2);
+        ctx.stroke();
       }
-      state.participantHitboxes.push({ x, y: (beforeY + afterY) / 2, radius: 16, record, index });
+      state.participantHitboxes.push({ x: (before.x + after.x) / 2, y: (before.y + after.y) / 2, radius: 18, record, index });
     });
 
     drawLegend(ctx, [
       { color: COLORS.before, label: 'before vibration' },
       { color: COLORS.after, label: 'after vibration' }
-    ], plot.left, 22);
+    ], 24, 22);
 
     const hovered = state.participantHitboxes[state.hoverIndex];
     if (hovered) {
@@ -316,7 +330,7 @@
     }
     ctx.restore();
 
-    els.participantShiftNote.textContent = 'Each vertical pair is one subject in source sheet order. Subject IDs match the raw table. Blue is before vibration; orange is after vibration.';
+    els.participantShiftNote.textContent = 'Each linked before/after pair is one subject in source sheet order. Dots are individual observations on the elbow-angle rose.';
   }
 
   function drawAttempts(summary) {
