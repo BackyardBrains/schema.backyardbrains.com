@@ -18,11 +18,11 @@
     floor: {
       title: 'Arm Through Floor Illusion',
       kicker: 'Body Schema',
-      lede: 'Perceived arm angle below the floor after participants were lowered back to the ground without vision.',
+      lede: 'Prone participants received false floor cues while their arms were lowered without vision.',
       sheet: data.docs && data.docs.floorSheet,
       records: data.floor || [],
-      primaryTitle: 'Mean Perceived Angle',
-      secondaryTitle: 'Individual Perceived Angles',
+      primaryTitle: 'Arm Through Floor Protocol',
+      secondaryTitle: 'Participant Reported Floor Angles',
       tableTitle: 'Arm Through Floor Records'
     },
     cafe: {
@@ -173,7 +173,7 @@
     };
   }
 
-  function drawRoseAxes(ctx, cx, cy, radius, maxAngle) {
+  function drawRoseAxes(ctx, cx, cy, radius, maxAngle, angleTransform = angle => angle) {
     ctx.save();
     ctx.strokeStyle = COLORS.grid;
     ctx.fillStyle = COLORS.muted;
@@ -188,19 +188,19 @@
     });
 
     for (let angle = 0; angle < 360; angle += 30) {
-      const outer = polarPoint(cx, cy, radius, angle);
+      const outer = polarPoint(cx, cy, radius, angleTransform(angle));
       ctx.beginPath();
       ctx.moveTo(cx, cy);
       ctx.lineTo(outer.x, outer.y);
       ctx.stroke();
       if (angle % 90 === 0) {
-        const label = polarPoint(cx, cy, radius + 18, angle);
+        const label = polarPoint(cx, cy, radius + 18, angleTransform(angle));
         ctx.fillText(`${angle}°`, label.x, label.y);
       }
     }
 
-    ctx.textAlign = 'right';
-    ctx.fillText(`${maxAngle}°`, cx - 6, cy - radius);
+    const maxAngleLabel = polarPoint(cx, cy, radius + 32, angleTransform(maxAngle));
+    ctx.fillText(`${maxAngle}°`, maxAngleLabel.x, maxAngleLabel.y);
     ctx.restore();
   }
 
@@ -210,7 +210,8 @@
     const cy = height * 0.52;
     const radius = Math.min(width, height) * 0.34;
     const maxAngle = options.maxAngle || 90;
-    drawRoseAxes(ctx, cx, cy, radius, maxAngle);
+    const angleTransform = options.angleTransform || (angle => angle);
+    drawRoseAxes(ctx, cx, cy, radius, maxAngle, angleTransform);
 
     items.forEach((item, index) => {
       const signedDegrees = Number(item.angle) || 0;
@@ -219,7 +220,8 @@
         ? (options.unitLength ? 1 : degrees / maxAngle)
         : item.lengthScale;
       const length = radius * lengthScale;
-      const theta = options.direction ? options.direction(item, index) : signedDegrees;
+      const rawTheta = options.direction ? options.direction(item, index) : signedDegrees;
+      const theta = angleTransform(rawTheta);
       const end = polarPoint(cx, cy, length, theta);
       const outer = polarPoint(cx, cy, radius, theta);
       const isHovered = item.participantKey && item.participantKey === state.hoverParticipantKey;
@@ -265,6 +267,94 @@
     });
 
     if (options.legend) drawLegend(ctx, width, options.legend);
+  }
+
+  function drawFloorProtocol(canvas, mode) {
+    const items = [
+      { angle: 0, color: COLORS.control, alpha: 0.36, width: 2, arrow: true, lengthScale: 1 },
+      { angle: 90, color: COLORS.control, alpha: 0.36, width: 2, arrow: true, lengthScale: 1 }
+    ];
+    let legend = [
+      { color: COLORS.control, label: '0° overhead / 90° front' }
+    ];
+
+    if (mode === 'halfway') {
+      items.push({ angle: 45, color: COLORS.floor, width: 5, arrow: true, markOuter: true, lengthScale: 1.18 });
+      legend = [
+        { color: COLORS.floor, label: 'false floor cue at halfway' },
+        { color: COLORS.control, label: '0° to 90° lowering frame' }
+      ];
+    } else if (mode === 'pullback') {
+      items.push(
+        { angle: -20, color: COLORS.bicep, width: 4, arrow: true, markOuter: true, lengthScale: 1.05 },
+        { angle: -10, color: COLORS.floor, width: 5, arrow: true, markOuter: true, lengthScale: 1.25 }
+      );
+      legend = [
+        { color: COLORS.bicep, label: 'pulled back to -20°' },
+        { color: COLORS.floor, label: 'false floor cue at -10°' }
+      ];
+    }
+
+    drawRose(canvas, items, {
+      maxAngle: 90,
+      unitLength: true,
+      angleTransform: angle => angle + 90,
+      direction: item => item.angle,
+      legend
+    });
+  }
+
+  function hasFalseInformation(record) {
+    return String(record.false_information_added || '').trim().toLowerCase().startsWith('y');
+  }
+
+  function drawFloorInformationAverages(canvas, records) {
+    const falseInfoRows = records.filter(hasFalseInformation);
+    const noInfoRows = records.filter(record => !hasFalseInformation(record));
+    const falseInfoSummary = summarize(falseInfoRows.map(record => record.perceived_angle));
+    const noInfoSummary = summarize(noInfoRows.map(record => record.perceived_angle));
+
+    drawRose(canvas, [
+      ...falseInfoRows.map(record => ({
+        angle: record.perceived_angle,
+        color: COLORS.floor,
+        alpha: 0.35,
+        pointRadius: 3,
+        lengthScale: 1
+      })),
+      ...noInfoRows.map(record => ({
+        angle: record.perceived_angle,
+        color: COLORS.tricep,
+        alpha: 0.35,
+        pointRadius: 3,
+        lengthScale: 1
+      })),
+      {
+        angle: falseInfoSummary.mean,
+        color: COLORS.floor,
+        width: 5,
+        arrow: true,
+        markOuter: true,
+        lengthScale: 1.35
+      },
+      {
+        angle: noInfoSummary.mean,
+        color: COLORS.tricep,
+        width: 5,
+        arrow: true,
+        markOuter: true,
+        lengthScale: 1.35
+      }
+    ], {
+      maxAngle: 90,
+      unitLength: true,
+      angleTransform: angle => angle + 90,
+      direction: item => item.angle,
+      legend: [
+        { color: COLORS.floor, label: `false info mean ${fmt(falseInfoSummary.mean, 1)}° (n=${falseInfoSummary.n})` },
+        { color: COLORS.tricep, label: `no info mean ${fmt(noInfoSummary.mean, 1)}° (n=${noInfoSummary.n})` }
+      ]
+    });
   }
 
   function drawLegend(ctx, width, items) {
@@ -576,6 +666,7 @@
     ], {
       maxAngle: 90,
       unitLength: true,
+      angleTransform: angle => angle + 90,
       direction: item => item.angle,
       legend: [
         { color: COLORS.bicep, label: `biceps mean ${fmt(bicepSummary.mean, 1)}°` },
@@ -623,6 +714,9 @@
     if (els.tricepFeelChartNote) {
       els.tricepFeelChartNote.textContent = 'Only participants with zero perceived rotation; both tendon means sit at zero.';
     }
+    if (els.individualCanvas) els.individualCanvas.closest('article').style.display = '';
+    if (els.bicepFeelCanvas) els.bicepFeelCanvas.closest('article').style.display = '';
+    if (els.tricepFeelCanvas) els.tricepFeelCanvas.closest('article').style.display = '';
 
     drawRose(els.primaryCanvas, [
       { angle: bicepMean, color: COLORS.bicep, width: 5, arrow: true, markOuter: true, lengthScale: 1.5 },
@@ -630,6 +724,7 @@
     ], {
       maxAngle: 90,
       unitLength: true,
+      angleTransform: angle => angle + 90,
       direction: item => item.angle,
       legend: [
         { color: COLORS.bicep, label: 'biceps mean' },
@@ -656,32 +751,60 @@
     const values = records.map(record => record.perceived_angle);
     const summary = summarize(values);
     els.stats.textContent = `Records: ${records.length} • Mean perceived angle: ${fmt(summary.mean, 2)}° • SD: ${fmt(summary.sd, 2)}°`;
-    els.chartNote.textContent = 'The rose view preserves angle as angle; the table keeps the exact participant values visible.';
+    els.primaryTitle.textContent = 'Arm Through Floor Protocol Angles';
+    els.secondaryTitle.textContent = `Participant Reported Floor Angles (n=${records.length})`;
+    if (els.individualTitle) els.individualTitle.textContent = 'Halfway False-Floor Cue';
+    if (els.bicepFeelTitle) els.bicepFeelTitle.textContent = 'False Information vs No Information';
+    if (els.tricepFeelCanvas) els.tricepFeelCanvas.closest('article').style.display = 'none';
+    if (els.individualCanvas) els.individualCanvas.closest('article').style.display = '';
+    if (els.bicepFeelCanvas) els.bicepFeelCanvas.closest('article').style.display = '';
+    els.chartNote.textContent = 'Body-frame convention: 0° is arms overhead, 90° is arms forward like a zombie. In this rose frame, 0° points east and 90° points down.';
+    if (els.secondaryChartNote) {
+      els.secondaryChartNote.textContent = 'Dots are participant-reported floor angles in the same body frame; this is separate from the protocol cue angles.';
+    }
+    if (els.individualChartNote) {
+      els.individualChartNote.textContent = 'The experimenter falsely tells the participant that the arms have reached the floor halfway through lowering.';
+    }
+    if (els.bicepFeelChartNote) {
+      els.bicepFeelChartNote.textContent = 'Mean arrows compare reported floor angle for participants who received false information versus participants who did not. Dots show individual reports.';
+    }
 
     drawRose(els.primaryCanvas, [
-      { angle: summary.mean, color: COLORS.floor, width: 5, arrow: true, markOuter: true }
+      { angle: 0, color: COLORS.control, alpha: 0.34, width: 2, arrow: true, lengthScale: 1 },
+      { angle: 90, color: COLORS.control, alpha: 0.34, width: 2, arrow: true, lengthScale: 1 },
+      { angle: summary.mean, color: COLORS.floor, width: 5, arrow: true, markOuter: true, lengthScale: 1.25 }
     ], {
-      maxAngle: 60,
+      maxAngle: 90,
+      unitLength: true,
+      angleTransform: angle => angle + 90,
       direction: item => item.angle,
-      legend: [{ color: COLORS.floor, label: 'mean angle' }]
+      legend: [
+        { color: COLORS.floor, label: `mean report ${fmt(summary.mean, 1)}°` },
+        { color: COLORS.control, label: '0° overhead / 90° front' }
+      ]
     });
     drawRose(els.secondaryCanvas, records.map(record => ({
       angle: record.perceived_angle,
       color: COLORS.floor,
       alpha: 0.75,
-      pointRadius: 4
+      pointRadius: 4,
+      lengthScale: 1
     })), {
-      maxAngle: 60,
+      maxAngle: 90,
+      unitLength: true,
+      angleTransform: angle => angle + 90,
       direction: item => item.angle,
       legend: [{ color: COLORS.floor, label: 'participant' }]
     });
+    drawFloorProtocol(els.individualCanvas, 'halfway');
+    drawFloorInformationAverages(els.bicepFeelCanvas, records);
 
-    table(['Participant', 'Age', 'Sex', 'Perceived angle', 'Prior knowledge'], records.map(record => [
+    table(['Participant', 'Age', 'Sex', 'Reported floor angle', 'False information added'], records.map(record => [
       record.participant_name,
       record.age,
       record.sex,
       `${fmt(record.perceived_angle)}°`,
-      record.prior_knowledge
+      record.false_information_added
     ]));
     els.recordsCount.textContent = `${records.length} records`;
   }
@@ -707,7 +830,7 @@
   }
 
   function render() {
-    if (els.chairExtraPlots) els.chairExtraPlots.style.display = experiment === 'chair' ? '' : 'none';
+    if (els.chairExtraPlots) els.chairExtraPlots.style.display = (experiment === 'chair' || experiment === 'floor') ? '' : 'none';
     if (experiment === 'floor') renderFloor();
     else if (experiment === 'cafe') renderCafe();
     else renderChair();

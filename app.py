@@ -42,11 +42,12 @@ AUTH0_READ_RESULTS_ROLE_ID = os.environ.get('AUTH0_READ_RESULTS_ROLE_ID')  # opt
 GOOGLE_SHEETS_API_KEY = os.environ.get('GOOGLE_SHEETS_API_KEY')
 GOOGLE_SERVICE_ACCOUNT_JSON = os.environ.get('GOOGLE_SERVICE_ACCOUNT_JSON')
 GOOGLE_APPLICATION_CREDENTIALS = os.environ.get('GOOGLE_APPLICATION_CREDENTIALS')
+LOCAL_AUTH_BYPASS = os.environ.get('LOCAL_AUTH_BYPASS', '').lower() in ('1', 'true', 'yes')
 
 # Flask session config (required for server-side login)
 app.secret_key = os.environ.get('SECRET_KEY', os.environ.get('FLASK_SECRET_KEY', 'dev-insecure'))
 app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
-app.config['SESSION_COOKIE_SECURE'] = True
+app.config['SESSION_COOKIE_SECURE'] = os.environ.get('SESSION_COOKIE_SECURE', 'true').lower() not in ('0', 'false', 'no')
 
 _JWKS_CACHE = None
 _MGMT_TOKEN_CACHE = None
@@ -172,6 +173,10 @@ def _constant_time_eq(a: str, b: str) -> bool:
 def require_results_auth(func):
     @wraps(func)
     def wrapper(*args, **kwargs):
+        if LOCAL_AUTH_BYPASS and request.remote_addr in ('127.0.0.1', '::1', 'localhost'):
+            session.setdefault('user', {'email': 'local-preview@backyardbrains.com', 'name': 'Local Preview'})
+            return func(*args, **kwargs)
+
         # Accept an existing Flask session login
         if session.get('user'):
             return func(*args, **kwargs)
@@ -1438,6 +1443,18 @@ def grab_nose_page():
 @require_results_auth
 def grab_nose_page_slash():
     return grab_nose_page()
+
+
+@app.get('/research/MovementIllusions')
+@require_results_auth
+def movement_illusions_page():
+    return send_from_directory(os.path.join(app.root_path, 'static', 'research', 'MovementIllusions'), 'index.html')
+
+
+@app.get('/research/MovementIllusions/')
+@require_results_auth
+def movement_illusions_page_slash():
+    return movement_illusions_page()
 
 
 @app.get('/research/<path:filename>')

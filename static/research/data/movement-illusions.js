@@ -86,7 +86,7 @@
     sex: row[2],
     starting_angle: 0,
     perceived_angle: row[3],
-    prior_knowledge: row[4],
+    false_information_added: row[4],
     source: 'google-drive',
     created_at: '2026-05-21T17:38:57Z'
   }));
