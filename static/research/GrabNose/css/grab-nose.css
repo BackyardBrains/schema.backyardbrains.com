@@ -19,7 +19,10 @@
 }
 
 .chair-extra-grid {
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(280px, 1fr));
+  align-items: stretch;
+  overflow-x: auto;
+  padding-bottom: 4px;
 }
 
 .grab-chart-grid .card-header h2 {
@@ -32,12 +35,16 @@
   }
 
   .chair-extra-grid {
-    grid-template-columns: 1fr;
+    grid-template-columns: repeat(3, minmax(280px, 1fr));
   }
 }
 
 @media (max-width: 760px) {
   .grab-chart-grid {
     grid-template-columns: 1fr;
+  }
+
+  .chair-extra-grid {
+    grid-template-columns: repeat(3, minmax(260px, 1fr));
   }
 }
