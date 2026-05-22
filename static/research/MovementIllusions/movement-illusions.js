@@ -59,6 +59,12 @@
     tricepFeelCanvas: document.getElementById('tricepFeelChart')
   };
 
+  const state = {
+    hoverParticipantKey: '',
+    hoverPoint: null,
+    chairHoverHitboxes: []
+  };
+
   const COLORS = {
     ink: '#151515',
     muted: '#6f6f6f',
@@ -111,14 +117,25 @@
     return String(name || '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
   }
 
+  function chairParticipantName(name) {
+    return String(name || '')
+      .replace(/\s*-\s*(?:bicep|tricep|triceps)\?*\s*$/i, '')
+      .replace(/\s+(?:bicep|tricep|triceps)\?*\s*$/i, '')
+      .trim();
+  }
+
+  function chairParticipantKey(name) {
+    return participantKey(chairParticipantName(name));
+  }
+
   function chairParticipants(records) {
     const participants = [];
     const seen = new Set();
     for (const record of records) {
-      const key = participantKey(record.participant_name);
+      const key = chairParticipantKey(record.participant_name);
       if (!key || seen.has(key)) continue;
       seen.add(key);
-      participants.push({ key, name: record.participant_name });
+      participants.push({ key, name: chairParticipantName(record.participant_name) });
     }
     return participants;
   }
@@ -198,19 +215,25 @@
       const theta = options.direction ? options.direction(item, index) : signedDegrees;
       const end = polarPoint(cx, cy, length, theta);
       const outer = polarPoint(cx, cy, radius, theta);
+      const isHovered = item.participantKey && item.participantKey === state.hoverParticipantKey;
       const color = item.color || COLORS.floor;
       ctx.save();
       ctx.strokeStyle = color;
       ctx.fillStyle = color;
-      ctx.globalAlpha = item.alpha == null ? 0.82 : item.alpha;
-      ctx.lineWidth = item.width || 2;
+      ctx.globalAlpha = isHovered ? 1 : (item.alpha == null ? 0.82 : item.alpha);
+      ctx.lineWidth = isHovered ? Math.max(item.width || 2, 4) : (item.width || 2);
       ctx.beginPath();
       ctx.moveTo(cx, cy);
       ctx.lineTo(end.x, end.y);
       ctx.stroke();
       ctx.beginPath();
-      ctx.arc(end.x, end.y, item.pointRadius || 4, 0, Math.PI * 2);
+      ctx.arc(end.x, end.y, isHovered ? Math.max(item.pointRadius || 4, 7) : (item.pointRadius || 4), 0, Math.PI * 2);
       ctx.fill();
+      if (isHovered) {
+        ctx.strokeStyle = COLORS.ink;
+        ctx.lineWidth = 2;
+        ctx.stroke();
+      }
       if (item.markOuter) {
         ctx.globalAlpha = 0.16;
         ctx.beginPath();
@@ -240,6 +263,23 @@
       x += Math.min(170, Math.max(86, ctx.measureText(item.label).width + 40));
     });
     ctx.restore();
+  }
+
+  function roundedRect(ctx, x, y, width, height, radius) {
+    if (ctx.roundRect) {
+      ctx.roundRect(x, y, width, height, radius);
+      return;
+    }
+    const r = Math.min(radius, width / 2, height / 2);
+    ctx.moveTo(x + r, y);
+    ctx.lineTo(x + width - r, y);
+    ctx.quadraticCurveTo(x + width, y, x + width, y + r);
+    ctx.lineTo(x + width, y + height - r);
+    ctx.quadraticCurveTo(x + width, y + height, x + width - r, y + height);
+    ctx.lineTo(x + r, y + height);
+    ctx.quadraticCurveTo(x, y + height, x, y + height - r);
+    ctx.lineTo(x, y + r);
+    ctx.quadraticCurveTo(x, y, x + r, y);
   }
 
   function drawRateComparison(canvas, cafe) {
@@ -328,18 +368,60 @@
     ]);
   }
 
+  function drawChairTooltip(ctx, width, height, participant) {
+    if (!state.hoverPoint || !participant) return;
+    const bicep = participant.records.bicep;
+    const tricep = participant.records.tricep;
+    const lines = [
+      participant.name,
+      `Biceps: ${bicep ? `${fmt(bicep.perceived_angle)}° (${bicep.felt_rotation ? 'felt' : 'non-felt'})` : 'not tested'}`,
+      `Triceps: ${tricep ? `${fmt(tricep.perceived_angle)}° (${tricep.felt_rotation ? 'felt' : 'non-felt'})` : 'not tested'}`
+    ];
+    ctx.save();
+    ctx.font = '13px system-ui, -apple-system, BlinkMacSystemFont, sans-serif';
+    const padding = 10;
+    const lineHeight = 18;
+    const boxWidth = Math.max(...lines.map(line => ctx.measureText(line).width)) + padding * 2;
+    const boxHeight = lines.length * lineHeight + padding * 2;
+    let x = state.hoverPoint.x + 14;
+    let y = state.hoverPoint.y - boxHeight - 12;
+    if (x + boxWidth > width - 8) x = width - boxWidth - 8;
+    if (y < 8) y = state.hoverPoint.y + 16;
+    if (y + boxHeight > height - 8) y = height - boxHeight - 8;
+
+    ctx.fillStyle = 'rgba(255,255,255,0.96)';
+    ctx.strokeStyle = COLORS.ink;
+    ctx.lineWidth = 1.25;
+    ctx.beginPath();
+    roundedRect(ctx, x, y, boxWidth, boxHeight, 8);
+    ctx.fill();
+    ctx.stroke();
+    lines.forEach((line, index) => {
+      ctx.fillStyle = index === 0 ? COLORS.ink : COLORS.muted;
+      ctx.font = `${index === 0 ? '700 ' : ''}13px system-ui, -apple-system, BlinkMacSystemFont, sans-serif`;
+      ctx.textAlign = 'left';
+      ctx.textBaseline = 'top';
+      ctx.fillText(line, x + padding, y + padding + index * lineHeight);
+    });
+    ctx.restore();
+  }
+
   function drawFeelerCounts(canvas, records) {
     const { ctx, width, height } = prepareCanvas(canvas);
     const participants = chairParticipants(records);
     const byParticipant = new Map();
     for (const record of records) {
-      const key = participantKey(record.participant_name);
+      const key = chairParticipantKey(record.participant_name);
       if (!byParticipant.has(key)) byParticipant.set(key, {});
       byParticipant.get(key)[record.tendon] = record;
     }
+    const participantRows = participants.map(participant => ({
+      ...participant,
+      records: byParticipant.get(participant.key) || {}
+    }));
     const groups = ['bicep', 'tricep'].map(tendon => ({
       tendon,
-      rows: participants.map(participant => byParticipant.get(participant.key)?.[tendon] || null)
+      rows: participantRows.map(participant => participant.records[tendon] || null)
     }));
     groups.forEach(group => {
       group.feelers = group.rows.filter(record => record && Math.abs(record.perceived_angle) > 0).length;
@@ -350,6 +432,7 @@
     const startX = Math.max(150, width * 0.28);
     const rowGap = Math.max(84, height * 0.26);
     const startY = height * 0.34;
+    state.chairHoverHitboxes = [];
 
     ctx.save();
     ctx.textAlign = 'left';
@@ -371,11 +454,21 @@
 
       group.rows.forEach((record, index) => {
         const x = startX + index * gap;
+        const participant = participantRows[index];
+        const isParticipantHovered = participant.key === state.hoverParticipantKey;
         if (rowIndex === groups.length - 1) {
           ctx.fillStyle = COLORS.muted;
           ctx.textAlign = 'center';
           ctx.font = '11px system-ui, -apple-system, BlinkMacSystemFont, sans-serif';
           ctx.fillText(`P${index + 1}`, x, y + 44);
+        }
+        if (rowIndex === 0 && isParticipantHovered) {
+          ctx.strokeStyle = COLORS.ink;
+          ctx.lineWidth = 1.5;
+          ctx.beginPath();
+          ctx.moveTo(x, startY - 20);
+          ctx.lineTo(x, startY + rowGap + 20);
+          ctx.stroke();
         }
         if (!record) {
           ctx.strokeStyle = '#c8c8c8';
@@ -387,12 +480,19 @@
         }
         const isFeeler = Math.abs(record.perceived_angle) > 0;
         ctx.fillStyle = isFeeler ? color : '#d8d8d8';
-        ctx.strokeStyle = isFeeler ? color : '#9a9a9a';
-        ctx.lineWidth = 1;
+        ctx.strokeStyle = isParticipantHovered ? COLORS.ink : (isFeeler ? color : '#9a9a9a');
+        ctx.lineWidth = isParticipantHovered ? 2.5 : 1;
         ctx.beginPath();
-        ctx.arc(x, y, dotRadius, 0, Math.PI * 2);
+        ctx.arc(x, y, isParticipantHovered ? dotRadius + 3 : dotRadius, 0, Math.PI * 2);
         ctx.fill();
         ctx.stroke();
+        state.chairHoverHitboxes.push({
+          x,
+          y,
+          radius: dotRadius + 7,
+          key: participant.key,
+          participant
+        });
       });
     });
 
@@ -401,6 +501,8 @@
       { color: COLORS.tricep, label: 'triceps feeler' },
       { color: '#d8d8d8', label: 'non-feeler' }
     ]);
+    const hovered = participantRows.find(participant => participant.key === state.hoverParticipantKey);
+    drawChairTooltip(ctx, width, height, hovered);
     ctx.restore();
   }
 
@@ -410,7 +512,8 @@
       color: record.tendon === 'bicep' ? COLORS.bicep : COLORS.tricep,
       alpha: Math.abs(record.perceived_angle) > 0 ? 0.72 : 0.28,
       pointRadius: Math.abs(record.perceived_angle) > 0 ? 3.5 : 2,
-      lengthScale: 1
+      lengthScale: 1,
+      participantKey: chairParticipantKey(record.participant_name)
     })), {
       maxAngle: 90,
       unitLength: true,
@@ -437,7 +540,8 @@
         alpha: 0.48,
         pointRadius: 3,
         width: 1.4,
-        lengthScale: 1
+        lengthScale: 1,
+        participantKey: chairParticipantKey(record.participant_name)
       })),
       {
         angle: bicepSummary.mean,
@@ -576,6 +680,41 @@
     else renderChair();
   }
 
+  function canvasPoint(event, canvas) {
+    const rect = canvas.getBoundingClientRect();
+    return {
+      x: event.clientX - rect.left,
+      y: event.clientY - rect.top
+    };
+  }
+
+  function attachChairHover() {
+    if (experiment !== 'chair' || !els.secondaryCanvas) return;
+    els.secondaryCanvas.addEventListener('mousemove', (event) => {
+      const point = canvasPoint(event, els.secondaryCanvas);
+      const hit = state.chairHoverHitboxes.find(box => {
+        const dx = point.x - box.x;
+        const dy = point.y - box.y;
+        return Math.sqrt(dx * dx + dy * dy) <= box.radius;
+      });
+      const nextKey = hit ? hit.key : '';
+      const moved = !state.hoverPoint || Math.abs(state.hoverPoint.x - point.x) > 2 || Math.abs(state.hoverPoint.y - point.y) > 2;
+      if (nextKey !== state.hoverParticipantKey || moved) {
+        state.hoverParticipantKey = nextKey;
+        state.hoverPoint = hit ? point : null;
+        els.secondaryCanvas.style.cursor = hit ? 'pointer' : 'default';
+        window.requestAnimationFrame(render);
+      }
+    });
+    els.secondaryCanvas.addEventListener('mouseleave', () => {
+      if (!state.hoverParticipantKey && !state.hoverPoint) return;
+      state.hoverParticipantKey = '';
+      state.hoverPoint = null;
+      els.secondaryCanvas.style.cursor = 'default';
+      window.requestAnimationFrame(render);
+    });
+  }
+
   function init() {
     els.kicker.textContent = cfg.kicker;
     els.title.textContent = cfg.title;
@@ -585,6 +724,7 @@
     els.tableTitle.textContent = cfg.tableTitle;
     els.sourceSheet.href = cfg.sheet || '#';
     render();
+    attachChairHover();
     window.addEventListener('resize', () => window.requestAnimationFrame(render));
   }
 
