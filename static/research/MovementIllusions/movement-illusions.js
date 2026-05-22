@@ -168,9 +168,10 @@
     drawRoseAxes(ctx, cx, cy, radius, maxAngle);
 
     items.forEach((item, index) => {
-      const degrees = Math.max(0, Math.min(maxAngle, Number(item.angle) || 0));
+      const signedDegrees = Number(item.angle) || 0;
+      const degrees = Math.min(maxAngle, Math.abs(signedDegrees));
       const length = radius * (degrees / maxAngle);
-      const theta = options.direction ? options.direction(item, index) : degrees;
+      const theta = options.direction ? options.direction(item, index) : signedDegrees;
       const end = polarPoint(cx, cy, length, theta);
       const outer = polarPoint(cx, cy, radius, theta);
       const color = item.color || COLORS.floor;
@@ -315,10 +316,10 @@
     const byTendon = meanBy(records, 'tendon', 'perceived_angle');
     const bicep = byTendon.find(row => row.name === 'bicep') || { mean: 0 };
     const tricep = byTendon.find(row => row.name === 'tricep') || { mean: 0 };
-    const felt = records.filter(record => record.perceived_angle > 0).length;
+    const felt = records.filter(record => Math.abs(record.perceived_angle) > 0).length;
 
     els.stats.textContent = `Records: ${records.length} • Felt rotation: ${felt} • Biceps mean: ${fmt(bicep.mean, 2)}° • Triceps mean: ${fmt(tricep.mean, 2)}°`;
-    els.chartNote.textContent = 'Rose plots encode perceived rotation as angle and radius. Zero-response participants remain at the center instead of inflating a bar.';
+    els.chartNote.textContent = 'Signed rose plots encode opposite rotation directions. Zero-response participants remain at the center instead of inflating a bar.';
 
     drawRose(els.primaryCanvas, [
       { angle: bicep.mean, color: COLORS.bicep, width: 5, pointRadius: 6, markOuter: true },
@@ -335,8 +336,8 @@
     drawRose(els.secondaryCanvas, records.map(record => ({
       angle: record.perceived_angle,
       color: record.tendon === 'bicep' ? COLORS.bicep : COLORS.tricep,
-      alpha: record.perceived_angle > 0 ? 0.7 : 0.25,
-      pointRadius: record.perceived_angle > 0 ? 3.5 : 2
+      alpha: Math.abs(record.perceived_angle) > 0 ? 0.7 : 0.25,
+      pointRadius: Math.abs(record.perceived_angle) > 0 ? 3.5 : 2
     })), {
       maxAngle: 90,
       direction: item => item.angle,
