@@ -18,6 +18,11 @@
   max-height: 440px;
 }
 
+.movement-primary-grid .movement-chart-wrap {
+  height: min(320px, 48vw);
+  max-height: 320px;
+}
+
 .chair-extra-grid {
   grid-template-columns: repeat(3, minmax(280px, 1fr));
   align-items: stretch;

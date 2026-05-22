@@ -12,7 +12,7 @@
       records: data.chair || [],
       summary: data.chairSummary || {},
       primaryTitle: 'Mean Signed Perceived Rotation',
-      secondaryTitle: 'Feelers vs. Non-Feelers',
+      secondaryTitle: 'Feeler / Non-Feeler',
       tableTitle: 'Chair Rotation Records'
     },
     floor: {
@@ -442,12 +442,6 @@
     state.chairHoverHitboxes = [];
 
     ctx.save();
-    ctx.textAlign = 'left';
-    ctx.textBaseline = 'middle';
-    ctx.font = '700 16px system-ui, -apple-system, BlinkMacSystemFont, sans-serif';
-    ctx.fillStyle = COLORS.ink;
-    ctx.fillText('participant order: P1, P2, P3...', 24, 34);
-
     groups.forEach((group, rowIndex) => {
       const y = startY + rowIndex * rowGap;
       const color = group.tendon === 'bicep' ? COLORS.bicep : COLORS.tricep;
@@ -457,7 +451,7 @@
       ctx.fillText(group.tendon === 'bicep' ? 'Biceps' : 'Triceps', startX - 26, y);
       ctx.font = '13px system-ui, -apple-system, BlinkMacSystemFont, sans-serif';
       ctx.fillStyle = COLORS.muted;
-      ctx.fillText(`${group.feelers} feelers / ${group.nonFeelers} non-feelers`, startX - 26, y + 22);
+      ctx.fillText(`${group.feelers} Feeler / ${group.nonFeelers} Non-Feeler`, startX - 26, y + 22);
 
       group.rows.forEach((record, index) => {
         const x = startX + index * gap;
@@ -504,9 +498,9 @@
     });
 
     drawLegend(ctx, width, [
-      { color: COLORS.bicep, label: 'biceps feeler' },
-      { color: COLORS.tricep, label: 'triceps feeler' },
-      { color: '#d8d8d8', label: 'non-feeler' }
+      { color: COLORS.bicep, label: 'biceps Feeler' },
+      { color: COLORS.tricep, label: 'triceps Feeler' },
+      { color: '#d8d8d8', label: 'Non-Feeler' }
     ]);
     const hovered = participantRows.find(participant => participant.key === state.hoverParticipantKey);
     drawChairTooltip(ctx, width, height, hovered);
@@ -538,8 +532,6 @@
     const tricepRows = rows.filter(record => record.tendon === 'tricep');
     const bicepSummary = summarize(bicepRows.map(record => record.perceived_angle));
     const tricepSummary = summarize(tricepRows.map(record => record.perceived_angle));
-    const classLabel = isFeelerClass ? 'feeler' : 'non-feeler';
-
     drawRose(canvas, [
       ...rows.map(record => ({
         angle: record.perceived_angle,
@@ -573,8 +565,8 @@
       unitLength: true,
       direction: item => item.angle,
       legend: [
-        { color: COLORS.bicep, label: `biceps ${classLabel} mean ${fmt(bicepSummary.mean, 1)}°` },
-        { color: COLORS.tricep, label: `triceps ${classLabel} mean ${fmt(tricepSummary.mean, 1)}°` }
+        { color: COLORS.bicep, label: `biceps mean ${fmt(bicepSummary.mean, 1)}°` },
+        { color: COLORS.tricep, label: `triceps mean ${fmt(tricepSummary.mean, 1)}°` }
       ]
     });
   }
@@ -599,21 +591,21 @@
     const nonFeelerRows = records.filter(record => Math.abs(record.perceived_angle) === 0);
     const felt = records.filter(record => Math.abs(record.perceived_angle) > 0).length;
 
-    els.stats.textContent = `Records: ${records.length} • Felt rotation: ${felt} • Biceps mean: ${fmt(bicepMean, 2)}° • Triceps mean: ${fmt(tricepMean, 2)}°`;
+    els.stats.textContent = `Records: ${records.length} • Felt Rotation in Body: ${felt}/${records.length} True • Biceps mean: ${fmt(bicepMean, 2)}° • Triceps mean: ${fmt(tricepMean, 2)}°`;
     els.chartNote.textContent = 'Signed angles and mean values come from the Bicep Data and Tricep Data tabs. In rose plots, individual rays use unit length; mean arrows use 1.5x length.';
     els.primaryTitle.textContent = `Mean Signed Perceived Rotation (biceps n=${bicepRows.length}, triceps n=${tricepRows.length})`;
-    els.secondaryTitle.textContent = `Feelers vs. Non-Feelers (n=${chairParticipants(records).length} paired participants)`;
+    els.secondaryTitle.textContent = `Feeler / Non-Feeler (n=${chairParticipants(records).length} paired participants)`;
     if (els.individualTitle) els.individualTitle.textContent = `Individual Signed Rotation Reports (n=${records.length})`;
-    if (els.bicepFeelTitle) els.bicepFeelTitle.textContent = `Bicep vs Tricep (Feelers, n=${feelerRows.length})`;
-    if (els.tricepFeelTitle) els.tricepFeelTitle.textContent = `Bicep vs Tricep (Non-Feelers, n=${nonFeelerRows.length})`;
+    if (els.bicepFeelTitle) els.bicepFeelTitle.textContent = `Bicep vs Tricep (Feeler, n=${feelerRows.length})`;
+    if (els.tricepFeelTitle) els.tricepFeelTitle.textContent = `Bicep vs Tricep (Non-Feeler, n=${nonFeelerRows.length})`;
     if (els.secondaryChartNote) {
-      els.secondaryChartNote.textContent = 'Each column is one participant in order. Hover any circle to highlight the participant pair here and in Plots 3-5.';
+      els.secondaryChartNote.textContent = 'Each column is a paired participant. Hover any circle to highlight the participant pair here and in Plots 3-5.';
     }
     if (els.individualChartNote) {
       els.individualChartNote.textContent = 'All signed participant reports, with biceps and triceps overlaid on the same rose plot.';
     }
     if (els.bicepFeelChartNote) {
-      els.bicepFeelChartNote.textContent = 'Only participants with nonzero perceived rotation; mean arrows compare biceps and triceps among feelers.';
+      els.bicepFeelChartNote.textContent = 'Only participants with nonzero perceived rotation; mean arrows compare biceps and triceps among Feelers.';
     }
     if (els.tricepFeelChartNote) {
       els.tricepFeelChartNote.textContent = 'Only participants with zero perceived rotation; both tendon means sit at zero.';
@@ -637,11 +629,11 @@
     drawResponseClassRose(els.bicepFeelCanvas, records, true);
     drawResponseClassRose(els.tricepFeelCanvas, records, false);
 
-    table(['Participant', 'Tendon', 'Signed perceived angle', 'Felt rotation'], records.map(record => [
+    table(['Participant', 'Tendon', 'Signed perceived angle', 'Felt Rotation in Body'], records.map(record => [
       record.participant_name,
       record.tendon,
       `${fmt(record.perceived_angle)}°`,
-      record.felt_rotation ? 'Y' : 'N'
+      record.felt_rotation ? 'True' : 'False'
     ]));
     els.recordsCount.textContent = `${records.length} records`;
   }
