@@ -107,6 +107,22 @@
     return [...groups.entries()].map(([name, values]) => ({ name, ...summarize(values) }));
   }
 
+  function participantKey(name) {
+    return String(name || '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+  }
+
+  function chairParticipants(records) {
+    const participants = [];
+    const seen = new Set();
+    for (const record of records) {
+      const key = participantKey(record.participant_name);
+      if (!key || seen.has(key)) continue;
+      seen.add(key);
+      participants.push({ key, name: record.participant_name });
+    }
+    return participants;
+  }
+
   function prepareCanvas(canvas) {
     const rect = canvas.parentElement.getBoundingClientRect();
     const ratio = window.devicePixelRatio || 1;
@@ -175,7 +191,10 @@
     items.forEach((item, index) => {
       const signedDegrees = Number(item.angle) || 0;
       const degrees = Math.min(maxAngle, Math.abs(signedDegrees));
-      const length = radius * (degrees / maxAngle);
+      const lengthScale = item.lengthScale == null
+        ? (options.unitLength ? 1 : degrees / maxAngle)
+        : item.lengthScale;
+      const length = radius * lengthScale;
       const theta = options.direction ? options.direction(item, index) : signedDegrees;
       const end = polarPoint(cx, cy, length, theta);
       const outer = polarPoint(cx, cy, radius, theta);
@@ -311,17 +330,23 @@
 
   function drawFeelerCounts(canvas, records) {
     const { ctx, width, height } = prepareCanvas(canvas);
-    const groups = ['bicep', 'tricep'].map(tendon => {
-      const rows = records.filter(record => record.tendon === tendon);
-      return {
-        tendon,
-        rows,
-        feelers: rows.filter(record => Math.abs(record.perceived_angle) > 0).length,
-        nonFeelers: rows.filter(record => Math.abs(record.perceived_angle) === 0).length
-      };
+    const participants = chairParticipants(records);
+    const byParticipant = new Map();
+    for (const record of records) {
+      const key = participantKey(record.participant_name);
+      if (!byParticipant.has(key)) byParticipant.set(key, {});
+      byParticipant.get(key)[record.tendon] = record;
+    }
+    const groups = ['bicep', 'tricep'].map(tendon => ({
+      tendon,
+      rows: participants.map(participant => byParticipant.get(participant.key)?.[tendon] || null)
+    }));
+    groups.forEach(group => {
+      group.feelers = group.rows.filter(record => record && Math.abs(record.perceived_angle) > 0).length;
+      group.nonFeelers = group.rows.filter(record => record && Math.abs(record.perceived_angle) === 0).length;
     });
     const dotRadius = 6;
-    const gap = 18;
+    const gap = Math.min(28, Math.max(14, (width - 190) / Math.max(1, participants.length - 1)));
     const startX = Math.max(150, width * 0.28);
     const rowGap = Math.max(84, height * 0.26);
     const startY = height * 0.34;
@@ -331,7 +356,7 @@
     ctx.textBaseline = 'middle';
     ctx.font = '700 16px system-ui, -apple-system, BlinkMacSystemFont, sans-serif';
     ctx.fillStyle = COLORS.ink;
-    ctx.fillText('nonzero perceived rotation = feeler', 24, 34);
+    ctx.fillText('participant order: P1, P2, P3...', 24, 34);
 
     groups.forEach((group, rowIndex) => {
       const y = startY + rowIndex * rowGap;
@@ -345,8 +370,22 @@
       ctx.fillText(`${group.feelers} feelers / ${group.nonFeelers} non-feelers`, startX - 26, y + 22);
 
       group.rows.forEach((record, index) => {
-        const isFeeler = Math.abs(record.perceived_angle) > 0;
         const x = startX + index * gap;
+        if (rowIndex === groups.length - 1) {
+          ctx.fillStyle = COLORS.muted;
+          ctx.textAlign = 'center';
+          ctx.font = '11px system-ui, -apple-system, BlinkMacSystemFont, sans-serif';
+          ctx.fillText(`P${index + 1}`, x, y + 44);
+        }
+        if (!record) {
+          ctx.strokeStyle = '#c8c8c8';
+          ctx.lineWidth = 1;
+          ctx.beginPath();
+          ctx.arc(x, y, dotRadius, 0, Math.PI * 2);
+          ctx.stroke();
+          return;
+        }
+        const isFeeler = Math.abs(record.perceived_angle) > 0;
         ctx.fillStyle = isFeeler ? color : '#d8d8d8';
         ctx.strokeStyle = isFeeler ? color : '#9a9a9a';
         ctx.lineWidth = 1;
@@ -370,9 +409,11 @@
       angle: record.perceived_angle,
       color: record.tendon === 'bicep' ? COLORS.bicep : COLORS.tricep,
       alpha: Math.abs(record.perceived_angle) > 0 ? 0.72 : 0.28,
-      pointRadius: Math.abs(record.perceived_angle) > 0 ? 3.5 : 2
+      pointRadius: Math.abs(record.perceived_angle) > 0 ? 3.5 : 2,
+      lengthScale: 1
     })), {
       maxAngle: 90,
+      unitLength: true,
       direction: item => item.angle,
       legend: [
         { color: COLORS.bicep, label: 'biceps' },
@@ -381,43 +422,48 @@
     });
   }
 
-  function drawTendonFeelerRose(canvas, records, tendon) {
-    const rows = records.filter(record => record.tendon === tendon);
-    const feelers = rows.filter(record => Math.abs(record.perceived_angle) > 0);
-    const nonFeelers = rows.filter(record => Math.abs(record.perceived_angle) === 0);
-    const feelerSummary = summarize(feelers.map(record => record.perceived_angle));
-    const nonFeelerSummary = summarize(nonFeelers.map(record => record.perceived_angle));
-    const tendonColor = tendon === 'bicep' ? COLORS.bicep : COLORS.tricep;
+  function drawResponseClassRose(canvas, records, isFeelerClass) {
+    const rows = records.filter(record => (Math.abs(record.perceived_angle) > 0) === isFeelerClass);
+    const bicepRows = rows.filter(record => record.tendon === 'bicep');
+    const tricepRows = rows.filter(record => record.tendon === 'tricep');
+    const bicepSummary = summarize(bicepRows.map(record => record.perceived_angle));
+    const tricepSummary = summarize(tricepRows.map(record => record.perceived_angle));
+    const classLabel = isFeelerClass ? 'feeler' : 'non-feeler';
 
     drawRose(canvas, [
       ...rows.map(record => ({
         angle: record.perceived_angle,
-        color: Math.abs(record.perceived_angle) > 0 ? tendonColor : '#d8d8d8',
-        alpha: Math.abs(record.perceived_angle) > 0 ? 0.56 : 0.5,
-        pointRadius: Math.abs(record.perceived_angle) > 0 ? 3.5 : 2.5,
-        width: 1.4
+        color: record.tendon === 'bicep' ? COLORS.bicep : COLORS.tricep,
+        alpha: 0.48,
+        pointRadius: 3,
+        width: 1.4,
+        lengthScale: 1
       })),
       {
-        angle: feelerSummary.mean,
-        color: tendonColor,
+        angle: bicepSummary.mean,
+        color: COLORS.bicep,
         alpha: 1,
         width: 5,
         pointRadius: 7,
-        markOuter: true
+        markOuter: true,
+        lengthScale: 1.5
       },
       {
-        angle: nonFeelerSummary.mean,
-        color: '#777777',
+        angle: tricepSummary.mean,
+        color: COLORS.tricep,
         alpha: 1,
         width: 5,
-        pointRadius: 7
+        pointRadius: 7,
+        markOuter: true,
+        lengthScale: 1.5
       }
     ], {
       maxAngle: 90,
+      unitLength: true,
       direction: item => item.angle,
       legend: [
-        { color: tendonColor, label: `feeler mean ${fmt(feelerSummary.mean, 1)}°` },
-        { color: '#777777', label: `non-feeler mean ${fmt(nonFeelerSummary.mean, 1)}°` }
+        { color: COLORS.bicep, label: `biceps ${classLabel} mean ${fmt(bicepSummary.mean, 1)}°` },
+        { color: COLORS.tricep, label: `triceps ${classLabel} mean ${fmt(tricepSummary.mean, 1)}°` }
       ]
     });
   }
@@ -439,13 +485,14 @@
     const felt = records.filter(record => Math.abs(record.perceived_angle) > 0).length;
 
     els.stats.textContent = `Records: ${records.length} • Felt rotation: ${felt} • Biceps mean: ${fmt(bicepMean, 2)}° • Triceps mean: ${fmt(tricepMean, 2)}°`;
-    els.chartNote.textContent = 'Signed angles and mean values come from the Bicep Data and Tricep Data tabs. Participant notes come from the Participants tab.';
+    els.chartNote.textContent = 'Signed angles and mean values come from the Bicep Data and Tricep Data tabs. In rose plots, individual rays use unit length; mean arrows use 1.5x length.';
 
     drawRose(els.primaryCanvas, [
-      { angle: bicepMean, color: COLORS.bicep, width: 5, pointRadius: 6, markOuter: true },
-      { angle: tricepMean, color: COLORS.tricep, width: 5, pointRadius: 6, markOuter: true }
+      { angle: bicepMean, color: COLORS.bicep, width: 5, pointRadius: 6, markOuter: true, lengthScale: 1.5 },
+      { angle: tricepMean, color: COLORS.tricep, width: 5, pointRadius: 6, markOuter: true, lengthScale: 1.5 }
     ], {
       maxAngle: 90,
+      unitLength: true,
       direction: item => item.angle,
       legend: [
         { color: COLORS.bicep, label: 'biceps mean' },
@@ -455,8 +502,8 @@
 
     drawFeelerCounts(els.secondaryCanvas, records);
     drawChairIndividualRose(els.individualCanvas, records);
-    drawTendonFeelerRose(els.bicepFeelCanvas, records, 'bicep');
-    drawTendonFeelerRose(els.tricepFeelCanvas, records, 'tricep');
+    drawResponseClassRose(els.bicepFeelCanvas, records, true);
+    drawResponseClassRose(els.tricepFeelCanvas, records, false);
 
     table(['Participant', 'Tendon', 'Signed perceived angle', 'Felt rotation'], records.map(record => [
       record.participant_name,
