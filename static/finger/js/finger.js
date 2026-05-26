@@ -20,14 +20,15 @@ document.addEventListener('DOMContentLoaded', () => {
     const SQUARE_FLASH_DURATION_MS = 300;
     const SQUARE_FLASH_DELAY_MS = 0;
     const GROUP_SQUARE_COLORS = {
-        ctrl: 'light_gray',
-        bend: 'dark_gray'
+        ctrl: 'grey',
+        bend: 'black'
     };
     const SQUARE_COLOR_VALUES = {
-        light_gray: '#C0C0C0',
-        dark_gray: '#000000'
+        white: '#FFFFFF',
+        grey: '#a6a6a6',
+        black: '#000000'
     };
-    const BASELINE_SQUARE_COLOR = '#FFFFFF';
+    const BASELINE_SQUARE_COLOR = SQUARE_COLOR_VALUES.white;
 
     let playlist = [];
     let currentVideoIndex = 0;
