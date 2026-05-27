@@ -1449,6 +1449,348 @@ def _fetch_google_participant_metadata(sheet_url):
     return {}
 
 
+# ---- RESEARCH: RHI Temperature (hand + foot follow-up; Experiment 4) ----
+RHI_HF_SHEET_URL = 'https://docs.google.com/spreadsheets/d/1DY7DoEd7KOQ6fqQpQNmbxy2GjwJC5B3tqmHr9GgOFMA/edit'
+RHI_HF_DATA_TAB = 'Exp 1 Data'
+RHI_HF_VIVIDNESS_TAB = '[RHI] Vividness data'
+RHI_HF_LOCATIONAL_TAB = 'Locational Table Temperature'
+RHI_HF_PARTICIPANTS_TAB = 'Participants'
+
+RHI_HF_CONDITIONS = ['ctrl1', 'rhi', 'ctrl2']
+RHI_HF_SITES = ['hand', 'foot']
+
+# 30 readings per condition, every 10 seconds for 5 minutes.
+RHI_HF_TIMEPOINTS_S = [i * 10 for i in range(1, 31)]
+
+# Per the methods: 60-second epoch means at 90-150s and 240-300s of each condition.
+RHI_HF_EPOCHS_S = [(90, 150), (240, 300)]
+
+
+def _rhi_hf_seconds_from_header(value):
+    text = str(value or '').strip().lower()
+    if not text:
+        return None
+    m = re.match(r'^(\d+)\s*min\s*(\d+)\s*sec\s*$', text)
+    if m:
+        return int(m.group(1)) * 60 + int(m.group(2))
+    m = re.match(r'^(\d+)\s*min\s*$', text)
+    if m:
+        return int(m.group(1)) * 60
+    m = re.match(r'^(\d+)\s*sec\s*$', text)
+    if m:
+        return int(m.group(1))
+    return None
+
+
+def _rhi_hf_normalize_position(value):
+    text = _clean_key(value)
+    if text in ('hand', 'righthand', 'backhand'):
+        return 'hand'
+    # The source sheet labels the lower-body site "leg"; the published methods
+    # call it "foot" (anterior right ankle). Surface the methods' term.
+    if text in ('leg', 'foot', 'ankle', 'rightleg', 'rightfoot', 'rightankle'):
+        return 'foot'
+    return ''
+
+
+def _rhi_hf_condition_from_trial(trial_value):
+    text = str(trial_value or '').strip()
+    if text == '1':
+        return 'ctrl1'
+    if text == '2':
+        return 'rhi'
+    if text == '3':
+        return 'ctrl2'
+    return ''
+
+
+def _rhi_hf_meta_for(subject, participants_by_subject):
+    if not subject:
+        return {}
+    direct = participants_by_subject.get(subject)
+    if direct:
+        return direct
+    target = _clean_key(subject)
+    if not target:
+        return {}
+    for meta in participants_by_subject.values():
+        name = str(meta.get('name') or '').strip()
+        if not name:
+            continue
+        if _clean_key(name) == target:
+            return meta
+        first = name.split()[0] if name.split() else ''
+        if first and _clean_key(first) == target:
+            return meta
+    return {}
+
+
+def _parse_rhi_hf_data_rows(headers, rows, participants_by_subject=None):
+    if not headers or not rows:
+        return []
+    participants_by_subject = participants_by_subject or {}
+    header_names = [str(h or '').strip() for h in headers]
+    time_columns = [(idx, sec) for idx, h in enumerate(header_names)
+                    for sec in [_rhi_hf_seconds_from_header(h)] if sec is not None]
+    col = {h.lower(): idx for idx, h in enumerate(header_names) if h}
+    subject_col = col.get('subject')
+    session_col = col.get('session')
+    trial_col = col.get('trial')
+    position_col = col.get('position')
+    if subject_col is None or trial_col is None or position_col is None or not time_columns:
+        return []
+
+    records = []
+    for values in rows:
+        if not values:
+            continue
+        subject = str(values[subject_col] if subject_col < len(values) else '' or '').strip()
+        if not subject or subject.lower() == 'subject':
+            continue
+        condition = _rhi_hf_condition_from_trial(values[trial_col] if trial_col < len(values) else '')
+        if not condition:
+            continue
+        site = _rhi_hf_normalize_position(values[position_col] if position_col < len(values) else '')
+        if not site:
+            continue
+        meta = _rhi_hf_meta_for(subject, participants_by_subject)
+        if meta.get('exclude'):
+            continue
+        session_val = values[session_col] if (session_col is not None and session_col < len(values)) else ''
+        for idx, seconds in time_columns:
+            raw = values[idx] if idx < len(values) else None
+            temp = _parse_temperature(raw)
+            if temp is None:
+                continue
+            records.append({
+                'participant_id': subject,
+                'participant_name': str(meta.get('name') or '').strip() or subject,
+                'condition': condition,
+                'session': str(session_val or '').strip(),
+                'site': site,
+                'time_s': seconds,
+                'temperature_f': temp,
+            })
+    return records
+
+
+def _build_rhi_hf_canonical_subject_lookup(temp_records):
+    lookup = {}
+    for r in temp_records:
+        sid = r.get('participant_id')
+        if not sid:
+            continue
+        keys = {_clean_key(sid)}
+        parts = sid.split()
+        if parts:
+            keys.add(_clean_key(parts[0]))
+        for k in keys:
+            if k and k not in lookup:
+                lookup[k] = sid
+    return lookup
+
+
+def _parse_rhi_hf_vividness_rows(headers, rows, temp_records, participants_by_subject=None):
+    if not headers or not rows:
+        return []
+    participants_by_subject = participants_by_subject or {}
+    header_names = [str(h or '').strip() for h in headers]
+    time_columns = [(idx, sec) for idx, h in enumerate(header_names)
+                    for sec in [_rhi_hf_seconds_from_header(h)] if sec is not None]
+    if not time_columns:
+        return []
+    canonical = _build_rhi_hf_canonical_subject_lookup(temp_records)
+
+    records = []
+    for values in rows:
+        if not values:
+            continue
+        subject_text = str(values[0] or '').strip()
+        if not subject_text or subject_text.lower() == 'subject':
+            continue
+        canonical_id = canonical.get(_clean_key(subject_text)) or subject_text
+        meta = _rhi_hf_meta_for(canonical_id, participants_by_subject)
+        if meta.get('exclude'):
+            continue
+        for idx, seconds in time_columns:
+            raw = values[idx] if idx < len(values) else None
+            if raw is None or raw == '':
+                continue
+            try:
+                rating = float(raw)
+            except (TypeError, ValueError):
+                continue
+            # Sheet uses a 0-10 scale; clamp the occasional 11 that slipped in.
+            rating = max(0.0, min(10.0, rating))
+            records.append({
+                'participant_id': canonical_id,
+                'participant_name': str(meta.get('name') or '').strip() or canonical_id,
+                'time_s': seconds,
+                'rating': rating,
+            })
+    return records
+
+
+def _parse_rhi_hf_ambient_rows(headers, rows, temp_records, participants_by_subject=None):
+    """Parse the 'Locational Table Temperature' tab.
+
+    Each row is a participant with several ambient readings followed by an 'AVG' column
+    per condition. There are three 'AVG' columns, one each for ctrl1, rhi, ctrl2 in
+    chronological order. Subject codes (e.g. 'CL', 'TS', 'DH') are resolved to the
+    canonical participant_id used by the main data tab so callers can join cleanly.
+    """
+    if not headers or not rows:
+        return {}
+    participants_by_subject = participants_by_subject or {}
+    avg_indices = [i for i, h in enumerate(headers)
+                   if str(h or '').strip().upper() == 'AVG']
+    if len(avg_indices) < 3:
+        return {}
+    canonical = _build_rhi_hf_canonical_subject_lookup(temp_records)
+
+    def resolve(code):
+        direct = canonical.get(_clean_key(code))
+        if direct:
+            return direct
+        meta = participants_by_subject.get(code) or _rhi_hf_meta_for(code, participants_by_subject)
+        if meta:
+            name = str(meta.get('name') or '').strip()
+            for candidate in (name, name.split()[0] if name.split() else ''):
+                resolved = canonical.get(_clean_key(candidate)) if candidate else None
+                if resolved:
+                    return resolved
+        return code
+
+    out = {}
+    for values in rows:
+        if not values:
+            continue
+        subject_text = str(values[0] or '').strip()
+        if not subject_text or subject_text.lower() == 'subject':
+            continue
+        try:
+            ctrl1_avg = float(values[avg_indices[0]])
+            rhi_avg = float(values[avg_indices[1]])
+            ctrl2_avg = float(values[avg_indices[2]])
+        except (IndexError, TypeError, ValueError):
+            continue
+        canonical_id = resolve(subject_text)
+        out[canonical_id] = {
+            'subject_code': subject_text,
+            'ctrl1_ambient_f': ctrl1_avg,
+            'rhi_ambient_f': rhi_avg,
+            'ctrl2_ambient_f': ctrl2_avg,
+            'drift_rhi_f': rhi_avg - ctrl1_avg,
+            'drift_ctrl2_f': ctrl2_avg - ctrl1_avg,
+        }
+    return out
+
+
+def _compute_rhi_hf_epoch_means(temp_records, epochs=RHI_HF_EPOCHS_S):
+    grouped = {}
+    for r in temp_records:
+        ts = r.get('time_s')
+        if ts is None:
+            continue
+        for epoch_index, (start, end) in enumerate(epochs):
+            if ts < start or ts > end:
+                continue
+            key = (r['participant_id'], r['condition'], r['site'], epoch_index)
+            grouped.setdefault(key, []).append(r['temperature_f'])
+    out = []
+    for (participant_id, condition, site, epoch_index), vals in grouped.items():
+        if not vals:
+            continue
+        start, end = epochs[epoch_index]
+        out.append({
+            'participant_id': participant_id,
+            'condition': condition,
+            'site': site,
+            'epoch_index': epoch_index,
+            'epoch_start_s': start,
+            'epoch_end_s': end,
+            'mean_temperature_f': sum(vals) / len(vals),
+            'n': len(vals),
+        })
+    return out
+
+
+def _summarize_rhi_hf(temp_records, vividness_records):
+    participants_with_data = sorted({r['participant_id'] for r in temp_records})
+    epoch_means = _compute_rhi_hf_epoch_means(temp_records)
+    agg = {}
+    for m in epoch_means:
+        key = (m['condition'], m['site'], m['epoch_index'])
+        agg.setdefault(key, []).append(m['mean_temperature_f'])
+    group_means = []
+    for (condition, site, epoch_index), vals in agg.items():
+        n = len(vals)
+        mean = sum(vals) / n
+        var = sum((v - mean) ** 2 for v in vals) / (n - 1) if n > 1 else 0.0
+        sd = var ** 0.5
+        sem = sd / (n ** 0.5) if n > 1 else 0.0
+        start, end = RHI_HF_EPOCHS_S[epoch_index]
+        group_means.append({
+            'condition': condition,
+            'site': site,
+            'epoch_index': epoch_index,
+            'epoch_start_s': start,
+            'epoch_end_s': end,
+            'n': n,
+            'mean': mean,
+            'sd': sd,
+            'sem': sem,
+        })
+
+    by_time = {}
+    for v in vividness_records:
+        by_time.setdefault(v['time_s'], []).append(v['rating'])
+    vividness_means = []
+    for time_s in sorted(by_time):
+        vals = by_time[time_s]
+        n = len(vals)
+        mean = sum(vals) / n
+        var = sum((v - mean) ** 2 for v in vals) / (n - 1) if n > 1 else 0.0
+        sem = (var ** 0.5) / (n ** 0.5) if n > 1 else 0.0
+        vividness_means.append({'time_s': time_s, 'n': n, 'mean': mean, 'sem': sem})
+
+    return {
+        'temp_record_count': len(temp_records),
+        'vividness_record_count': len(vividness_records),
+        'participant_count': len(participants_with_data),
+        'participants': participants_with_data,
+        'epoch_means_by_participant': epoch_means,
+        'epoch_means_group': group_means,
+        'vividness_over_time': vividness_means,
+    }
+
+
+def _fetch_rhi_hf_sheet_data():
+    sheet_url = RHI_HF_SHEET_URL
+    participants = {}
+    try:
+        ph, pr = _fetch_google_sheet_tab_values(sheet_url, RHI_HF_PARTICIPANTS_TAB)
+        participants = _participant_metadata_from_rows(ph, pr)
+    except Exception:
+        app.logger.exception('rhi-handfoot participants tab failed')
+    data_headers, data_rows = _fetch_google_sheet_tab_values(sheet_url, RHI_HF_DATA_TAB)
+    temp_records = _parse_rhi_hf_data_rows(data_headers, data_rows, participants_by_subject=participants)
+    vividness_records = []
+    try:
+        vh, vr = _fetch_google_sheet_tab_values(sheet_url, RHI_HF_VIVIDNESS_TAB)
+        vividness_records = _parse_rhi_hf_vividness_rows(vh, vr, temp_records, participants_by_subject=participants)
+    except Exception:
+        app.logger.exception('rhi-handfoot vividness tab failed')
+    ambient = {}
+    try:
+        amh, amr = _fetch_google_sheet_tab_values(sheet_url, RHI_HF_LOCATIONAL_TAB)
+        ambient = _parse_rhi_hf_ambient_rows(amh, amr, temp_records, participants_by_subject=participants)
+    except Exception:
+        app.logger.exception('rhi-handfoot ambient tab failed')
+    summary = _summarize_rhi_hf(temp_records, vividness_records)
+    return temp_records, vividness_records, participants, ambient, summary
+
+
 @app.get('/research')
 @require_results_auth
 def research_page():
@@ -1497,11 +1839,51 @@ def movement_illusions_page_slash():
     return movement_illusions_page()
 
 
+@app.get('/research/RHITempHandFoot')
+@require_results_auth
+def rhi_handfoot_page():
+    return send_from_directory(os.path.join(app.root_path, 'static', 'research', 'RHITempHandFoot'), 'index.html')
+
+
+@app.get('/research/RHITempHandFoot/')
+@require_results_auth
+def rhi_handfoot_page_slash():
+    return rhi_handfoot_page()
+
+
 @app.get('/research/<path:filename>')
 @require_results_auth
 def research_assets(filename):
     base_dir = os.path.join(app.root_path, 'static', 'research')
     return send_from_directory(base_dir, filename)
+
+
+@app.get('/api/research/rhi-temp-handfoot/data')
+@require_results_auth
+def rhi_handfoot_data():
+    try:
+        temp_records, vividness_records, participants, ambient, summary = _fetch_rhi_hf_sheet_data()
+    except Exception:
+        app.logger.exception('rhi-handfoot source sheet load failed')
+        return jsonify({
+            'status': 'error',
+            'error': 'Could not load RHI hand+foot records from the source Google Sheet',
+            'service_account_email': _google_service_account_email(),
+        }), 502
+    return jsonify({
+        'status': 'ok',
+        'source': 'google-sheet',
+        'sheet_url': RHI_HF_SHEET_URL,
+        'epochs_s': RHI_HF_EPOCHS_S,
+        'sites': RHI_HF_SITES,
+        'conditions': RHI_HF_CONDITIONS,
+        'timepoints_s': RHI_HF_TIMEPOINTS_S,
+        'participants': participants,
+        'ambient': ambient,
+        'records': temp_records,
+        'vividness': vividness_records,
+        'summary': summary,
+    })
 
 
 @app.get('/api/research/rhi-temp/data')
