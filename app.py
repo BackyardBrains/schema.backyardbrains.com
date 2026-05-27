@@ -3044,4 +3044,5 @@ def results_zip():
     return resp
 
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=8000)
+    # Keep service startup deterministic and avoid debug reloader restarts in production.
+    app.run(host='0.0.0.0', port=8000, debug=False, use_reloader=False)

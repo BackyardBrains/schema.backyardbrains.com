@@ -52,6 +52,7 @@
   }
 
   function upsertChart(name, canvas, config) {
+    if (!canvas || typeof Chart === 'undefined') return;
     destroyChart(name);
     state.charts[name] = new Chart(canvas, config);
   }
@@ -264,14 +265,20 @@
   }
 
   function renderAll() {
-    const summary = state.summary || { sessions: [], group: {} };
-    renderStats(summary);
-    renderSessionSelect(summary);
-    renderGroupPower(summary);
-    renderPerievent(summary);
-    renderSessionTrace(summary);
-    renderSessionDeltas(summary);
-    renderSessionsTable(summary);
+    try {
+      const summary = state.summary || { sessions: [], group: {} };
+      renderStats(summary);
+      renderSessionSelect(summary);
+      renderGroupPower(summary);
+      renderPerievent(summary);
+      renderSessionTrace(summary);
+      renderSessionDeltas(summary);
+      renderSessionsTable(summary);
+      setStatus('');
+    } catch (err) {
+      console.error(err);
+      setStatus('Could not render this report view. Please refresh and try sync again.', true);
+    }
   }
 
   async function fetchData() {
@@ -284,6 +291,8 @@
   async function syncDrive() {
     setStatus('Syncing Google Drive and recomputing analysis...');
     els.syncDrive.disabled = true;
+    const originalLabel = els.syncDrive.textContent;
+    els.syncDrive.textContent = 'Syncing...';
     try {
       const res = await fetch('/api/research/finger-emg/sync-drive', {
         method: 'POST',
@@ -303,12 +312,17 @@
       setStatus(String(err.message || err), true);
     } finally {
       els.syncDrive.disabled = false;
+      els.syncDrive.textContent = originalLabel;
     }
   }
 
   function attach() {
-    els.syncDrive.addEventListener('click', syncDrive);
-    els.sessionSelect.addEventListener('change', () => renderSessionTrace(state.summary));
+    if (els.syncDrive) {
+      els.syncDrive.addEventListener('click', syncDrive);
+    }
+    if (els.sessionSelect) {
+      els.sessionSelect.addEventListener('change', () => renderSessionTrace(state.summary));
+    }
   }
 
   attach();
