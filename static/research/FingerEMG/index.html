@@ -1,0 +1,126 @@
+<!doctype html>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Finger EMG Research</title>
+<link rel="stylesheet" href="/results/css/results.css">
+<link rel="stylesheet" href="/research/RHITemp/css/rhi-temp.css">
+<link rel="stylesheet" href="/research/FingerEMG/css/finger-emg.css">
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<body class="finger-emg-page">
+  <div class="app-bar">
+    <div class="app-bar-left">
+      <span class="app-logo">BYB</span>
+      <a href="/results/" class="app-nav-link">Results</a>
+      <a href="/research/" class="app-nav-link app-nav-link--active">Research</a>
+      <a href="/admin/" id="adminLink" class="app-nav-link" style="display:none">Admin</a>
+    </div>
+    <div class="app-bar-right">
+      <span id="whoami" class="app-user"></span>
+      <button id="login" class="btn app-bar-btn">Log in</button>
+      <button id="logout" class="btn app-bar-btn" style="display:none">Log out</button>
+    </div>
+  </div>
+
+  <header class="page-header research-hero">
+    <div class="hero-layout">
+      <div class="hero-copy">
+        <p class="eyebrow">EMG Video Response</p>
+        <h1>Finger Experiment</h1>
+        <p class="lede">Filtered EMG power with line-noise suppression, split into control versus gross-video windows for participant, session, and group comparison.</p>
+        <div id="stats" class="stats">Loading data...</div>
+        <div class="header-actions">
+          <a class="download" href="https://drive.google.com/drive/u/0/folders/1Cy7k1XoaeUnDM5AKn-EoVq70p2kTmrtV" target="_blank" rel="noopener">Open Drive Folder</a>
+          <a class="download" href="https://docs.google.com/spreadsheets/d/1SiTJao8CUXHAUaL0aOs6J2KWYRChEV9DGytwjWotTMA/edit?gid=0#gid=0" target="_blank" rel="noopener">Open Participant Sheet</a>
+          <button id="syncDrive" class="danger-btn" type="button">Sync From Drive</button>
+        </div>
+      </div>
+    </div>
+    <hr>
+  </header>
+
+  <div id="guestBanner" style="display:none; text-align:center; padding:40px 20px;">
+    <h2>Research Login Required</h2>
+    <p>Please log in to access Finger EMG research data.</p>
+  </div>
+
+  <main id="researchApp" class="research-shell">
+    <section class="chart-grid">
+      <article class="chart-card">
+        <div class="card-header">
+          <div>
+            <p class="eyebrow">Overview</p>
+            <h2>Group Mean Power: Gross vs Control</h2>
+          </div>
+        </div>
+        <canvas id="groupPowerChart" height="240"></canvas>
+        <p class="chart-note">Bars show channel-wise group means of EMG power in control and gross-video windows.</p>
+      </article>
+
+      <article class="chart-card">
+        <div class="card-header">
+          <div>
+            <p class="eyebrow">Overview</p>
+            <h2>Perievent Mean (Video Start)</h2>
+          </div>
+        </div>
+        <canvas id="perieventChart" height="240"></canvas>
+        <p class="chart-note">Averaged perievent EMG power aligned to condition starts for control and gross-video windows.</p>
+      </article>
+    </section>
+
+    <section class="chart-grid">
+      <article class="chart-card">
+        <div class="card-header">
+          <div>
+            <p class="eyebrow">Session View</p>
+            <h2>Individual Session Traces (Channel A)</h2>
+          </div>
+          <label class="inline-control">
+            Session
+            <select id="sessionSelect"></select>
+          </label>
+        </div>
+        <canvas id="sessionTraceChart" height="250"></canvas>
+        <p class="chart-note">Within-session control and gross traces using the same filter pipeline as group metrics.</p>
+      </article>
+
+      <article class="chart-card">
+        <div class="card-header">
+          <div>
+            <p class="eyebrow">Session View</p>
+            <h2>Individual Session Power Delta</h2>
+          </div>
+        </div>
+        <canvas id="sessionDeltaChart" height="250"></canvas>
+        <p class="chart-note">Each point is one valid session: gross minus control power, shown separately for both channels.</p>
+      </article>
+    </section>
+
+    <div id="status" class="status-line data-grid-status"></div>
+
+    <section class="results data-table-card">
+      <div class="card-header">
+        <div>
+          <p class="eyebrow">Sessions</p>
+          <h2>Included Valid Sessions</h2>
+        </div>
+        <div id="sessionsCount" class="stats"></div>
+      </div>
+      <table>
+        <thead>
+          <tr>
+            <th>Participant</th>
+            <th>Session</th>
+            <th>Channel A Pattern</th>
+            <th>Channel B Pattern</th>
+          </tr>
+        </thead>
+        <tbody id="sessionsBody"></tbody>
+      </table>
+    </section>
+  </main>
+
+  <script src="/research/RHITemp/js/research-auth.js"></script>
+  <script src="/research/FingerEMG/js/finger-emg.js?v=20260527-1"></script>
+</body>

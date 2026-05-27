@@ -4,7 +4,7 @@ from flask import redirect, url_for, session
 from flask_cors import CORS
 from werkzeug.middleware.proxy_fix import ProxyFix
 from datetime import datetime
-import os, json, fnmatch, csv, re, uuid
+import os, json, fnmatch, csv, re, uuid, math, wave, struct
 import base64, hmac, io, zipfile
 from functools import wraps
 from urllib.parse import parse_qs, quote, urlparse
@@ -54,6 +54,7 @@ _MGMT_TOKEN_CACHE = None
 _MGMT_TOKEN_EXP = 0
 _GOOGLE_TOKEN_CACHE = None
 _GOOGLE_TOKEN_EXP = 0
+_GOOGLE_SCOPE_TOKEN_CACHE = {}
 
 def _get_auth0_jwks():
     global _JWKS_CACHE
@@ -1300,6 +1301,45 @@ def _google_service_account_token(service_account):
     return _GOOGLE_TOKEN_CACHE
 
 
+def _google_service_account_token_for_scope(service_account, scope):
+    global _GOOGLE_SCOPE_TOKEN_CACHE
+    import time
+    now = int(time.time())
+    cache_entry = _GOOGLE_SCOPE_TOKEN_CACHE.get(scope)
+    if cache_entry and now < cache_entry.get('exp', 0) - 60:
+        return cache_entry.get('token')
+    if not jwt:
+        raise RuntimeError('python-jose is required for Google service account auth')
+    client_email = service_account.get('client_email')
+    private_key = service_account.get('private_key')
+    if not client_email or not private_key:
+        raise RuntimeError('Google service account JSON must include client_email and private_key')
+    claims = {
+        'iss': client_email,
+        'scope': scope,
+        'aud': 'https://oauth2.googleapis.com/token',
+        'iat': now,
+        'exp': now + 3600,
+    }
+    assertion = jwt.encode(claims, private_key, algorithm='RS256')
+    resp = requests.post(
+        'https://oauth2.googleapis.com/token',
+        data={
+            'grant_type': 'urn:ietf:params:oauth:grant-type:jwt-bearer',
+            'assertion': assertion,
+        },
+        timeout=20,
+    )
+    resp.raise_for_status()
+    data = resp.json()
+    token = data.get('access_token')
+    _GOOGLE_SCOPE_TOKEN_CACHE[scope] = {
+        'token': token,
+        'exp': now + int(data.get('expires_in', 3600))
+    }
+    return token
+
+
 def _google_service_account_email():
     try:
         service_account = _load_google_service_account()
@@ -1789,6 +1829,734 @@ def grab_nose_export_csv():
     ts = datetime.utcnow().strftime('%Y%m%d-%H%M%S')
     resp.headers['Content-Disposition'] = f'attachment; filename="grab-nose-{ts}.csv"'
     return resp
+
+
+# ---- RESEARCH: Finger EMG video response analysis ----
+FINGER_EMG_DRIVE_FOLDER_URL = 'https://drive.google.com/drive/u/0/folders/1Cy7k1XoaeUnDM5AKn-EoVq70p2kTmrtV'
+FINGER_EMG_PARTICIPANT_SHEET_URL = 'https://docs.google.com/spreadsheets/d/1SiTJao8CUXHAUaL0aOs6J2KWYRChEV9DGytwjWotTMA/edit?gid=0#gid=0'
+FINGER_EVENT_DEBOUNCE_SEC = 0.18
+
+
+def _finger_emg_dir():
+    return os.path.join(UPLOAD_DIRECTORY, 'research', 'finger-emg')
+
+
+def _finger_emg_raw_dir():
+    return os.path.join(_finger_emg_dir(), 'raw')
+
+
+def _finger_emg_manifest_path():
+    return os.path.join(_finger_emg_dir(), 'manifest.json')
+
+
+def _finger_emg_summary_path():
+    return os.path.join(_finger_emg_dir(), 'summary.json')
+
+
+def _ensure_finger_emg_dir():
+    os.makedirs(_finger_emg_raw_dir(), exist_ok=True)
+
+
+def _safe_slug(value, fallback='unknown'):
+    cleaned = re.sub(r'[^a-zA-Z0-9._-]+', '-', str(value or '').strip()).strip('-').lower()
+    return cleaned or fallback
+
+
+def _parse_drive_folder_id(folder_url):
+    text = str(folder_url or '').strip()
+    match = re.search(r'/folders/([a-zA-Z0-9_-]+)', text)
+    if not match:
+        raise ValueError('Google Drive folder URL must include /folders/<id>')
+    return match.group(1)
+
+
+def _google_drive_auth():
+    if GOOGLE_SHEETS_API_KEY:
+        return {}, {'key': GOOGLE_SHEETS_API_KEY}
+    service_account = _load_google_service_account()
+    if not service_account:
+        raise PermissionError(
+            'Google Drive credentials are not configured. Set GOOGLE_SERVICE_ACCOUNT_JSON '
+            'or GOOGLE_APPLICATION_CREDENTIALS and share the folder with that service account email.'
+        )
+    token = _google_service_account_token_for_scope(service_account, 'https://www.googleapis.com/auth/drive.readonly')
+    return {'Authorization': f'Bearer {token}'}, {}
+
+
+def _drive_list_files(folder_id):
+    if not requests:
+        raise RuntimeError('requests is not available')
+    headers, params = _google_drive_auth()
+    pending = [folder_id]
+    files = []
+    while pending:
+        current_folder = pending.pop(0)
+        page_token = None
+        while True:
+            query = f"'{current_folder}' in parents and trashed=false"
+            response = requests.get(
+                'https://www.googleapis.com/drive/v3/files',
+                headers=headers,
+                params={
+                    **params,
+                    'q': query,
+                    'fields': 'nextPageToken,files(id,name,mimeType,modifiedTime,size)',
+                    'pageSize': 1000,
+                    'pageToken': page_token,
+                    'supportsAllDrives': 'true',
+                    'includeItemsFromAllDrives': 'true',
+                },
+                timeout=30,
+            )
+            response.raise_for_status()
+            payload = response.json() or {}
+            for item in payload.get('files') or []:
+                if item.get('mimeType') == 'application/vnd.google-apps.folder':
+                    pending.append(item.get('id'))
+                else:
+                    files.append(item)
+            page_token = payload.get('nextPageToken')
+            if not page_token:
+                break
+    return files
+
+
+def _drive_download_file(file_id):
+    headers, params = _google_drive_auth()
+    response = requests.get(
+        f'https://www.googleapis.com/drive/v3/files/{file_id}',
+        headers=headers,
+        params={**params, 'alt': 'media', 'supportsAllDrives': 'true'},
+        timeout=60,
+    )
+    response.raise_for_status()
+    return response.content
+
+
+def _finger_load_manifest():
+    path = _finger_emg_manifest_path()
+    if not os.path.exists(path):
+        return {}
+    try:
+        with open(path) as f:
+            data = json.load(f)
+            return data if isinstance(data, dict) else {}
+    except Exception:
+        return {}
+
+
+def _finger_save_manifest(manifest):
+    _ensure_finger_emg_dir()
+    with open(_finger_emg_manifest_path(), 'w') as f:
+        json.dump(manifest, f, indent=2)
+
+
+def _finger_session_token_from_name(name):
+    text = str(name or '')
+    match = re.search(r'finger_([a-f0-9-]{8,})_(\d{8}-\d{6})', text, re.IGNORECASE)
+    if match:
+        return f"{match.group(1).lower()}_{match.group(2)}", match.group(1).lower(), match.group(2)
+    timestamp_match = re.search(r'(\d{8}-\d{6})', text)
+    timestamp = timestamp_match.group(1) if timestamp_match else 'unknown'
+    return f"session_{timestamp}_{_safe_slug(text)[:16]}", '', timestamp
+
+
+def _finger_guess_role(name, content):
+    lower = str(name or '').lower()
+    if lower.endswith('.wav'):
+        return 'emg'
+    if lower.endswith('.json'):
+        try:
+            parsed = json.loads(content.decode('utf-8', errors='ignore'))
+            if isinstance(parsed, dict):
+                joined_keys = ' '.join(parsed.keys()).lower()
+                if 'event' in joined_keys or 'marker' in joined_keys:
+                    return 'events'
+            return 'metadata'
+        except Exception:
+            return 'metadata'
+    if lower.endswith('.csv') or lower.endswith('.txt'):
+        return 'events'
+    return 'misc'
+
+
+def _finger_sync_drive_files(folder_url):
+    folder_id = _parse_drive_folder_id(folder_url)
+    _ensure_finger_emg_dir()
+    manifest = _finger_load_manifest()
+    file_index = manifest.setdefault('files', {})
+    synced = 0
+    renamed = 0
+    listed = _drive_list_files(folder_id)
+    for item in listed:
+        file_id = item.get('id')
+        if not file_id:
+            continue
+        modified = item.get('modifiedTime') or ''
+        existing = file_index.get(file_id) or {}
+        if existing.get('modifiedTime') == modified and os.path.exists(existing.get('local_path', '')):
+            continue
+        content = _drive_download_file(file_id)
+        session_token, uuid_token, timestamp_token = _finger_session_token_from_name(item.get('name') or '')
+        role = _finger_guess_role(item.get('name'), content)
+        ext = os.path.splitext(item.get('name') or '')[1].lower() or '.bin'
+        canonical_name = f"{_safe_slug(session_token)}__{role}__{_safe_slug(file_id)}{ext}"
+        local_path = os.path.join(_finger_emg_raw_dir(), canonical_name)
+        with open(local_path, 'wb') as f:
+            f.write(content)
+        previous_local = existing.get('local_path')
+        if previous_local and previous_local != local_path and os.path.exists(previous_local):
+            try:
+                os.remove(previous_local)
+                renamed += 1
+            except Exception:
+                pass
+        file_index[file_id] = {
+            'name': item.get('name'),
+            'modifiedTime': modified,
+            'local_path': local_path,
+            'session_token': session_token,
+            'uuid_token': uuid_token,
+            'timestamp_token': timestamp_token,
+            'role': role,
+        }
+        synced += 1
+    _finger_save_manifest(manifest)
+    return {'listed': len(listed), 'synced': synced, 'renamed': renamed, 'manifest': manifest}
+
+
+def _finger_collect_session_files():
+    manifest = _finger_load_manifest()
+    file_index = (manifest or {}).get('files') or {}
+    sessions = {}
+    for file_info in file_index.values():
+        local_path = file_info.get('local_path')
+        if not local_path or not os.path.exists(local_path):
+            continue
+        session_token = file_info.get('session_token') or 'session_unknown'
+        bucket = sessions.setdefault(session_token, {'files': [], 'uuid_token': file_info.get('uuid_token') or '', 'timestamp_token': file_info.get('timestamp_token') or ''})
+        bucket['files'].append(file_info)
+    return sessions
+
+
+def _finger_extract_events_from_json(value, out):
+    if isinstance(value, dict):
+        time_candidates = ('time', 'timestamp', 't', 'seconds', 'second', 'time_sec')
+        code_candidates = ('event', 'marker', 'code', 'value', 'event_code', 'label')
+        time_value = None
+        code_value = None
+        for key in time_candidates:
+            if key in value:
+                time_value = value.get(key)
+                break
+        for key in code_candidates:
+            if key in value:
+                code_value = value.get(key)
+                break
+        try:
+            t = float(time_value)
+            code = int(float(code_value))
+            out.append((t, code))
+        except Exception:
+            pass
+        for child in value.values():
+            _finger_extract_events_from_json(child, out)
+    elif isinstance(value, list):
+        if len(value) >= 2:
+            try:
+                t = float(value[0])
+                code = int(float(value[1]))
+                out.append((t, code))
+            except Exception:
+                pass
+        for child in value:
+            _finger_extract_events_from_json(child, out)
+
+
+def _finger_extract_events(session_files):
+    events = []
+    for file_info in session_files:
+        role = file_info.get('role')
+        if role not in ('events', 'metadata'):
+            continue
+        path = file_info.get('local_path')
+        if not path or not os.path.exists(path):
+            continue
+        name = file_info.get('name') or ''
+        if str(name).lower().endswith('.json'):
+            try:
+                with open(path) as f:
+                    payload = json.load(f)
+                _finger_extract_events_from_json(payload, events)
+            except Exception:
+                continue
+        else:
+            try:
+                with open(path) as f:
+                    for line in f:
+                        match = re.search(r'(-?\d+(?:\.\d+)?)[,\s;]+(-?\d+(?:\.\d+)?)', line)
+                        if not match:
+                            continue
+                        events.append((float(match.group(1)), int(float(match.group(2)))))
+            except Exception:
+                continue
+    events.sort(key=lambda row: row[0])
+    debounced = []
+    last_by_code = {}
+    for t, code in events:
+        prev_t = last_by_code.get(code)
+        if prev_t is not None and (t - prev_t) < FINGER_EVENT_DEBOUNCE_SEC:
+            continue
+        debounced.append((t, code))
+        last_by_code[code] = t
+    return debounced
+
+
+def _finger_extract_trial_order(session_files):
+    def walk(value):
+        if isinstance(value, dict):
+            ordered_keys = [str(k).strip().lower() for k in value.keys()]
+            if set(ordered_keys) >= {'control', 'experiment'}:
+                try:
+                    control_order = int(float(value.get('control')))
+                    experiment_order = int(float(value.get('experiment')))
+                    return ['control', 'experiment'] if control_order <= experiment_order else ['experiment', 'control']
+                except Exception:
+                    pass
+            if set(ordered_keys) >= {'control', 'gross'}:
+                try:
+                    control_order = int(float(value.get('control')))
+                    gross_order = int(float(value.get('gross')))
+                    return ['control', 'experiment'] if control_order <= gross_order else ['experiment', 'control']
+                except Exception:
+                    pass
+            for child in value.values():
+                result = walk(child)
+                if result:
+                    return result
+            return None
+        if isinstance(value, list):
+            labels = []
+            for item in value:
+                text = str(item).strip().lower()
+                if text in ('control', 'non-gross', 'nongross'):
+                    labels.append('control')
+                elif text in ('experiment', 'gross'):
+                    labels.append('experiment')
+                if len(labels) >= 2:
+                    return labels[:2]
+            for child in value:
+                result = walk(child)
+                if result:
+                    return result
+            return None
+        return None
+
+    for file_info in session_files:
+        if file_info.get('role') != 'metadata':
+            continue
+        path = file_info.get('local_path')
+        if not path or not os.path.exists(path):
+            continue
+        if not str(path).lower().endswith('.json'):
+            continue
+        try:
+            with open(path) as f:
+                payload = json.load(f)
+            result = walk(payload)
+            if result and len(result) >= 2:
+                return result[:2]
+        except Exception:
+            continue
+    return []
+
+
+def _finger_wav_read(path):
+    with wave.open(path, 'rb') as wf:
+        channels = wf.getnchannels()
+        sample_width = wf.getsampwidth()
+        fs = wf.getframerate()
+        frames = wf.getnframes()
+        raw = wf.readframes(frames)
+    if channels < 1:
+        raise ValueError('WAV file has no channels')
+    if sample_width == 2:
+        fmt = '<' + ('h' * (frames * channels))
+        data = struct.unpack(fmt, raw)
+        scale = 32768.0
+    elif sample_width == 1:
+        fmt = '<' + ('B' * (frames * channels))
+        unsigned = struct.unpack(fmt, raw)
+        data = [v - 128 for v in unsigned]
+        scale = 128.0
+    else:
+        raise ValueError('Only 8-bit and 16-bit PCM WAV files are supported')
+    ch1 = []
+    ch2 = []
+    for index in range(frames):
+        base = index * channels
+        ch1.append(float(data[base]) / scale)
+        ch2.append(float(data[base + 1]) / scale if channels > 1 else 0.0)
+    return fs, ch1, ch2
+
+
+def _biquad_coeffs_highpass(fs, cutoff_hz, q=0.707):
+    w0 = 2 * math.pi * cutoff_hz / fs
+    cos_w0 = math.cos(w0)
+    sin_w0 = math.sin(w0)
+    alpha = sin_w0 / (2 * q)
+    b0 = (1 + cos_w0) / 2
+    b1 = -(1 + cos_w0)
+    b2 = (1 + cos_w0) / 2
+    a0 = 1 + alpha
+    a1 = -2 * cos_w0
+    a2 = 1 - alpha
+    return (b0 / a0, b1 / a0, b2 / a0, a1 / a0, a2 / a0)
+
+
+def _biquad_coeffs_lowpass(fs, cutoff_hz, q=0.707):
+    w0 = 2 * math.pi * cutoff_hz / fs
+    cos_w0 = math.cos(w0)
+    sin_w0 = math.sin(w0)
+    alpha = sin_w0 / (2 * q)
+    b0 = (1 - cos_w0) / 2
+    b1 = 1 - cos_w0
+    b2 = (1 - cos_w0) / 2
+    a0 = 1 + alpha
+    a1 = -2 * cos_w0
+    a2 = 1 - alpha
+    return (b0 / a0, b1 / a0, b2 / a0, a1 / a0, a2 / a0)
+
+
+def _biquad_coeffs_notch(fs, center_hz, q=30.0):
+    w0 = 2 * math.pi * center_hz / fs
+    cos_w0 = math.cos(w0)
+    sin_w0 = math.sin(w0)
+    alpha = sin_w0 / (2 * q)
+    b0 = 1
+    b1 = -2 * cos_w0
+    b2 = 1
+    a0 = 1 + alpha
+    a1 = -2 * cos_w0
+    a2 = 1 - alpha
+    return (b0 / a0, b1 / a0, b2 / a0, a1 / a0, a2 / a0)
+
+
+def _apply_biquad(signal, coeffs):
+    b0, b1, b2, a1, a2 = coeffs
+    out = []
+    x1 = x2 = 0.0
+    y1 = y2 = 0.0
+    for x0 in signal:
+        y0 = b0 * x0 + b1 * x1 + b2 * x2 - a1 * y1 - a2 * y2
+        out.append(y0)
+        x2, x1 = x1, x0
+        y2, y1 = y1, y0
+    return out
+
+
+def _filter_emg(signal, fs):
+    filtered = _apply_biquad(signal, _biquad_coeffs_highpass(fs, 300.0))
+    filtered = _apply_biquad(filtered, _biquad_coeffs_lowpass(fs, 1000.0))
+    harmonic = 60.0
+    while harmonic < (fs * 0.5):
+        filtered = _apply_biquad(filtered, _biquad_coeffs_notch(fs, harmonic))
+        harmonic *= 2.0
+    return filtered
+
+
+def _power_trace(signal, fs, start_s, end_s, win_s=0.25, step_s=0.05):
+    start_i = max(0, int(start_s * fs))
+    end_i = min(len(signal), int(end_s * fs))
+    if end_i <= start_i + 4:
+        return []
+    win = max(8, int(win_s * fs))
+    step = max(1, int(step_s * fs))
+    out = []
+    i = start_i
+    while (i + win) <= end_i:
+        segment = signal[i:i + win]
+        mean_power = sum(v * v for v in segment) / len(segment)
+        out.append({'t': (i - start_i) / fs, 'p': mean_power})
+        i += step
+    return out
+
+
+def _sample_trace_at(trace, t, default=None):
+    if not trace:
+        return default
+    if t <= trace[0]['t']:
+        return trace[0]['p']
+    if t >= trace[-1]['t']:
+        return trace[-1]['p']
+    lo = 0
+    hi = len(trace) - 1
+    while hi - lo > 1:
+        mid = (lo + hi) // 2
+        if trace[mid]['t'] < t:
+            lo = mid
+        else:
+            hi = mid
+    t0 = trace[lo]['t']
+    t1 = trace[hi]['t']
+    if t1 <= t0:
+        return trace[lo]['p']
+    ratio = (t - t0) / (t1 - t0)
+    return trace[lo]['p'] + ratio * (trace[hi]['p'] - trace[lo]['p'])
+
+
+def _window_mean_power(trace, start_s, end_s):
+    vals = [point['p'] for point in trace if start_s <= point['t'] <= end_s]
+    return (sum(vals) / len(vals)) if vals else None
+
+
+def _finger_valid_participants(sheet_url):
+    headers, rows, _ = _fetch_google_sheet_values(sheet_url)
+    valid_entries = []
+    for values in rows:
+        row = {str(headers[i] if i < len(headers) else f'column_{i + 1}'): values[i] for i in range(len(values))}
+        valid_flag = _find_row_value(row, ('valid', 'is_valid', 'include', 'usable', 'good_data', 'good data'))
+        exclude_flag = _find_row_value(row, ('exclude', 'excluded', 'drop', 'invalid'))
+        is_valid = _is_truthy(valid_flag) or (str(valid_flag or '').strip().lower() in ('valid', 'yes', 'y', '1', 'true'))
+        is_excluded = _is_truthy(exclude_flag)
+        if is_excluded or not is_valid:
+            continue
+        participant_id = str(_find_row_value(row, ('participant_id', 'subject', 'uuid', 'id', 'user_id')) or '').strip()
+        participant_name = str(_find_row_value(row, ('name', 'participant_name')) or participant_id).strip()
+        valid_entries.append({'participant_id': participant_id, 'participant_name': participant_name})
+    tokens = { _clean_key(item.get('participant_id')) for item in valid_entries if item.get('participant_id') }
+    return valid_entries, tokens
+
+
+def _finger_analyze_session(session_token, session, valid_tokens):
+    emg_files = [file_info for file_info in session.get('files', []) if file_info.get('role') == 'emg']
+    if not emg_files:
+        return None
+    wav_path = emg_files[0].get('local_path')
+    if not wav_path or not os.path.exists(wav_path):
+        return None
+    fs, ch1, ch2 = _finger_wav_read(wav_path)
+    duration_s = len(ch1) / fs if fs else 0
+    if duration_s < 2:
+        return None
+    events = _finger_extract_events(session.get('files', []))
+    white_starts = [t for t, code in events if code == 5]
+    if not white_starts:
+        return None
+    white_start = white_starts[0]
+    condition_markers = [t for t, code in events if code in (3, 4) and t > white_start]
+    if len(condition_markers) < 2:
+        # Fallback for older recordings where one marker appears before event 5.
+        condition_markers = [t for t, code in events if code in (3, 4)]
+    if len(condition_markers) < 2:
+        return None
+    first_start = condition_markers[0]
+    second_start = condition_markers[1]
+    if second_start <= first_start:
+        return None
+    trial_order = _finger_extract_trial_order(session.get('files', []))
+    if not trial_order:
+        trial_order = ['control', 'experiment']
+
+    first_end = second_start
+    second_end = duration_s
+    if first_end <= first_start + 0.5 or second_end <= second_start + 0.5:
+        return None
+
+    windows = {
+        trial_order[0]: (first_start, first_end),
+        trial_order[1]: (second_start, second_end),
+    }
+    control_start, control_end = windows.get('control', (first_start, first_end))
+    experiment_start, experiment_end = windows.get('experiment', (second_start, second_end))
+    if experiment_end <= experiment_start + 0.5 or control_end <= control_start + 0.5:
+        return None
+
+    uuid_token = _clean_key(session.get('uuid_token') or '')
+    if valid_tokens and uuid_token and uuid_token not in valid_tokens:
+        return None
+
+    f1 = _filter_emg(ch1, fs)
+    f2 = _filter_emg(ch2, fs)
+    trace1 = _power_trace(f1, fs, 0, duration_s)
+    trace2 = _power_trace(f2, fs, 0, duration_s)
+    control_mean_1 = _window_mean_power(trace1, control_start, control_end)
+    control_mean_2 = _window_mean_power(trace2, control_start, control_end)
+    experiment_mean_1 = _window_mean_power(trace1, experiment_start, experiment_end)
+    experiment_mean_2 = _window_mean_power(trace2, experiment_start, experiment_end)
+    if control_mean_1 is None or experiment_mean_1 is None:
+        return None
+
+    def normalized_trace(trace, start, end, max_points=240):
+        points = [row for row in trace if start <= row['t'] <= end]
+        if len(points) <= max_points:
+            return [{'t': row['t'] - start, 'p': row['p']} for row in points]
+        step = max(1, len(points) // max_points)
+        subset = points[::step][:max_points]
+        return [{'t': row['t'] - start, 'p': row['p']} for row in subset]
+
+    peri_window = (-2.0, 8.0)
+    peri_step = 0.05
+    peri_times = []
+    current = peri_window[0]
+    while current <= peri_window[1] + 1e-9:
+        peri_times.append(round(current, 3))
+        current += peri_step
+
+    def peri_trace(trace, center):
+        return [{'t': t, 'p': _sample_trace_at(trace, center + t)} for t in peri_times]
+
+    return {
+        'session_id': session_token,
+        'uuid_token': session.get('uuid_token') or '',
+        'timestamp_token': session.get('timestamp_token') or '',
+        'sample_rate_hz': fs,
+        'duration_s': duration_s,
+        'event_count': len(events),
+        'events': [{'time': t, 'code': code} for t, code in events[:100]],
+        'trial_order': trial_order,
+        'control_start_s': control_start,
+        'control_end_s': control_end,
+        'white_start_s': white_start,
+        'experiment_start_s': experiment_start,
+        'experiment_end_s': experiment_end,
+        'control_mean_power_ch1': control_mean_1,
+        'control_mean_power_ch2': control_mean_2,
+        'experiment_mean_power_ch1': experiment_mean_1,
+        'experiment_mean_power_ch2': experiment_mean_2,
+        'control_trace_ch1': normalized_trace(trace1, control_start, control_end),
+        'control_trace_ch2': normalized_trace(trace2, control_start, control_end),
+        'experiment_trace_ch1': normalized_trace(trace1, experiment_start, experiment_end),
+        'experiment_trace_ch2': normalized_trace(trace2, experiment_start, experiment_end),
+        'perievent_control_ch1': peri_trace(trace1, control_start),
+        'perievent_control_ch2': peri_trace(trace2, control_start),
+        'perievent_experiment_ch1': peri_trace(trace1, experiment_start),
+        'perievent_experiment_ch2': peri_trace(trace2, experiment_start),
+    }
+
+
+def _finger_mean(values):
+    clean = [float(v) for v in values if v is not None and math.isfinite(float(v))]
+    if not clean:
+        return None
+    return sum(clean) / len(clean)
+
+
+def _finger_group_perievent(sessions, key):
+    by_time = {}
+    for session in sessions:
+        for row in session.get(key) or []:
+            by_time.setdefault(row['t'], []).append(row['p'])
+    return [{'t': t, 'p': _finger_mean(values)} for t, values in sorted(by_time.items()) if values]
+
+
+def _finger_build_summary(participant_sheet_url=FINGER_EMG_PARTICIPANT_SHEET_URL):
+    sessions_by_token = _finger_collect_session_files()
+    valid_entries, valid_tokens = _finger_valid_participants(participant_sheet_url)
+    sessions = []
+    for session_token in sorted(sessions_by_token.keys()):
+        analyzed = _finger_analyze_session(session_token, sessions_by_token[session_token], valid_tokens)
+        if analyzed:
+            sessions.append(analyzed)
+
+    participant_by_token = {}
+    for entry in valid_entries:
+        participant_by_token[_clean_key(entry.get('participant_id'))] = entry
+    for session in sessions:
+        info = participant_by_token.get(_clean_key(session.get('uuid_token')))
+        session['participant_id'] = (info or {}).get('participant_id', session.get('uuid_token') or session.get('session_id'))
+        session['participant_name'] = (info or {}).get('participant_name', session['participant_id'])
+
+    group = {
+        'n_sessions': len(sessions),
+        'mean_control_power_ch1': _finger_mean([row.get('control_mean_power_ch1') for row in sessions]),
+        'mean_control_power_ch2': _finger_mean([row.get('control_mean_power_ch2') for row in sessions]),
+        'mean_experiment_power_ch1': _finger_mean([row.get('experiment_mean_power_ch1') for row in sessions]),
+        'mean_experiment_power_ch2': _finger_mean([row.get('experiment_mean_power_ch2') for row in sessions]),
+        'perievent_control_ch1': _finger_group_perievent(sessions, 'perievent_control_ch1'),
+        'perievent_control_ch2': _finger_group_perievent(sessions, 'perievent_control_ch2'),
+        'perievent_experiment_ch1': _finger_group_perievent(sessions, 'perievent_experiment_ch1'),
+        'perievent_experiment_ch2': _finger_group_perievent(sessions, 'perievent_experiment_ch2'),
+    }
+    if group['mean_control_power_ch1'] is not None and group['mean_experiment_power_ch1'] is not None:
+        group['delta_power_ch1'] = group['mean_experiment_power_ch1'] - group['mean_control_power_ch1']
+    else:
+        group['delta_power_ch1'] = None
+    if group['mean_control_power_ch2'] is not None and group['mean_experiment_power_ch2'] is not None:
+        group['delta_power_ch2'] = group['mean_experiment_power_ch2'] - group['mean_control_power_ch2']
+    else:
+        group['delta_power_ch2'] = None
+
+    summary = {
+        'status': 'ok',
+        'generated_at': datetime.utcnow().isoformat(timespec='seconds') + 'Z',
+        'source': {
+            'drive_folder_url': FINGER_EMG_DRIVE_FOLDER_URL,
+            'participant_sheet_url': participant_sheet_url
+        },
+        'valid_participant_count': len(valid_entries),
+        'sessions': sessions,
+        'group': group,
+    }
+    _ensure_finger_emg_dir()
+    with open(_finger_emg_summary_path(), 'w') as f:
+        json.dump(summary, f, indent=2)
+    return summary
+
+
+def _finger_load_summary():
+    path = _finger_emg_summary_path()
+    if not os.path.exists(path):
+        return None
+    with open(path) as f:
+        data = json.load(f)
+        return data if isinstance(data, dict) else None
+
+
+@app.get('/research/FingerEMG')
+@require_results_auth
+def finger_emg_page():
+    return send_from_directory(os.path.join(app.root_path, 'static', 'research', 'FingerEMG'), 'index.html')
+
+
+@app.get('/research/FingerEMG/')
+@require_results_auth
+def finger_emg_page_slash():
+    return finger_emg_page()
+
+
+@app.get('/api/research/finger-emg/data')
+@require_results_auth
+def finger_emg_data():
+    summary = _finger_load_summary()
+    if summary is None:
+        summary = _finger_build_summary(FINGER_EMG_PARTICIPANT_SHEET_URL)
+    return jsonify(summary)
+
+
+@app.post('/api/research/finger-emg/sync-drive')
+@require_results_auth
+def finger_emg_sync_drive():
+    body = request.get_json(silent=True) or {}
+    folder_url = body.get('folder_url') or FINGER_EMG_DRIVE_FOLDER_URL
+    sheet_url = body.get('participant_sheet_url') or FINGER_EMG_PARTICIPANT_SHEET_URL
+    try:
+        sync_info = _finger_sync_drive_files(folder_url)
+        summary = _finger_build_summary(sheet_url)
+    except PermissionError as e:
+        return jsonify({
+            'status': 'error',
+            'error': str(e),
+            'service_account_email': _google_service_account_email(),
+        }), 400
+    except Exception as e:
+        app.logger.exception('finger-emg sync failed')
+        return jsonify({'status': 'error', 'error': str(e)}), 500
+    return jsonify({
+        'status': 'ok',
+        'sync': sync_info,
+        'summary': summary,
+    })
 
 
 # ---- RESULTS SPA & API ----
