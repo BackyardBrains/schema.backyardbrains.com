@@ -58,7 +58,12 @@
   }
 
   function renderStats(summary) {
-    els.stats.textContent = 'Session and group views loaded.';
+    const sessions = (summary && summary.sessions) || [];
+    if (!sessions.length) {
+      els.stats.textContent = 'Data loaded, but no analyzable sessions were found.';
+      return;
+    }
+    els.stats.textContent = `Session and group views loaded (${sessions.length} sessions).`;
   }
 
   function renderSessionSelect(summary) {
@@ -73,6 +78,12 @@
     });
     if (sessions.some((row) => row.session_id === current)) {
       els.sessionSelect.value = current;
+    }
+    if (!sessions.length && els.sessionSelect) {
+      const option = document.createElement('option');
+      option.value = '';
+      option.textContent = 'No sessions available';
+      els.sessionSelect.appendChild(option);
     }
   }
 
@@ -274,7 +285,11 @@
       renderSessionTrace(summary);
       renderSessionDeltas(summary);
       renderSessionsTable(summary);
-      setStatus('');
+      if ((summary.sessions || []).length === 0) {
+        setStatus('No analyzable sessions are available yet. Try Sync From Drive after confirming event markers.', true);
+      } else {
+        setStatus('');
+      }
     } catch (err) {
       console.error(err);
       setStatus('Could not render this report view. Please refresh and try sync again.', true);

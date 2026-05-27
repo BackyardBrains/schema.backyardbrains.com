@@ -2338,6 +2338,10 @@ def _finger_session_token_from_name(name):
     match = re.search(r'finger_([a-f0-9-]{8,})_(\d{8}-\d{6})', text, re.IGNORECASE)
     if match:
         return f"{match.group(1).lower()}_{match.group(2)}", match.group(1).lower(), match.group(2)
+    byb_match = re.search(r'(\d{4})-(\d{2})-(\d{2})[_\s](\d{2})\.(\d{2})\.(\d{2})', text)
+    if byb_match:
+        timestamp = f"{byb_match.group(1)}{byb_match.group(2)}{byb_match.group(3)}-{byb_match.group(4)}{byb_match.group(5)}{byb_match.group(6)}"
+        return f"session_{timestamp}", '', timestamp
     timestamp_match = re.search(r'(\d{8}-\d{6})', text)
     timestamp = timestamp_match.group(1) if timestamp_match else 'unknown'
     return f"session_{timestamp}_{_safe_slug(text)[:16]}", '', timestamp
@@ -2374,14 +2378,24 @@ def _finger_sync_drive_files(folder_url):
         file_id = item.get('id')
         if not file_id:
             continue
+        name = item.get('name') or ''
         modified = item.get('modifiedTime') or ''
         existing = file_index.get(file_id) or {}
+        session_token, uuid_token, timestamp_token = _finger_session_token_from_name(name)
         if existing.get('modifiedTime') == modified and os.path.exists(existing.get('local_path', '')):
+            # Keep manifest naming/session metadata in sync even when file bytes are unchanged.
+            role = existing.get('role') or _finger_guess_role(name, b'')
+            existing.update({
+                'name': name,
+                'session_token': session_token,
+                'uuid_token': uuid_token,
+                'timestamp_token': timestamp_token,
+                'role': role,
+            })
             continue
         content = _drive_download_file(file_id)
-        session_token, uuid_token, timestamp_token = _finger_session_token_from_name(item.get('name') or '')
-        role = _finger_guess_role(item.get('name'), content)
-        ext = os.path.splitext(item.get('name') or '')[1].lower() or '.bin'
+        role = _finger_guess_role(name, content)
+        ext = os.path.splitext(name)[1].lower() or '.bin'
         canonical_name = f"{_safe_slug(session_token)}__{role}__{_safe_slug(file_id)}{ext}"
         local_path = os.path.join(_finger_emg_raw_dir(), canonical_name)
         with open(local_path, 'wb') as f:
@@ -2394,7 +2408,7 @@ def _finger_sync_drive_files(folder_url):
             except Exception:
                 pass
         file_index[file_id] = {
-            'name': item.get('name'),
+            'name': name,
             'modifiedTime': modified,
             'local_path': local_path,
             'session_token': session_token,
@@ -2710,6 +2724,11 @@ def _finger_valid_participants(sheet_url):
     return valid_entries, tokens
 
 
+def _looks_like_uuid_token(value):
+    token = _clean_key(value or '')
+    return bool(re.fullmatch(r'[a-f0-9]{8}-[a-f0-9-]{9,}', token))
+
+
 def _finger_analyze_session(session_token, session, valid_tokens):
     emg_files = [file_info for file_info in session.get('files', []) if file_info.get('role') == 'emg']
     if not emg_files:
@@ -2755,8 +2774,12 @@ def _finger_analyze_session(session_token, session, valid_tokens):
         return None
 
     uuid_token = _clean_key(session.get('uuid_token') or '')
-    if valid_tokens and uuid_token and uuid_token not in valid_tokens:
-        return None
+    if valid_tokens and uuid_token:
+        # Some participant sheets list human-readable IDs (e.g. names) instead of UUIDs.
+        # Only enforce strict UUID allow-listing when the allow-list itself contains UUID-like IDs.
+        has_uuid_like_allow_list = any(_looks_like_uuid_token(token) for token in valid_tokens)
+        if has_uuid_like_allow_list and uuid_token not in valid_tokens:
+            return None
 
     f1 = _filter_emg(ch1, fs)
     f2 = _filter_emg(ch2, fs)
