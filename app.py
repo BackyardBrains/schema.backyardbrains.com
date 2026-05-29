@@ -2964,6 +2964,296 @@ def finger_emg_sync_drive():
     })
 
 
+# ---- RESEARCH: Attention Model Video replication analysis ----
+
+def _load_attention_model_video_records():
+    # Load all records for attentionModelVideo
+    records = []
+    seen_uuids = set()
+
+    # 1. Look in UPLOAD_DIRECTORY if it exists
+    if os.path.exists(UPLOAD_DIRECTORY):
+        for name in os.listdir(UPLOAD_DIRECTORY):
+            if name.startswith('attentionModelVideo_') and name.endswith('.json'):
+                path = os.path.join(UPLOAD_DIRECTORY, name)
+                try:
+                    with open(path) as f:
+                        payload = json.load(f)
+                    if isinstance(payload, dict) and payload.get('experiment') == 'attentionModelVideo':
+                        uuid = payload.get('UUID')
+                        data = payload.get('data') or {}
+                        session_data = data.get('session') or {}
+                        trials = data.get('trials') or []
+                        
+                        # Use UUID as unique session identifier
+                        if uuid and uuid not in seen_uuids:
+                            seen_uuids.add(uuid)
+                            records.append({
+                                'uuid': uuid,
+                                'session': session_data,
+                                'trials': trials,
+                                'filename': name
+                            })
+                except Exception as e:
+                    app.logger.exception(f"Error loading uploaded file {name}")
+
+    # 2. Look in app.root_path for local json files to make local development work seamlessly
+    import glob
+    phase1_files = glob.glob(os.path.join(app.root_path, 'attention_eyes_phase1_results_*.json'))
+    for p1_path in phase1_files:
+        uuid_match = re.search(r'([a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12})', os.path.basename(p1_path))
+        if not uuid_match:
+            continue
+        uuid = uuid_match.group(1)
+        if uuid in seen_uuids:
+            continue
+        
+        # Check if corresponding phase2 file exists
+        p2_path = p1_path.replace('phase1', 'phase2')
+        if not os.path.exists(p2_path):
+            continue
+            
+        try:
+            with open(p1_path) as f:
+                phase1 = json.load(f)
+            with open(p2_path) as f:
+                phase2 = json.load(f)
+                
+            all_trials = phase1.get('trials', []) + phase2.get('trials', [])
+            old_session = phase1.get('session', {})
+            old_config = old_session.get('experiment_config', {})
+            trials_per_phase = old_session.get('total_trials', 64)
+            
+            session_data = {
+                'session_group': old_session.get('session_group', ''),
+                'experiment_version': '2.0',
+                'file_version': '2.0',
+                'start_time': phase1['trials'][0]['timestamp'] if phase1.get('trials') else '',
+                'migrated_from': 'attentionEyes_v1.1_download',
+                'participant': old_session.get('participant', {}),
+                'experiment_config': {
+                    'total_phases': 2,
+                    'trials_per_phase': trials_per_phase,
+                    'total_trials': trials_per_phase * 2,
+                    'phases': [
+                        {'phase': 1, 'name': 'Correct vs Scrambled',
+                         'description': 'Real human attention spotlight vs randomly scrambled path'},
+                        {'phase': 2, 'name': 'Correct vs Mismatched',
+                         'description': 'Real human attention spotlight vs real gaze path from a different image'}
+                    ],
+                    'correct_video_urls': old_config.get('correct_video_urls', []),
+                    'scrambled_video_urls': old_config.get('scrambled_video_urls', []),
+                    'mismatched_video_urls': old_config.get('mismatched_video_urls', [])
+                }
+            }
+            
+            seen_uuids.add(uuid)
+            records.append({
+                'uuid': uuid,
+                'session': session_data,
+                'trials': all_trials,
+                'filename': os.path.basename(p1_path)
+            })
+        except Exception as e:
+            app.logger.exception(f"Error loading local files for {uuid}")
+            
+    return records
+
+
+def _summarize_attention_model_video(records):
+    sessions = []
+    
+    # For grouping by pair index across all sessions
+    pair_correct_p1 = {}
+    pair_total_p1 = {}
+    pair_correct_p2 = {}
+    pair_total_p2 = {}
+    
+    # For confidence vs accuracy relationship
+    conf_correct = {1: 0, 2: 0, 3: 0, 4: 0}
+    conf_total = {1: 0, 2: 0, 3: 0, 4: 0}
+    
+    # For learning curve (blocks of 16 trials)
+    block_correct = {1: 0, 2: 0, 3: 0, 4: 0, 5: 0, 6: 0, 7: 0, 8: 0}
+    block_total = {1: 0, 2: 0, 3: 0, 4: 0, 5: 0, 6: 0, 7: 0, 8: 0}
+    
+    for r in records:
+        uuid = r['uuid']
+        session_data = r['session']
+        participant = session_data.get('participant') or {}
+        trials = r['trials'] or []
+        
+        p1_trials = [t for t in trials if t.get('phase') == 1]
+        p2_trials = [t for t in trials if t.get('phase') == 2]
+        
+        p1_correct = sum(1 for t in p1_trials if t.get('is_correct'))
+        p2_correct = sum(1 for t in p2_trials if t.get('is_correct'))
+        
+        p1_acc = (p1_correct / len(p1_trials)) if p1_trials else None
+        p2_acc = (p2_correct / len(p2_trials)) if p2_trials else None
+        
+        p1_conf = [t.get('confidence_rating') for t in p1_trials if t.get('confidence_rating') is not None]
+        p2_conf = [t.get('confidence_rating') for t in p2_trials if t.get('confidence_rating') is not None]
+        
+        p1_mean_conf = (sum(p1_conf) / len(p1_conf)) if p1_conf else None
+        p2_mean_conf = (sum(p2_conf) / len(p2_conf)) if p2_conf else None
+        
+        overall_correct = sum(1 for t in trials if t.get('is_correct'))
+        overall_acc = (overall_correct / len(trials)) if trials else None
+        
+        overall_conf = [t.get('confidence_rating') for t in trials if t.get('confidence_rating') is not None]
+        overall_mean_conf = (sum(overall_conf) / len(overall_conf)) if overall_conf else None
+        
+        # Accumulate group metrics
+        for t in trials:
+            phase = t.get('phase')
+            pair_idx = t.get('pair_index')
+            is_correct = t.get('is_correct')
+            conf = t.get('confidence_rating')
+            trial_num = t.get('trial_number', 1)
+            
+            # Group by pair index
+            if phase == 1 and pair_idx is not None:
+                pair_total_p1[pair_idx] = pair_total_p1.get(pair_idx, 0) + 1
+                if is_correct:
+                    pair_correct_p1[pair_idx] = pair_correct_p1.get(pair_idx, 0) + 1
+            elif phase == 2 and pair_idx is not None:
+                pair_total_p2[pair_idx] = pair_total_p2.get(pair_idx, 0) + 1
+                if is_correct:
+                    pair_correct_p2[pair_idx] = pair_correct_p2.get(pair_idx, 0) + 1
+            
+            # Confidence vs Accuracy
+            if conf in (1, 2, 3, 4):
+                conf_total[conf] += 1
+                if is_correct:
+                    conf_correct[conf] += 1
+            
+            # Learning curve: group into 8 blocks of 16 trials
+            if trial_num and 1 <= trial_num <= 64:
+                b_offset = 0 if phase == 1 else 4
+                block_id = ((trial_num - 1) // 16) + 1 + b_offset
+                if 1 <= block_id <= 8:
+                    block_total[block_id] += 1
+                    if is_correct:
+                        block_correct[block_id] += 1
+                        
+        sessions.append({
+            'uuid': uuid,
+            'participant_name': participant.get('name') or 'Anonymous',
+            'participant_age': participant.get('age'),
+            'start_time': session_data.get('start_time'),
+            'total_trials': len(trials),
+            'phase1_accuracy': p1_acc,
+            'phase2_accuracy': p2_acc,
+            'overall_accuracy': overall_acc,
+            'phase1_mean_confidence': p1_mean_conf,
+            'phase2_mean_confidence': p2_mean_conf,
+            'overall_mean_confidence': overall_mean_conf,
+            'trials': trials
+        })
+        
+    n_sessions = len(sessions)
+    
+    # Calculate group-level averages
+    group_p1_accs = [s['phase1_accuracy'] for s in sessions if s['phase1_accuracy'] is not None]
+    group_p2_accs = [s['phase2_accuracy'] for s in sessions if s['phase2_accuracy'] is not None]
+    group_overall_accs = [s['overall_accuracy'] for s in sessions if s['overall_accuracy'] is not None]
+    
+    group_p1_confs = [s['phase1_mean_confidence'] for s in sessions if s['phase1_mean_confidence'] is not None]
+    group_p2_confs = [s['phase2_mean_confidence'] for s in sessions if s['phase2_mean_confidence'] is not None]
+    group_overall_confs = [s['overall_mean_confidence'] for s in sessions if s['overall_mean_confidence'] is not None]
+    
+    # Group pair-level accuracies
+    accuracy_by_pair_p1 = []
+    for i in range(64):
+        total = pair_total_p1.get(i, 0)
+        correct = pair_correct_p1.get(i, 0)
+        accuracy_by_pair_p1.append({
+            'pair_index': i,
+            'total': total,
+            'correct': correct,
+            'accuracy': (correct / total) if total > 0 else None
+        })
+        
+    accuracy_by_pair_p2 = []
+    for i in range(64):
+        total = pair_total_p2.get(i, 0)
+        correct = pair_correct_p2.get(i, 0)
+        accuracy_by_pair_p2.append({
+            'pair_index': i,
+            'total': total,
+            'correct': correct,
+            'accuracy': (correct / total) if total > 0 else None
+        })
+        
+    # Confidence-accuracy curve
+    conf_acc = {}
+    for conf in (1, 2, 3, 4):
+        total = conf_total[conf]
+        correct = conf_correct[conf]
+        conf_acc[conf] = {
+            'total': total,
+            'correct': correct,
+            'accuracy': (correct / total) if total > 0 else None
+        }
+        
+    # Learning curve
+    learning_curve = []
+    for b in range(1, 9):
+        total = block_total[b]
+        correct = block_correct[b]
+        learning_curve.append({
+            'block': b,
+            'total': total,
+            'correct': correct,
+            'accuracy': (correct / total) if total > 0 else None
+        })
+        
+    group = {
+        'n_sessions': n_sessions,
+        'mean_accuracy_p1': (sum(group_p1_accs) / len(group_p1_accs)) if group_p1_accs else None,
+        'mean_accuracy_p2': (sum(group_p2_accs) / len(group_p2_accs)) if group_p2_accs else None,
+        'mean_accuracy_overall': (sum(group_overall_accs) / len(group_overall_accs)) if group_overall_accs else None,
+        'mean_confidence_p1': (sum(group_p1_confs) / len(group_p1_confs)) if group_p1_confs else None,
+        'mean_confidence_p2': (sum(group_p2_confs) / len(group_p2_confs)) if group_p2_confs else None,
+        'mean_confidence_overall': (sum(group_overall_confs) / len(group_overall_confs)) if group_overall_confs else None,
+        'accuracy_by_pair_p1': accuracy_by_pair_p1,
+        'accuracy_by_pair_p2': accuracy_by_pair_p2,
+        'confidence_accuracy_relation': conf_acc,
+        'learning_curve': learning_curve
+    }
+    
+    return {
+        'status': 'ok',
+        'sessions': sessions,
+        'group': group
+    }
+
+
+@app.get('/research/AttentionModelVideo')
+@require_results_auth
+def attention_model_video_page():
+    return send_from_directory(os.path.join(app.root_path, 'static', 'research', 'AttentionModelVideo'), 'index.html')
+
+
+@app.get('/research/AttentionModelVideo/')
+@require_results_auth
+def attention_model_video_page_slash():
+    return attention_model_video_page()
+
+
+@app.get('/api/research/attention-model-video/data')
+@require_results_auth
+def attention_model_video_data():
+    try:
+        records = _load_attention_model_video_records()
+        summary = _summarize_attention_model_video(records)
+        return jsonify(summary)
+    except Exception as e:
+        app.logger.exception('attentionModelVideo load failed')
+        return jsonify({'status': 'error', 'error': str(e)}), 500
+
+
 # ---- RESULTS SPA & API ----
 @app.get('/results')
 @require_results_auth
