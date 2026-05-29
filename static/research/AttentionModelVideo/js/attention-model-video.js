@@ -80,7 +80,7 @@
     els.metricOverall.textContent = fmtPct(group.mean_accuracy_overall);
     
     if (group.n_sessions > 0) {
-      els.stats.textContent = `Analysis dashboard loaded successfully with ${group.n_sessions} participant records.`;
+      els.stats.textContent = `${group.n_sessions} participant records loaded.`;
     } else {
       els.stats.textContent = 'No participant data records found.';
     }
@@ -96,7 +96,7 @@
     els.statsConfidenceCorr.innerHTML = fmtTestResult(stats.confidence_accuracy_correlation, 'r');
     
     if (stats.mean_confidence_correct != null && stats.mean_confidence_incorrect != null) {
-      els.statsMeanConfidence.innerHTML = `Correct Choice: <strong class="byb-text-green">${stats.mean_confidence_correct.toFixed(2)}</strong> vs. Incorrect Choice: <strong class="byb-text-orange">${stats.mean_confidence_incorrect.toFixed(2)}</strong>`;
+      els.statsMeanConfidence.innerHTML = `Correct choice: <strong class="byb-text-green">${stats.mean_confidence_correct.toFixed(2)}</strong> vs incorrect choice: <strong class="byb-text-orange">${stats.mean_confidence_incorrect.toFixed(2)}</strong>`;
     } else {
       els.statsMeanConfidence.innerHTML = '<span class="byb-text-grey">Insufficient data</span>';
     }
@@ -114,7 +114,7 @@
           <td class="num">${fmtPct(s.phase2_accuracy)}</td>
           <td class="num">${fmtPct(s.overall_accuracy)}</td>
           <td class="num">${fmtVal(s.phase1_mean_confidence || s.overall_mean_confidence, 2)}</td>
-          <td><span class="status-badge status-badge--success">✓ v2.0</span></td>
+          <td><span class="status-badge status-badge--success">v2.0</span></td>
         </tr>
       `;
     }).join('');

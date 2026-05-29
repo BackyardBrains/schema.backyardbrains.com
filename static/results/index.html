@@ -1,113 +1,218 @@
 <!doctype html>
+<html lang="en">
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Experiment Results</title>
 <link rel="stylesheet" href="/results/css/results.css">
 
-<body>
+<body class="byb-app-body">
+  <div class="byb-app-shell">
+    <aside class="byb-app-sidebar" aria-label="Schema workspace">
+      <a class="byb-app-sidebar__brand" href="/">
+        <img class="byb-app-sidebar__brand-logo" src="https://storybook.backyardbrains.com/icons/logo-horizontal-color.svg" alt="Backyard Brains">
+        <span class="byb-app-sidebar__brand-label">Schema</span>
+      </a>
 
-  <div class="app-bar">
-    <div class="app-bar-left">
-      <span class="app-logo">BYB</span>
-      <a href="/results/" class="app-nav-link app-nav-link--active">Results</a>
-      <a href="/admin/" id="adminLink" class="app-nav-link" style="display:none">Admin</a>
-    </div>
-    <div class="app-bar-right">
-      <span id="whoami" class="app-user"></span>
-      <button id="login" class="btn app-bar-btn">Log in</button>
-      <button id="logout" class="btn app-bar-btn" style="display:none">Log out</button>
-    </div>
-  </div>
+      <nav class="byb-app-sidebar__nav" aria-label="Primary">
+        <a class="byb-app-sidebar__link byb-app-sidebar__link--active" href="/results/" aria-current="page" data-app-sidebar-link="Results">
+          <span class="byb-app-sidebar__icon" aria-hidden="true"><img src="https://storybook.backyardbrains.com/icons/ui-list.svg" alt=""></span>
+          Results
+        </a>
+        <a class="byb-app-sidebar__link" href="/research/" data-app-sidebar-link="Research">
+          <span class="byb-app-sidebar__icon" aria-hidden="true"><img src="https://storybook.backyardbrains.com/icons/section-docs.svg" alt=""></span>
+          Research
+        </a>
+        <a class="byb-app-sidebar__link" href="/admin/" id="adminLink" style="display:none" data-app-sidebar-link="Admin">
+          <span class="byb-app-sidebar__icon" aria-hidden="true"><img src="https://storybook.backyardbrains.com/icons/ui-setting.svg" alt=""></span>
+          Admin
+        </a>
+      </nav>
 
-  <header class="page-header">
-    <h1>Experiment Results</h1>
-    <div id="stats" class="stats">Matched: 0 • Size: 0 KB</div>
-    <a id="downloadAll" class="download" href="#" download>Download all (ZIP)</a>
-    <div class="note">Tip: use patterns like <code>posner_*.json</code></div>
-    <hr>
-  </header>
-
-  <div id="guestBanner" style="display:none; text-align: center; padding: 40px 20px;">
-    <h2>Schema Raw Results Download Center</h2>
-    <p>Please log in to access the results and download data.</p>
-  </div>
-
-  <section class="filters" id="filters">
-    <div class="row">
-      <label>
-        Pattern
-        <input id="pattern" type="text" placeholder="e.g. posner_*.json">
-      </label>
-      <label>
-        Since
-        <input id="since" type="datetime-local">
-      </label>
-      <label>
-        Until
-        <input id="until" type="datetime-local">
-      </label>
-    </div>
-    <div class="row">
-      <label>
-        Min size (bytes)
-        <input id="min_size" type="number" min="0" step="1" placeholder="0">
-      </label>
-      <label>
-        Max size (bytes)
-        <input id="max_size" type="number" min="0" step="1" placeholder="">
-      </label>
-      <label>
-        Sort
-        <select id="sort">
-          <option value="date">date</option>
-          <option value="name">name</option>
-          <option value="size">size</option>
-        </select>
-      </label>
-      <label>
-        Order
-        <select id="order">
-          <option value="desc">desc</option>
-          <option value="asc">asc</option>
-        </select>
-      </label>
-      <label>
-        Limit
-        <input id="limit" type="number" min="1" step="1" value="200">
-      </label>
-    </div>
-    <div class="actions">
-      <button id="apply">Apply</button>
-      <button id="reset">Reset</button>
-    </div>
-  </section>
-
-  <section class="results">
-    <table id="resultsTable">
-      <thead>
-        <tr>
-          <th>Name</th>
-          <th class="num">Size</th>
-          <th>Modified</th>
-          <th>Actions</th>
-        </tr>
-      </thead>
-      <tbody id="resultsBody"></tbody>
-    </table>
-
-    <aside class="preview" id="previewPanel" aria-hidden="true">
-      <div class="preview-header">
-        <strong id="previewTitle">Preview</strong>
-        <div class="preview-actions">
-          <button id="wrapToggle" class="btn" title="Toggle wrap">Wrap</button>
-          <button id="copyPreview" class="btn" title="Copy to clipboard">Copy</button>
-          <a id="downloadPreview" class="btn link" href="#" download title="Download JSON">Download</a>
-          <button id="closePreview" title="Close">×</button>
-        </div>
+      <div class="byb-app-sidebar__sections">
+        <section class="byb-app-sidebar__section">
+          <h2 class="byb-app-sidebar__section-title">Workspace</h2>
+          <a class="byb-app-sidebar__link" href="#recordings">
+            <span class="byb-app-sidebar__icon" aria-hidden="true"><img src="https://storybook.backyardbrains.com/icons/ui-history.svg" alt=""></span>
+            Recordings
+          </a>
+          <a class="byb-app-sidebar__link" href="#review">
+            <span class="byb-app-sidebar__icon" aria-hidden="true"><img src="https://storybook.backyardbrains.com/icons/ui-check-circle.svg" alt=""></span>
+            Review
+          </a>
+        </section>
       </div>
-      <pre id="previewJson" class="json"></pre>
     </aside>
-  </section>
+
+    <main class="byb-app-shell__main">
+      <header class="byb-app-shell__header">
+        <div class="byb-app-shell__heading">
+          <p class="byb-app-shell__eyebrow">Experiment output</p>
+          <h1 class="byb-app-shell__title">Results</h1>
+        </div>
+        <div class="byb-app-shell__actions byb-app-topbar__auth">
+          <span id="whoami" class="byb-app-user"></span>
+          <button id="login" class="byb-btn byb-btn--outline byb-btn--sm">Log in</button>
+          <button id="logout" class="byb-btn byb-btn--outline byb-btn--sm" style="display:none">Log out</button>
+        </div>
+      </header>
+
+      <div class="byb-app-shell__content">
+      <section class="byb-app-panel byb-app-panel--intro">
+        <div class="byb-app-panel__body byb-app-panel__copy">
+          <span class="byb-iconic-tag byb-iconic-tag--human byb-iconic-tag--sm">
+            <img src="https://storybook.backyardbrains.com/icons/category-human.svg" alt="" class="byb-iconic-tag__icon" width="32" height="32">
+            <span class="byb-iconic-tag__body">Human signals</span>
+          </span>
+          <h2>Turn recordings into files reviewers can inspect.</h2>
+          <p>Filter raw result files, preview JSON, and export a clean bundle for analysis or classroom review.</p>
+        </div>
+        <div class="byb-run-summary" aria-live="polite">
+          <span id="stats" class="byb-run-summary__value">Matched: 0 • Size: 0 KB</span>
+          <span class="byb-run-summary__label">Current file set</span>
+        </div>
+      </section>
+
+      <div id="guestBanner" class="byb-app-panel byb-empty-state" style="display:none">
+        <h2>Schema Raw Results Download Center</h2>
+        <p>Please log in to access result files and download experiment data.</p>
+        <button class="byb-btn byb-btn--normal byb-btn--md" onclick="window.location.href='/api/auth/login'">Log in</button>
+      </div>
+
+      <section class="byb-app-menu byb-results-menu" id="filters" aria-label="Filter result files">
+        <div class="byb-app-menu__main">
+          <h2 class="byb-app-menu__title">Filters</h2>
+          <div class="byb-app-menu__divider"></div>
+        <div class="byb-app-toolbar__row">
+          <label class="byb-field byb-field--wide">
+            <span class="byb-field__label">Pattern</span>
+            <input id="pattern" class="byb-input" type="text" placeholder="e.g. posner_*.json">
+          </label>
+          <label class="byb-field">
+            <span class="byb-field__label">Since</span>
+            <input id="since" class="byb-input" type="datetime-local">
+          </label>
+          <label class="byb-field">
+            <span class="byb-field__label">Until</span>
+            <input id="until" class="byb-input" type="datetime-local">
+          </label>
+        </div>
+        <div class="byb-app-toolbar__row byb-app-toolbar__row--compact">
+          <label class="byb-field">
+            <span class="byb-field__label">Min bytes</span>
+            <input id="min_size" class="byb-input" type="number" min="0" step="1" placeholder="0">
+          </label>
+          <label class="byb-field">
+            <span class="byb-field__label">Max bytes</span>
+            <input id="max_size" class="byb-input" type="number" min="0" step="1">
+          </label>
+          <label class="byb-field">
+            <span class="byb-field__label">Sort</span>
+            <select id="sort" class="byb-input">
+              <option value="date">date</option>
+              <option value="name">name</option>
+              <option value="size">size</option>
+            </select>
+          </label>
+          <label class="byb-field">
+            <span class="byb-field__label">Order</span>
+            <select id="order" class="byb-input">
+              <option value="desc">desc</option>
+              <option value="asc">asc</option>
+            </select>
+          </label>
+          <label class="byb-field">
+            <span class="byb-field__label">Limit</span>
+            <input id="limit" class="byb-input" type="number" min="1" step="1" value="200">
+          </label>
+          <div class="byb-app-toolbar__actions">
+            <button id="reset" class="byb-btn byb-btn--outline byb-btn--md">Reset</button>
+            <button id="apply" class="byb-btn byb-btn--normal byb-btn--md">Apply</button>
+          </div>
+        </div>
+        </div>
+      </section>
+
+      <section class="byb-results-workbench" id="recordings">
+        <div class="byb-app-panel byb-recording-panel">
+          <div class="byb-app-panel__header">
+            <div class="byb-app-panel__heading">
+              <h2 class="byb-app-panel__title">Raw files</h2>
+              <span class="byb-app-panel__meta">Recordings list</span>
+            </div>
+            <div class="byb-app-panel__actions">
+              <a id="downloadAll" class="byb-btn byb-btn--normal byb-btn--sm" href="#" download>Export ZIP</a>
+            </div>
+          </div>
+          <div class="byb-app-panel__body">
+          <p class="byb-panel-hint">Use shell-style patterns like <code>posner_*.json</code> to isolate one experiment, class, or session.</p>
+          <div class="byb-table-wrap results">
+            <table id="resultsTable" class="byb-table byb-table--app">
+              <thead>
+                <tr>
+                  <th scope="col">Recording</th>
+                  <th scope="col" class="num">Size</th>
+                  <th scope="col">Modified</th>
+                  <th scope="col">Actions</th>
+                </tr>
+              </thead>
+              <tbody id="resultsBody"></tbody>
+            </table>
+
+            <aside class="preview" id="previewPanel" aria-hidden="true" aria-label="Result file preview">
+              <div class="preview-header">
+                <strong id="previewTitle">Preview</strong>
+                <div class="preview-actions">
+                  <button id="wrapToggle" class="byb-btn byb-btn--outline byb-btn--sm" title="Toggle wrap">Wrap</button>
+                  <button id="copyPreview" class="byb-btn byb-btn--outline byb-btn--sm" title="Copy to clipboard">Copy</button>
+                  <a id="downloadPreview" class="byb-btn byb-btn--outline byb-btn--sm" href="#" download title="Download JSON">Download</a>
+                  <button id="closePreview" class="byb-preview-close" title="Close">×</button>
+                </div>
+              </div>
+              <pre id="previewJson" class="json"></pre>
+            </aside>
+          </div>
+          </div>
+        </div>
+
+        <aside class="byb-app-panel byb-review-panel" id="review" aria-label="Review guide">
+          <div class="byb-app-panel__header">
+            <div class="byb-app-panel__heading">
+              <h2 class="byb-app-panel__title">Before export</h2>
+              <span class="byb-app-panel__meta">Review states</span>
+            </div>
+          </div>
+          <div class="byb-app-panel__body">
+          <ul class="byb-exception-list">
+            <li>
+              <span class="byb-status-pill byb-status-pill--ready">Ready</span>
+              <span>File opens and has participant/session metadata.</span>
+            </li>
+            <li>
+              <span class="byb-status-pill byb-status-pill--review">Needs review</span>
+              <span>Check naming, missing trials, or partial uploads.</span>
+            </li>
+            <li>
+              <span class="byb-status-pill byb-status-pill--raw">Raw</span>
+              <span>Keep original JSON attached before analysis.</span>
+            </li>
+          </ul>
+          <div class="byb-mini-chart" aria-label="Signal preview sketch">
+            <span style="height:28%"></span>
+            <span style="height:62%"></span>
+            <span style="height:38%"></span>
+            <span style="height:82%"></span>
+            <span style="height:46%"></span>
+            <span style="height:70%"></span>
+            <span style="height:34%"></span>
+            <span style="height:58%"></span>
+          </div>
+          </div>
+        </aside>
+      </section>
+      </div>
+    </main>
+  </div>
 
   <script src="/results/js/results.js"></script>
 </body>
+</html>

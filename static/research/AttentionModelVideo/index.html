@@ -5,230 +5,270 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Attention Model Video Research</title>
   <link rel="stylesheet" href="/results/css/results.css">
-  <link rel="stylesheet" href="/research/RHITemp/css/rhi-temp.css">
   <link rel="stylesheet" href="/research/AttentionModelVideo/css/attention-model-video.css">
-  <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700;900&display=swap" rel="stylesheet">
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
-<body class="attention-video-page byb-bg-grey-light byb-text-dark">
-  <div class="app-bar byb-bg-dark byb-text-white">
-    <div class="app-bar-left">
-      <span class="app-logo">BYB</span>
-      <a href="/results/" class="app-nav-link">Results</a>
-      <a href="/research/" class="app-nav-link app-nav-link--active">Research</a>
-      <a href="/admin/" id="adminLink" class="app-nav-link" style="display:none">Admin</a>
-    </div>
-    <div class="app-bar-right">
-      <span id="whoami" class="app-user"></span>
-      <button id="login" class="btn app-bar-btn">Log in</button>
-      <button id="logout" class="btn app-bar-btn" style="display:none">Log out</button>
-    </div>
-  </div>
 
-  <header class="page-header research-hero byb-bg-white byb-mb-4">
-    <div class="byb-container">
-      <p class="byb-label byb-text-orange byb-mb-1">Naturalistic Attention</p>
-      <h1 class="byb-display-3 byb-mb-2">Attention Model Video</h1>
-      <p class="byb-body-lead byb-text-grey">Replicating Ziman et al. (PNAS 2023). Participants judge if attention spotlights shown on visual movies represent natural paths vs. temporally scrambled paths (Phase 1) or mismatched image paths (Phase 2).</p>
-      <div id="stats" class="byb-body-sm byb-text-grey byb-mt-3">Loading data...</div>
-    </div>
-  </header>
+<body class="byb-app-body attention-video-page">
+  <div class="byb-app-shell">
+    <aside class="byb-app-sidebar" aria-label="Schema workspace">
+      <a class="byb-app-sidebar__brand" href="/">
+        <img class="byb-app-sidebar__brand-logo" src="https://storybook.backyardbrains.com/icons/logo-horizontal-color.svg" alt="Backyard Brains">
+        <span class="byb-app-sidebar__brand-label">Schema</span>
+      </a>
 
-  <div id="guestBanner" style="display:none; text-align:center; padding:60px 20px;">
-    <h2 class="byb-h3 byb-mb-2">Research Login Required</h2>
-    <p class="byb-body">Please log in to access Attention Model Video research data.</p>
-  </div>
+      <nav class="byb-app-sidebar__nav" aria-label="Primary">
+        <a class="byb-app-sidebar__link" href="/results/">
+          <span class="byb-app-sidebar__icon" aria-hidden="true"><img src="https://storybook.backyardbrains.com/icons/ui-list.svg" alt=""></span>
+          Results
+        </a>
+        <a class="byb-app-sidebar__link byb-app-sidebar__link--active" href="/research/" aria-current="page">
+          <span class="byb-app-sidebar__icon" aria-hidden="true"><img src="https://storybook.backyardbrains.com/icons/section-docs.svg" alt=""></span>
+          Research
+        </a>
+        <a class="byb-app-sidebar__link" href="/admin/" id="adminLink" style="display:none">
+          <span class="byb-app-sidebar__icon" aria-hidden="true"><img src="https://storybook.backyardbrains.com/icons/ui-setting.svg" alt=""></span>
+          Admin
+        </a>
+      </nav>
 
-  <main id="researchApp" class="byb-container" style="display:none; padding-bottom: 64px;">
-    <!-- Metric summary row -->
-    <section class="summary-metrics-grid byb-mb-6" aria-label="Summary Metrics">
-      <article class="metric-card byb-card byb-card--bordered">
-        <span class="eyebrow">Group Size</span>
-        <strong id="metricN">--</strong>
-        <span class="metric-lbl">Participants</span>
-      </article>
-      <article class="metric-card byb-card byb-card--bordered">
-        <span class="eyebrow">Phase 1 Accuracy</span>
-        <strong id="metricP1">--</strong>
-        <span class="metric-lbl">Correct vs Scrambled</span>
-      </article>
-      <article class="metric-card byb-card byb-card--bordered">
-        <span class="eyebrow">Phase 2 Accuracy</span>
-        <strong id="metricP2">--</strong>
-        <span class="metric-lbl">Correct vs Mismatched</span>
-      </article>
-      <article class="metric-card byb-card byb-card--bordered">
-        <span class="eyebrow">Overall Accuracy</span>
-        <strong id="metricOverall">--</strong>
-        <span class="metric-lbl">Combined Performance</span>
-      </article>
-    </section>
-
-    <!-- Scientific Statistical Analysis card -->
-    <section class="byb-mb-6">
-      <article class="byb-table-card byb-card--bordered">
-        <div class="byb-table-card__header">
-          <div>
-            <p class="byb-label byb-text-orange byb-mb-1">Hypothesis Testing</p>
-            <h2 class="byb-table-card__title">Scientific Statistical Analysis</h2>
-          </div>
-          <span class="byb-table-card__badge">Live Stats</span>
-        </div>
-        <div class="byb-table-card__rows">
-          <div class="byb-table-card-row">
-            <span class="byb-table-card-row__icon">➔</span>
-            <div class="byb-table-card-row__label">
-              Phase 1 vs. Chance (50%)
-              <div class="stats-formula">H₀: Acc₁ = 0.5 (Z-test for proportion)</div>
-            </div>
-            <div class="byb-table-card-row__value" id="statsP1Chance">--</div>
-          </div>
-          <div class="byb-table-card-row">
-            <span class="byb-table-card-row__icon">➔</span>
-            <div class="byb-table-card-row__label">
-              Phase 2 vs. Chance (50%)
-              <div class="stats-formula">H₀: Acc₂ = 0.5 (Z-test for proportion)</div>
-            </div>
-            <div class="byb-table-card-row__value" id="statsP2Chance">--</div>
-          </div>
-          <div class="byb-table-card-row">
-            <span class="byb-table-card-row__icon">➔</span>
-            <div class="byb-table-card-row__label">
-              Phase 1 vs. Phase 2 Difficulty Difference
-              <div class="stats-formula">H₀: Acc₁ = Acc₂ (Two-sample proportion Z-test)</div>
-            </div>
-            <div class="byb-table-card-row__value" id="statsP1P2Diff">--</div>
-          </div>
-          <div class="byb-table-card-row">
-            <span class="byb-table-card-row__icon">➔</span>
-            <div class="byb-table-card-row__label">
-              Metacognitive Confidence-Accuracy Link
-              <div class="stats-formula">Pearson correlation (r) between confidence rating (1–4) & correctness (0/1)</div>
-            </div>
-            <div class="byb-table-card-row__value" id="statsConfidenceCorr">--</div>
-          </div>
-          <div class="byb-table-card-row">
-            <span class="byb-table-card-row__icon">➔</span>
-            <div class="byb-table-card-row__label">
-              Average Confidence Correct vs. Incorrect
-              <div class="stats-formula">Self-reported confidence rating averages (1–4)</div>
-            </div>
-            <div class="byb-table-card-row__value" id="statsMeanConfidence">--</div>
-          </div>
-        </div>
-      </article>
-    </section>
-
-    <!-- Chart Grid 1: Group Accuracy & Metacognitive awareness -->
-    <section class="byb-grid byb-grid--2 byb-mb-6">
-      <article class="byb-card byb-card--bordered">
-        <div class="byb-mb-4">
-          <p class="byb-label byb-text-grey byb-mb-1">Group Analysis</p>
-          <h2 class="byb-h4">Replication Accuracy (Phase 1 vs 2)</h2>
-        </div>
-        <div class="chart-canvas-wrap">
-          <canvas id="accuracyComparisonChart" height="220"></canvas>
-        </div>
-        <p class="chart-note byb-body-xs byb-text-grey byb-mt-3">Comparison of mean accuracy in Phase 1 (Correct vs Scrambled) and Phase 2 (Correct vs Mismatched) against the 50% chance level (dashed line).</p>
-      </article>
-
-      <article class="byb-card byb-card--bordered">
-        <div class="byb-mb-4">
-          <p class="byb-label byb-text-grey byb-mb-1">Metacognition</p>
-          <h2 class="byb-h4">Accuracy vs. Confidence Rating</h2>
-        </div>
-        <div class="chart-canvas-wrap">
-          <canvas id="confidenceAccuracyChart" height="220"></canvas>
-        </div>
-        <p class="chart-note byb-body-xs byb-text-grey byb-mt-3">How accuracy relates to self-reported confidence. Higher slopes show higher metacognitive awareness of task performance.</p>
-      </article>
-    </section>
-
-    <!-- Chart Grid 2: Stimulus Difficulty Analysis -->
-    <section class="byb-grid byb-mb-6">
-      <article class="byb-card byb-card--bordered">
-        <div class="byb-mb-4">
-          <p class="byb-label byb-text-grey byb-mb-1">Stimulus Difficulty (Phase 1)</p>
-          <h2 class="byb-h4">Correct vs Scrambled: Video-Pair Accuracy</h2>
-        </div>
-        <div class="chart-canvas-wrap">
-          <canvas id="stimulusPhase1Chart" height="180"></canvas>
-        </div>
-        <p class="chart-note byb-body-xs byb-text-grey byb-mt-3">Accuracy across the 64 different video pairs in Phase 1, sorted from highest to lowest correct detection.</p>
-      </article>
-    </section>
-
-    <section class="byb-grid byb-mb-6">
-      <article class="byb-card byb-card--bordered">
-        <div class="byb-mb-4">
-          <p class="byb-label byb-text-grey byb-mb-1">Stimulus Difficulty (Phase 2)</p>
-          <h2 class="byb-h4">Correct vs Mismatched: Video-Pair Accuracy</h2>
-        </div>
-        <div class="chart-canvas-wrap">
-          <canvas id="stimulusPhase2Chart" height="180"></canvas>
-        </div>
-        <p class="chart-note byb-body-xs byb-text-grey byb-mt-3">Accuracy across the 64 different video pairs in Phase 2, sorted from highest to lowest correct detection.</p>
-      </article>
-    </section>
-
-    <!-- Chart Grid 3: Learning Curve & Individual Details -->
-    <section class="byb-grid byb-grid--2 byb-mb-6">
-      <article class="byb-card byb-card--bordered">
-        <div class="byb-mb-4">
-          <p class="byb-label byb-text-grey byb-mb-1">Time Course</p>
-          <h2 class="byb-h4">Learning &amp; Fatigue: Block Performance</h2>
-        </div>
-        <div class="chart-canvas-wrap">
-          <canvas id="learningCurveChart" height="220"></canvas>
-        </div>
-        <p class="chart-note byb-body-xs byb-text-grey byb-mt-3">Accuracy grouped into blocks of 16 trials (blocks 1–4 represent Phase 1, blocks 5–8 represent Phase 2).</p>
-      </article>
-
-      <article class="byb-card byb-card--bordered">
-        <div class="byb-inline byb-inline--between byb-mb-4">
-          <div>
-            <p class="byb-label byb-text-grey byb-mb-1">Individual View</p>
-            <h2 class="byb-h4">Participant Trial Detail Trace</h2>
-          </div>
-          <label class="inline-control select-wrap">
-            Subject:
-            <select id="participantSelect" class="byb-input byb-input--sm"></select>
-          </label>
-        </div>
-        <div class="chart-canvas-wrap">
-          <canvas id="individualTrialChart" height="220"></canvas>
-        </div>
-        <p class="chart-note byb-body-xs byb-text-grey byb-mt-3">Trial-by-trial view of confidence ratings. <span style="color:#18a953;font-weight:bold;">Green</span> indicates correct choices; <span style="color:#fd8164;font-weight:bold;">Orange</span> indicates errors. Dashed line splits Phase 1 &amp; Phase 2.</p>
-      </article>
-    </section>
-
-    <!-- Results Table Card -->
-    <section class="byb-card byb-card--bordered byb-p-6">
-      <div class="byb-inline byb-inline--between byb-mb-4">
-        <div>
-          <p class="byb-label byb-text-grey byb-mb-1">Participants</p>
-          <h2 class="byb-h4">Included Sessions</h2>
-        </div>
-        <div id="sessionsCount" class="byb-label byb-text-orange"></div>
+      <div class="byb-app-sidebar__sections">
+        <section class="byb-app-sidebar__section">
+          <h2 class="byb-app-sidebar__section-title">Workspace</h2>
+          <a class="byb-app-sidebar__link" href="#protocol">
+            <span class="byb-app-sidebar__icon" aria-hidden="true"><img src="https://storybook.backyardbrains.com/icons/ui-check-circle.svg" alt=""></span>
+            Protocol
+          </a>
+          <a class="byb-app-sidebar__link" href="#sessions">
+            <span class="byb-app-sidebar__icon" aria-hidden="true"><img src="https://storybook.backyardbrains.com/icons/ui-history.svg" alt=""></span>
+            Sessions
+          </a>
+        </section>
       </div>
-      <div class="table-scroll">
-        <table>
-          <thead>
-            <tr>
-              <th>Subject</th>
-              <th class="num">Age</th>
-              <th class="num">Phase 1 Acc</th>
-              <th class="num">Phase 2 Acc</th>
-              <th class="num">Overall Acc</th>
-              <th class="num">Mean Conf</th>
-              <th>Status</th>
-            </tr>
-          </thead>
-          <tbody id="sessionsBody"></tbody>
-        </table>
+    </aside>
+
+    <main class="byb-app-shell__main">
+      <header class="byb-app-shell__header">
+        <div class="byb-app-shell__heading">
+          <p class="byb-app-shell__eyebrow">Naturalistic attention</p>
+          <h1 class="byb-app-shell__title">Attention Model Video</h1>
+        </div>
+        <div class="byb-app-shell__actions byb-app-topbar__auth">
+          <span id="whoami" class="byb-app-user"></span>
+          <button id="login" class="byb-btn byb-btn--outline byb-btn--sm">Log in</button>
+          <button id="logout" class="byb-btn byb-btn--outline byb-btn--sm" style="display:none">Log out</button>
+        </div>
+      </header>
+
+      <div class="byb-app-shell__content">
+      <div id="guestBanner" class="byb-app-panel byb-empty-state" style="display:none">
+        <h2>Research login required</h2>
+        <p>Please log in to access Attention Model Video research data.</p>
       </div>
-    </section>
-  </main>
+
+      <div id="researchApp" class="attention-workbench" style="display:none">
+        <section class="byb-app-panel byb-app-panel--intro attention-intro">
+          <div class="byb-app-panel__body byb-app-panel__copy">
+            <span class="byb-iconic-tag byb-iconic-tag--human byb-iconic-tag--sm">
+              <img src="https://storybook.backyardbrains.com/icons/category-human.svg" alt="" class="byb-iconic-tag__icon" width="32" height="32">
+              <span class="byb-iconic-tag__body">Human attention</span>
+            </span>
+            <h2>Can people tell when a model's attention path belongs to the video?</h2>
+            <p>Participants judge correct, scrambled, and mismatched attention spotlights across two phases.</p>
+          </div>
+          <div class="byb-run-summary" aria-live="polite">
+            <span id="stats" class="byb-run-summary__value">Loading data...</span>
+            <span class="byb-run-summary__label">Current dataset</span>
+          </div>
+        </section>
+
+        <section class="byb-app-panel attention-measures" aria-label="Dataset measures">
+          <div class="attention-measure">
+            <span class="attention-measure__label">Participants</span>
+            <strong id="metricN">--</strong>
+          </div>
+          <div class="attention-measure">
+            <span class="attention-measure__label">Phase 1</span>
+            <strong id="metricP1">--</strong>
+            <span>Correct vs scrambled</span>
+          </div>
+          <div class="attention-measure">
+            <span class="attention-measure__label">Phase 2</span>
+            <strong id="metricP2">--</strong>
+            <span>Correct vs mismatched</span>
+          </div>
+          <div class="attention-measure">
+            <span class="attention-measure__label">Overall</span>
+            <strong id="metricOverall">--</strong>
+            <span>All choices</span>
+          </div>
+        </section>
+
+        <section class="attention-grid" id="protocol">
+          <article class="byb-app-panel attention-protocol">
+            <div class="byb-app-panel__header">
+              <div class="byb-app-panel__heading">
+                <h2 class="byb-app-panel__title">What is being tested</h2>
+                <span class="byb-app-panel__meta">Protocol check</span>
+              </div>
+            </div>
+            <div class="byb-app-panel__body">
+            <ol class="attention-step-list">
+              <li><strong>Phase 1:</strong> choose the real attention path versus a temporally scrambled path.</li>
+              <li><strong>Phase 2:</strong> choose the real attention path versus a path from a different video.</li>
+              <li><strong>Confidence:</strong> report how sure the choice felt after each judgment.</li>
+            </ol>
+            </div>
+          </article>
+
+          <article class="byb-app-panel attention-stats">
+            <div class="byb-app-panel__header">
+              <div class="byb-app-panel__heading">
+                <h2 class="byb-app-panel__title">Statistical notes</h2>
+                <span class="byb-app-panel__meta">Evidence checks</span>
+              </div>
+            </div>
+            <div class="byb-app-panel__body">
+            <div class="attention-stat-list">
+              <div>
+                <span>Phase 1 vs chance</span>
+                <strong id="statsP1Chance">--</strong>
+              </div>
+              <div>
+                <span>Phase 2 vs chance</span>
+                <strong id="statsP2Chance">--</strong>
+              </div>
+              <div>
+                <span>Phase difficulty difference</span>
+                <strong id="statsP1P2Diff">--</strong>
+              </div>
+              <div>
+                <span>Confidence and accuracy</span>
+                <strong id="statsConfidenceCorr">--</strong>
+              </div>
+              <div>
+                <span>Mean confidence split</span>
+                <strong id="statsMeanConfidence">--</strong>
+              </div>
+            </div>
+            </div>
+          </article>
+        </section>
+
+        <section class="attention-grid">
+          <article class="byb-app-panel attention-chart-panel">
+            <div class="byb-app-panel__header">
+              <div>
+                <p class="byb-kicker">Group analysis</p>
+                <h2>Replication accuracy</h2>
+              </div>
+            </div>
+            <div class="chart-canvas-wrap">
+              <canvas id="accuracyComparisonChart" height="220"></canvas>
+            </div>
+            <p class="chart-note">Mean accuracy in each phase against the 50% chance line.</p>
+          </article>
+
+          <article class="byb-app-panel attention-chart-panel">
+            <div class="byb-app-panel__header">
+              <div>
+                <p class="byb-kicker">Metacognition</p>
+                <h2>Accuracy vs confidence</h2>
+              </div>
+            </div>
+            <div class="chart-canvas-wrap">
+              <canvas id="confidenceAccuracyChart" height="220"></canvas>
+            </div>
+            <p class="chart-note">Whether confidence rises when choices are correct.</p>
+          </article>
+        </section>
+
+        <section class="byb-app-panel attention-chart-panel">
+          <div class="byb-app-panel__header">
+            <div>
+              <p class="byb-kicker">Stimulus difficulty</p>
+              <h2>Video-pair accuracy, phase 1</h2>
+            </div>
+          </div>
+          <div class="chart-canvas-wrap chart-canvas-wrap--wide">
+            <canvas id="stimulusPhase1Chart" height="180"></canvas>
+          </div>
+          <p class="chart-note">Correct versus scrambled video pairs, sorted from highest to lowest detection.</p>
+        </section>
+
+        <section class="byb-app-panel attention-chart-panel">
+          <div class="byb-app-panel__header">
+            <div>
+              <p class="byb-kicker">Stimulus difficulty</p>
+              <h2>Video-pair accuracy, phase 2</h2>
+            </div>
+          </div>
+          <div class="chart-canvas-wrap chart-canvas-wrap--wide">
+            <canvas id="stimulusPhase2Chart" height="180"></canvas>
+          </div>
+          <p class="chart-note">Correct versus mismatched video pairs, sorted from highest to lowest detection.</p>
+        </section>
+
+        <section class="attention-grid">
+          <article class="byb-app-panel attention-chart-panel">
+            <div class="byb-app-panel__header">
+              <div>
+                <p class="byb-kicker">Time course</p>
+                <h2>Block performance</h2>
+              </div>
+            </div>
+            <div class="chart-canvas-wrap">
+              <canvas id="learningCurveChart" height="220"></canvas>
+            </div>
+            <p class="chart-note">Blocks 1-4 are Phase 1. Blocks 5-8 are Phase 2.</p>
+          </article>
+
+          <article class="byb-app-panel attention-chart-panel">
+            <div class="byb-app-panel__header">
+              <div>
+                <p class="byb-kicker">Individual view</p>
+                <h2>Trial detail trace</h2>
+              </div>
+              <label class="byb-field attention-subject">
+                <span class="byb-field__label">Subject</span>
+                <select id="participantSelect" class="byb-input"></select>
+              </label>
+            </div>
+            <div class="chart-canvas-wrap">
+              <canvas id="individualTrialChart" height="220"></canvas>
+            </div>
+            <p class="chart-note">Confidence ratings by trial, with correct and incorrect choices separated by color.</p>
+          </article>
+        </section>
+
+        <section class="byb-app-panel" id="sessions">
+          <div class="byb-app-panel__header">
+            <div>
+              <p class="byb-kicker">Participants</p>
+              <h2>Included sessions</h2>
+            </div>
+            <div id="sessionsCount" class="byb-tag byb-tag--docs"></div>
+          </div>
+          <div class="byb-table-wrap table-scroll">
+            <table class="byb-table byb-table--app">
+              <thead>
+                <tr>
+                  <th scope="col">Subject</th>
+                  <th scope="col" class="num">Age</th>
+                  <th scope="col" class="num">Phase 1</th>
+                  <th scope="col" class="num">Phase 2</th>
+                  <th scope="col" class="num">Overall</th>
+                  <th scope="col" class="num">Mean conf.</th>
+                  <th scope="col">Status</th>
+                </tr>
+              </thead>
+              <tbody id="sessionsBody"></tbody>
+            </table>
+          </div>
+        </section>
+      </div>
+    </main>
+  </div>
 
   <script src="/research/RHITemp/js/research-auth.js"></script>
   <script src="/research/AttentionModelVideo/js/attention-model-video.js"></script>

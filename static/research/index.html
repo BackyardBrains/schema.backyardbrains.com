@@ -1,74 +1,239 @@
 <!doctype html>
+<html lang="en">
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Research</title>
 <link rel="stylesheet" href="/results/css/results.css">
-<link rel="stylesheet" href="/research/RHITemp/css/rhi-temp.css">
 
-<body>
-  <div class="app-bar">
-    <div class="app-bar-left">
-      <span class="app-logo">BYB</span>
-      <a href="/results/" class="app-nav-link">Results</a>
-      <a href="/research/" class="app-nav-link app-nav-link--active">Research</a>
-      <a href="/admin/" id="adminLink" class="app-nav-link" style="display:none">Admin</a>
-    </div>
-    <div class="app-bar-right">
-      <span id="whoami" class="app-user"></span>
-      <button id="login" class="btn app-bar-btn">Log in</button>
-      <button id="logout" class="btn app-bar-btn" style="display:none">Log out</button>
-    </div>
+<body class="byb-app-body">
+  <div class="byb-app-shell">
+    <aside class="byb-app-sidebar" aria-label="Schema workspace">
+      <a class="byb-app-sidebar__brand" href="/">
+        <img class="byb-app-sidebar__brand-logo" src="https://storybook.backyardbrains.com/icons/logo-horizontal-color.svg" alt="Backyard Brains">
+        <span class="byb-app-sidebar__brand-label">Schema</span>
+      </a>
+
+      <nav class="byb-app-sidebar__nav" aria-label="Primary">
+        <a class="byb-app-sidebar__link" href="/results/">
+          <span class="byb-app-sidebar__icon" aria-hidden="true"><img src="https://storybook.backyardbrains.com/icons/ui-list.svg" alt=""></span>
+          Results
+        </a>
+        <a class="byb-app-sidebar__link byb-app-sidebar__link--active" href="/research/" aria-current="page">
+          <span class="byb-app-sidebar__icon" aria-hidden="true"><img src="https://storybook.backyardbrains.com/icons/section-docs.svg" alt=""></span>
+          Research
+        </a>
+        <a class="byb-app-sidebar__link" href="/admin/" id="adminLink" style="display:none">
+          <span class="byb-app-sidebar__icon" aria-hidden="true"><img src="https://storybook.backyardbrains.com/icons/ui-setting.svg" alt=""></span>
+          Admin
+        </a>
+      </nav>
+
+      <div class="byb-app-sidebar__sections">
+        <section class="byb-app-sidebar__section">
+          <h2 class="byb-app-sidebar__section-title">Workspace</h2>
+          <a class="byb-app-sidebar__link" href="#protocols">
+            <span class="byb-app-sidebar__icon" aria-hidden="true"><img src="https://storybook.backyardbrains.com/icons/section-experiments.svg" alt=""></span>
+            Protocols
+          </a>
+          <a class="byb-app-sidebar__link" href="#resources">
+            <span class="byb-app-sidebar__icon" aria-hidden="true"><img src="https://storybook.backyardbrains.com/icons/other-pdf.svg" alt=""></span>
+            Resources
+          </a>
+        </section>
+      </div>
+    </aside>
+
+    <main class="byb-app-shell__main">
+      <header class="byb-app-shell__header">
+        <div class="byb-app-shell__heading">
+          <p class="byb-app-shell__eyebrow">Research workspace</p>
+          <h1 class="byb-app-shell__title">Research</h1>
+        </div>
+        <div class="byb-app-shell__actions byb-app-topbar__auth">
+          <span id="whoami" class="byb-app-user"></span>
+          <button id="login" class="byb-btn byb-btn--outline byb-btn--sm">Log in</button>
+          <button id="logout" class="byb-btn byb-btn--outline byb-btn--sm" style="display:none">Log out</button>
+        </div>
+      </header>
+
+      <div class="byb-app-shell__content">
+      <section class="byb-app-panel byb-app-panel--intro">
+        <div class="byb-app-panel__body byb-app-panel__copy">
+          <span class="byb-iconic-tag byb-iconic-tag--neuro byb-iconic-tag--sm">
+            <img src="https://storybook.backyardbrains.com/icons/category-neuro.svg" alt="" class="byb-iconic-tag__icon" width="32" height="32">
+            <span class="byb-iconic-tag__body">Neuroengineering</span>
+          </span>
+          <h2>Research tools for active experiment collections.</h2>
+          <p>Open protocols, compare experiment collections, and move between data collection views.</p>
+        </div>
+        <div class="byb-research-question">
+          <span class="byb-research-question__label">Working question</span>
+          <strong>How does the body update its own map when signals disagree?</strong>
+        </div>
+      </section>
+
+      <section class="byb-research-layout">
+        <div class="byb-research-primary">
+          <section class="byb-app-panel" id="protocols">
+            <div class="byb-app-panel__header">
+              <div class="byb-app-panel__heading">
+                <h2 class="byb-app-panel__title">Active protocols</h2>
+                <span class="byb-app-panel__meta">Experiment collections</span>
+              </div>
+              <div class="byb-segmented-control" role="tablist" aria-label="Research collection view">
+                <button class="byb-segmented-control__button byb-segmented-control__button--active" type="button" aria-selected="true">Studies</button>
+                <button class="byb-segmented-control__button" type="button" aria-selected="false">Resources</button>
+              </div>
+            </div>
+
+            <div class="byb-app-panel__body">
+            <div class="byb-protocol-list">
+              <a class="byb-protocol-row" href="/research/RHITemp/">
+                <span class="byb-protocol-row__icon" aria-hidden="true">RHI</span>
+                <span class="byb-protocol-row__main">
+                  <strong>RHI Temperature</strong>
+                  <span>Wrist, index, and pinky temperatures for control and rubber hand illusion conditions.</span>
+                </span>
+                <span class="byb-tag byb-tag--human">Human</span>
+                <span class="byb-status-pill byb-status-pill--ready">Ready</span>
+              </a>
+
+              <a class="byb-protocol-row" href="/research/RHITempHandFoot/">
+                <span class="byb-protocol-row__icon" aria-hidden="true">RHF</span>
+                <span class="byb-protocol-row__main">
+                  <strong>RHI Temperature: Hand and Foot</strong>
+                  <span>Five-minute control and illusion sessions sampled on the right hand and ankle.</span>
+                </span>
+                <span class="byb-tag byb-tag--human">Human</span>
+                <span class="byb-status-pill byb-status-pill--review">Draft</span>
+              </a>
+
+              <a class="byb-protocol-row" href="/research/GrabNose/">
+                <span class="byb-protocol-row__icon" aria-hidden="true">GN</span>
+                <span class="byb-protocol-row__main">
+                  <strong>Grab Nose Vibration</strong>
+                  <span>Forearm angle shifts and nose-finding observations from blindfolded vibration trials.</span>
+                </span>
+                <span class="byb-tag byb-tag--experiments">Proprioception</span>
+                <span class="byb-status-pill byb-status-pill--ready">Ready</span>
+              </a>
+
+              <a class="byb-protocol-row" href="/research/FingerEMG/">
+                <span class="byb-protocol-row__icon" aria-hidden="true">EMG</span>
+                <span class="byb-protocol-row__main">
+                  <strong>Finger Experiment</strong>
+                  <span>Filtered EMG power for control versus gross-video conditions with session traces.</span>
+                </span>
+                <span class="byb-tag byb-tag--neuro">EMG</span>
+                <span class="byb-status-pill byb-status-pill--raw">Sync</span>
+              </a>
+
+              <a class="byb-protocol-row" href="/research/AttentionModelVideo/">
+                <span class="byb-protocol-row__icon" aria-hidden="true">AMV</span>
+                <span class="byb-protocol-row__main">
+                  <strong>Attention Model Video</strong>
+                  <span>Accuracy and confidence for natural versus manipulated human attention sequences.</span>
+                </span>
+                <span class="byb-tag byb-tag--human">Attention</span>
+                <span class="byb-status-pill byb-status-pill--ready">Ready</span>
+              </a>
+            </div>
+            </div>
+          </section>
+
+          <section class="byb-app-panel">
+            <div class="byb-app-panel__header">
+              <div class="byb-app-panel__heading">
+                <h2 class="byb-app-panel__title">Observation sets</h2>
+                <span class="byb-app-panel__meta">Movement illusions</span>
+              </div>
+            </div>
+            <div class="byb-app-panel__body">
+            <div class="byb-observation-grid">
+              <a class="byb-observation-card" href="/research/MovementIllusions/index.html?experiment=chair">
+                <span class="byb-tag byb-tag--experiments">Chair</span>
+                <strong>Chair Rotation Illusion</strong>
+                <span>Biceps and triceps tendon vibration while the stool remains fixed.</span>
+              </a>
+              <a class="byb-observation-card" href="/research/MovementIllusions/index.html?experiment=cafe">
+                <span class="byb-tag byb-tag--blog">Cafe</span>
+                <strong>Cafe Stare Experiment</strong>
+                <span>Look-back outcomes during direct-stare and control periods.</span>
+              </a>
+              <a class="byb-observation-card" href="/research/MovementIllusions/index.html?experiment=floor">
+                <span class="byb-tag byb-tag--docs">Floor</span>
+                <strong>Arm Through Floor Illusion</strong>
+                <span>Perceived arm angles after the impossible continuation cue.</span>
+              </a>
+            </div>
+            </div>
+          </section>
+        </div>
+
+        <aside class="byb-research-side">
+          <section class="byb-app-panel">
+            <div class="byb-app-panel__header">
+              <div class="byb-app-panel__heading">
+                <h2 class="byb-app-panel__title">Protocol notes</h2>
+                <span class="byb-app-panel__meta">Research details</span>
+              </div>
+            </div>
+            <div class="byb-app-panel__body">
+            <ul class="byb-note-list">
+              <li>
+                <strong>Hypothesis</strong>
+                <span>Multisensory conflict changes perceived limb position before students can explain why.</span>
+              </li>
+              <li>
+                <strong>Materials</strong>
+                <span>Temperature probes, vibration motor, blindfold, timing sheet, participant code.</span>
+              </li>
+              <li>
+                <strong>Review</strong>
+                <span>Flag runs with missing baseline, unusually short trials, or notes without participant ID.</span>
+              </li>
+            </ul>
+            </div>
+          </section>
+
+          <section class="byb-app-panel" id="resources">
+            <div class="byb-app-panel__header">
+              <div class="byb-app-panel__heading">
+                <h2 class="byb-app-panel__title">Attached work</h2>
+                <span class="byb-app-panel__meta">Resources</span>
+              </div>
+            </div>
+            <div class="byb-app-panel__body">
+            <table class="byb-table byb-table--app">
+              <thead>
+                <tr>
+                  <th scope="col">Item</th>
+                  <th scope="col">State</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>Consent and classroom script</td>
+                  <td><span class="byb-status-pill byb-status-pill--ready">Ready</span></td>
+                </tr>
+                <tr>
+                  <td>RHI citation notes</td>
+                  <td><span class="byb-status-pill byb-status-pill--review">Draft</span></td>
+                </tr>
+                <tr>
+                  <td>Exported raw observations</td>
+                  <td><span class="byb-status-pill byb-status-pill--raw">Raw</span></td>
+                </tr>
+              </tbody>
+            </table>
+            </div>
+          </section>
+        </aside>
+      </section>
+      </div>
+    </main>
   </div>
-
-  <header class="page-header research-hero">
-    <p class="eyebrow">Research Collection</p>
-    <h1>Research Experiments</h1>
-    <p class="lede">Authenticated tools for collecting, storing, and viewing experiment data.</p>
-    <hr>
-  </header>
-
-  <main class="research-shell">
-    <a class="experiment-card" href="/research/RHITemp/">
-      <span class="card-kicker">Rubber Hand Illusion</span>
-      <strong>RHI Temperature</strong>
-      <span>Collect wrist, index, and pinky temperatures for control and RHI conditions, then view group and participant plots.</span>
-    </a>
-    <a class="experiment-card" href="/research/RHITempHandFoot/">
-      <span class="card-kicker">Rubber Hand Illusion &mdash; Follow-up</span>
-      <strong>RHI Temperature: Hand &amp; Foot</strong>
-      <span>5-minute Control / RHI / Control sessions sampled every 10&nbsp;s on the right hand and ankle, with vividness ratings during RHI.</span>
-    </a>
-    <a class="experiment-card" href="/research/GrabNose/">
-      <span class="card-kicker">Proprioception</span>
-      <strong>Grab Nose Vibration</strong>
-      <span>View forearm angle shifts, nose-finding attempts, and participant observations from blindfolded triceps vibration trials.</span>
-    </a>
-    <a class="experiment-card" href="/research/MovementIllusions/index.html?experiment=chair">
-      <span class="card-kicker">Proprioception</span>
-      <strong>Chair Rotation Illusion</strong>
-      <span>View perceived rotation after biceps and triceps tendon vibration while the stool remained fixed.</span>
-    </a>
-    <a class="experiment-card" href="/research/MovementIllusions/index.html?experiment=cafe">
-      <span class="card-kicker">Naturalistic Attention</span>
-      <strong>Cafe Stare Experiment</strong>
-      <span>Compare look-back outcomes during direct stare and no-direct-stare control periods in cafe settings.</span>
-    </a>
-    <a class="experiment-card" href="/research/MovementIllusions/index.html?experiment=floor">
-      <span class="card-kicker">Body Schema</span>
-      <strong>Arm Through Floor Illusion</strong>
-      <span>Review perceived arm angles after participants felt their arms continue below the floor.</span>
-    </a>
-    <a class="experiment-card" href="/research/FingerEMG/">
-      <span class="card-kicker">EMG Video Response</span>
-      <strong>Finger Experiment</strong>
-      <span>Compare filtered EMG power for control versus gross-video conditions with perievent and session-level traces.</span>
-    </a>
-    <a class="experiment-card" href="/research/AttentionModelVideo/">
-      <span class="card-kicker">Naturalistic Attention</span>
-      <strong>Attention Model Video</strong>
-      <span>Compare participant accuracy and confidence in detecting natural vs manipulated human attention sequences (PNAS 2023 replication).</span>
-    </a>
-  </main>
 
   <script src="/research/RHITemp/js/research-auth.js"></script>
 </body>
+</html>
