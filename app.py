@@ -3060,6 +3060,67 @@ def _load_attention_model_video_records():
     return records
 
 
+def _compute_z_proportion_test(k, n, p0=0.5):
+    if n <= 0:
+        return {'z': None, 'p_value': None, 'significant': False}
+    p = k / n
+    # Z-statistic against chance p0
+    z = (p - p0) / math.sqrt(p0 * (1 - p0) / n) if p0 * (1 - p0) > 0 else 0
+    # Two-tailed p-value using error function (math.erf)
+    p_value = 1.0 - math.erf(abs(z) / math.sqrt(2.0))
+    return {
+        'z': z,
+        'p_value': p_value,
+        'significant': p_value < 0.05
+    }
+
+def _compute_two_sample_proportion_test(k1, n1, k2, n2):
+    if n1 <= 0 or n2 <= 0:
+        return {'z': None, 'p_value': None, 'significant': False}
+    p1 = k1 / n1
+    p2 = k2 / n2
+    pooled_p = (k1 + k2) / (n1 + n2)
+    if pooled_p <= 0 or pooled_p >= 1:
+        return {'z': 0.0, 'p_value': 1.0, 'significant': False}
+    
+    se = math.sqrt(pooled_p * (1 - pooled_p) * (1/n1 + 1/n2))
+    z = (p1 - p2) / se if se > 0 else 0
+    p_value = 1.0 - math.erf(abs(z) / math.sqrt(2.0))
+    return {
+        'z': z,
+        'p_value': p_value,
+        'significant': p_value < 0.05
+    }
+
+def _compute_pearson_correlation(x, y):
+    n = len(x)
+    if n < 4:
+        return {'r': None, 'p_value': None, 'significant': False}
+    
+    mean_x = sum(x) / n
+    mean_y = sum(y) / n
+    
+    cov = sum((xi - mean_x) * (yi - mean_y) for xi, yi in zip(x, y))
+    var_x = sum((xi - mean_x) ** 2 for xi in x)
+    var_y = sum((yi - mean_y) ** 2 for yi in y)
+    
+    sd = math.sqrt(var_x * var_y)
+    if sd <= 0:
+        return {'r': 0.0, 'p_value': 1.0, 'significant': False}
+    
+    r = cov / sd
+    # Fisher Z-transformation to test correlation significance
+    # Clamp r to prevent log of division by zero
+    r_clamped = max(-0.9999, min(0.9999, r))
+    z_f = 0.5 * math.log((1.0 + r_clamped) / (1.0 - r_clamped)) * math.sqrt(n - 3)
+    p_value = 1.0 - math.erf(abs(z_f) / math.sqrt(2.0))
+    return {
+        'r': r,
+        'p_value': p_value,
+        'significant': p_value < 0.05
+    }
+
+
 def _summarize_attention_model_video(records):
     sessions = []
     
@@ -3077,11 +3138,16 @@ def _summarize_attention_model_video(records):
     block_correct = {1: 0, 2: 0, 3: 0, 4: 0, 5: 0, 6: 0, 7: 0, 8: 0}
     block_total = {1: 0, 2: 0, 3: 0, 4: 0, 5: 0, 6: 0, 7: 0, 8: 0}
     
+    # Flatten trials to compute group stats
+    all_trials_flat = []
+    
     for r in records:
         uuid = r['uuid']
         session_data = r['session']
         participant = session_data.get('participant') or {}
         trials = r['trials'] or []
+        
+        all_trials_flat.extend(trials)
         
         p1_trials = [t for t in trials if t.get('phase') == 1]
         p2_trials = [t for t in trials if t.get('phase') == 2]
@@ -3209,6 +3275,37 @@ def _summarize_attention_model_video(records):
             'accuracy': (correct / total) if total > 0 else None
         })
         
+    # Perform hypothesis and correlation tests on group flat trials
+    p1_flat = [t for t in all_trials_flat if isinstance(t, dict) and t.get('phase') == 1]
+    p2_flat = [t for t in all_trials_flat if isinstance(t, dict) and t.get('phase') == 2]
+    
+    k1 = sum(1 for t in p1_flat if t.get('is_correct'))
+    n1 = len(p1_flat)
+    k2 = sum(1 for t in p2_flat if t.get('is_correct'))
+    n2 = len(p2_flat)
+    
+    stats_p1 = _compute_z_proportion_test(k1, n1, 0.5)
+    stats_p2 = _compute_z_proportion_test(k2, n2, 0.5)
+    stats_diff = _compute_two_sample_proportion_test(k1, n1, k2, n2)
+    
+    # Calculate confidence vs correctness Pearson correlation
+    conf_x = []
+    correct_y = []
+    for t in all_trials_flat:
+        if isinstance(t, dict):
+            c = t.get('confidence_rating')
+            is_c = t.get('is_correct')
+            if c is not None and is_c is not None:
+                conf_x.append(float(c))
+                correct_y.append(1.0 if is_c else 0.0)
+                
+    stats_corr = _compute_pearson_correlation(conf_x, correct_y)
+    
+    correct_confs = [x for x, y in zip(conf_x, correct_y) if y == 1.0]
+    incorrect_confs = [x for x, y in zip(conf_x, correct_y) if y == 0.0]
+    mean_conf_correct = (sum(correct_confs) / len(correct_confs)) if correct_confs else None
+    mean_conf_incorrect = (sum(incorrect_confs) / len(incorrect_confs)) if incorrect_confs else None
+    
     group = {
         'n_sessions': n_sessions,
         'mean_accuracy_p1': (sum(group_p1_accs) / len(group_p1_accs)) if group_p1_accs else None,
@@ -3220,7 +3317,19 @@ def _summarize_attention_model_video(records):
         'accuracy_by_pair_p1': accuracy_by_pair_p1,
         'accuracy_by_pair_p2': accuracy_by_pair_p2,
         'confidence_accuracy_relation': conf_acc,
-        'learning_curve': learning_curve
+        'learning_curve': learning_curve,
+        'stats': {
+            'phase1_chance_test': stats_p1,
+            'phase2_chance_test': stats_p2,
+            'phase1_vs_phase2_test': stats_diff,
+            'confidence_accuracy_correlation': stats_corr,
+            'mean_confidence_correct': mean_conf_correct,
+            'mean_confidence_incorrect': mean_conf_incorrect,
+            'total_trials_p1': n1,
+            'correct_trials_p1': k1,
+            'total_trials_p2': n2,
+            'correct_trials_p2': k2,
+        }
     }
     
     return {
