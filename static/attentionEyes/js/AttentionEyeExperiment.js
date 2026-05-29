@@ -1,7 +1,7 @@
 class AttentionEyeExperiment extends Experiment {
     constructor() {
         super();
-        this.experimentName = 'attentionEyes';
+        this.experimentName = 'attentionModelVideo';
         this.UUID = '';
         this.currentPhase = 1;
         this.currentTrial = 0;
@@ -11,8 +11,7 @@ class AttentionEyeExperiment extends Experiment {
         this.currentVideoIndex = 0;
         this.trialStartTime = 0;
         this.currentTrialData = {};
-        this.phase1Trials = [];
-        this.phase2Trials = [];
+
         this.correctVideoURLs = [];
         this.scrambledVideoURLs = [];
         this.mismatchedVideoURLs = [];
@@ -261,11 +260,27 @@ class AttentionEyeExperiment extends Experiment {
         const sessionGroup = getQueryParam('SG');
         this.session = {
             session_group: sessionGroup,
-            experiment_version: '1.0',
-            file_version: '1.0',
+            experiment_version: '2.0',
+            file_version: '2.0',
+            start_time: new Date().toISOString(),
             browserData: getBrowserData(),
+            userAgent: navigator.userAgent,
             experiment_config: {
-                total_trials: this.trialsPerPhase,
+                total_phases: 2,
+                trials_per_phase: this.trialsPerPhase,
+                total_trials: this.trialsPerPhase * 2,
+                phases: [
+                    {
+                        phase: 1,
+                        name: 'Correct vs Scrambled',
+                        description: 'Real human attention spotlight vs randomly scrambled path'
+                    },
+                    {
+                        phase: 2,
+                        name: 'Correct vs Mismatched',
+                        description: 'Real human attention spotlight vs real gaze path from a different image'
+                    }
+                ],
                 correct_video_urls: this.correctVideoURLs,
                 scrambled_video_urls: this.scrambledVideoURLs,
                 mismatched_video_urls: this.mismatchedVideoURLs
@@ -418,12 +433,8 @@ class AttentionEyeExperiment extends Experiment {
         this.currentTrialData.selected_video = parseInt(this.currentTrialData.selected_video);
         this.currentTrialData.is_correct = this.currentTrialData.selected_video === this.currentTrialData.correct_video_position;
         
-        // Save trial data to appropriate phase
-        if (this.currentPhase === 1) {
-            this.phase1Trials.push({...this.currentTrialData});
-        } else {
-            this.phase2Trials.push({...this.currentTrialData});
-        }
+        // Save trial data using base class method
+        this.saveTrialData({...this.currentTrialData});
         
         this.nextTrial();
     }
@@ -569,8 +580,8 @@ class AttentionEyeExperiment extends Experiment {
     }
 
     downloadResults(phase) {
-        // Calculate summary statistics
-        const trials = phase === 1 ? this.phase1Trials : this.phase2Trials;
+        // Calculate summary statistics — filter from base class this.trials by phase
+        const trials = this.trials.filter(t => t.phase === phase);
         const totalCorrect = trials.reduce((sum, trial) => sum + (trial.is_correct ? 1 : 0), 0);
         const totalConfidence = trials.reduce((sum, trial) => sum + trial.confidence_rating, 0);
         const averageConfidence = totalConfidence / trials.length;
@@ -579,8 +590,8 @@ class AttentionEyeExperiment extends Experiment {
             session: {
                 ...this.session,
                 phase: phase,
-                experiment_version: '1.1',
-                file_version: '1.1',
+                experiment_version: '2.0',
+                file_version: '2.0',
                 total_trials: this.trialsPerPhase,
                 participant: this.participantInfo
             },
