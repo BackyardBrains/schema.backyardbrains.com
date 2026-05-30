@@ -84,6 +84,37 @@ That means:
 - Updating Flask routes or API behavior requires restarting the systemd service.
 - A Git force-push rollback is not enough by itself if production is already ahead locally. Run `git reset --hard origin/main` on the production checkout.
 
+## Systemd Service
+
+The Flask app is run by systemd as `schema.backyardbrains.com`.
+
+View the live unit config:
+
+```bash
+sudo systemctl cat schema.backyardbrains.com
+```
+
+Current production config:
+
+```ini
+# /etc/systemd/system/schema.backyardbrains.com.service
+[Unit]
+Description=Flask server for schema.backyardbrains.com
+After=network.target
+
+[Service]
+User=root
+WorkingDirectory=/var/www/schema.backyardbrains.com
+Environment="PYTHONUNBUFFERED=1"
+ExecStart=/var/www/schema.backyardbrains.com/venv/bin/python /var/www/schema.backyardbrains.com/app.py
+StandardOutput=journal
+StandardError=journal
+Restart=always
+
+[Install]
+WantedBy=multi-user.target
+```
+
 ## Production Commands
 
 Check production git state:
