@@ -15,6 +15,7 @@ document.addEventListener('DOMContentLoaded', () => {
     ];
 
     const DATAFILE_VERSION = '1.0';
+    const START_DELAY_MS = 15000;
     const MIN_INTERTRIAL_INTERVAL_MS = 1000;
     const MAX_INTERTRIAL_INTERVAL_MS = 3000;
     const SQUARE_FLASH_DURATION_MS = 300;
@@ -92,6 +93,7 @@ document.addEventListener('DOMContentLoaded', () => {
             experiment_config: {
                 total_videos_configured: VIDEO_FILES.length,
                 video_files: VIDEO_FILES,
+                start_delay_ms: START_DELAY_MS,
                 min_intertrial_interval_ms: MIN_INTERTRIAL_INTERVAL_MS,
                 max_intertrial_interval_ms: MAX_INTERTRIAL_INTERVAL_MS,
                 square_flash_delay_ms: SQUARE_FLASH_DELAY_MS,
@@ -109,7 +111,10 @@ document.addEventListener('DOMContentLoaded', () => {
         shuffleArray(playlist);
         currentVideoIndex = 0;
         pendingIntertrialIntervalMs = 0;
-        await preloadAllVideos();
+        await Promise.all([
+            preloadAllVideos(),
+            new Promise((resolve) => setTimeout(resolve, START_DELAY_MS))
+        ]);
         playCurrentVideo();
     }
 
