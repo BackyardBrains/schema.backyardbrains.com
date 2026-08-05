@@ -59,8 +59,8 @@ button {
   position: fixed;
   bottom: 30px;
   right: 30px;
-  width: 100px;
-  height: 100px;
+  width: 300px;
+  height: 300px;
   background-color: #FFFFFF;
   z-index: 2000;
 }
