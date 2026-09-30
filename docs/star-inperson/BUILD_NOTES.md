@@ -494,3 +494,17 @@ Round-2 fixes (2026-09-30, from `/root/claude/graziano-lab-verify/round2/REPORT.
 - **Analysis size:** the SPEC §3.2 budget for `analysis/star_inperson.py` is raised to ~650 lines (one stdlib file
   is kept deliberately so the lab can run it anywhere).
 - Results after round-2 fixes (2026-09-30): Node 46/46, Python 14/14, 0 failures.
+
+## 10. Changes after the first on-device pilot (2026-09-30)
+
+- **Blindfold face (v1.1.0).** At Greg's request the blindfolded face is now the hand-drawn band blindfold
+  (`static/star/img/BlindfoldDrawingRight.png`, Dec 2025) instead of the large rectangle. The drawing is 384x480, so
+  `tools/make_blindfold.py` lays only its blindfold (band over the eye + strap to the ear) over the crisp 1080x1350
+  open face: every other pixel is identical to the open face (T17 now checks this outside rows 350–666), every
+  opaque open-face pixel stays opaque, L = exact mirror of R. `blindfoldProbePx` moved to R [700,445] / L [379,445].
+  Data from v1.0.0 (the first pilot) used the rectangle blindfold.
+- **`bench.html`.** Standalone render benchmark (not part of the experiment, not fingerprinted; T30 exempts it).
+  The first pilot ran the dots at ~59 Hz on the iPad Pro while fixation/adaptor held 120 Hz (JS work ≤ 1 ms per
+  frame, so the cost is Safari rasterising the dot path on the full-screen DPR-2 canvas). The benchmark times five
+  drawing methods on the device to choose a renderer that holds 120 Hz.
+- Tests after these changes: Node 46/46, Python 14/14.

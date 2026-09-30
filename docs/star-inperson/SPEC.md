@@ -239,8 +239,9 @@ static/star-inperson/
   img/
     face_open_R.png       byte copy of static/star/img/BlankFaceLookingRight (1).png          (§3.4)
     face_open_L.png       byte copy of static/star/img/BlankFaceLookingLeft (1).png
-    face_blindfold_R.png  byte copy of static/star/img/BlankFaceLookingRightBlindfold (1).png
-    face_blindfold_L.png  byte copy of static/star/img/BlankFaceLookingLeftBlindfold (1).png
+    face_blindfold_R.png  face_open_R.png + band blindfold from static/star/img/BlindfoldDrawingRight.png
+                          (built by tools/make_blindfold.py; changed 2026-09-30, v1.1.0, at Greg's request)
+    face_blindfold_L.png  exact mirror of face_blindfold_R.png
     tree.png              byte copy of static/star/img/Tree.png
   js/
     config.js           CONFIG: every parameter, grouped, units + source comments; pilot preset         ~230
@@ -324,10 +325,10 @@ export const CONFIG = {
   images: {                           // byte copies; sha256 verified at load (§3.4)
     face_open_R:      { file: 'img/face_open_R.png',      sha256: '00bc1ab62bdf578e7c3658fad8dc22e0888a225fdecbee403ac58e3a5ea320a8', contentBox: [78, 173, 1003, 1177], eyePx: [789, 487] },
     face_open_L:      { file: 'img/face_open_L.png',      sha256: '85ecb8c0675c4f9d497a2b7e0fa27b666d266736009450d3144c4412d6678be8', contentBox: [77, 173, 1002, 1177], eyePx: [290, 487] },
-    face_blindfold_R: { file: 'img/face_blindfold_R.png', sha256: '21ba5701c4d51db62be083c75599f67b6f09025dcddcb2ebc43b94b13cb8ea6e', contentBox: [78, 173, 1003, 1177], eyePx: [789, 487] },
-    face_blindfold_L: { file: 'img/face_blindfold_L.png', sha256: '37b9d60015308a27c32ae8a07ba038d201f6de62b195a9f16ff9b7ae900991ad', contentBox: [77, 173, 1002, 1177], eyePx: [290, 487] },
+    face_blindfold_R: { file: 'img/face_blindfold_R.png', sha256: '2311cf6dfb908b4a9c736dbc4c30908756a6a28d189286136c976dc1d40465da', contentBox: [78, 173, 1003, 1177], eyePx: [789, 487] },
+    face_blindfold_L: { file: 'img/face_blindfold_L.png', sha256: 'd24dfabd45b3441779aec64cdd87697bbcf3816e57fe902494dcb59c4e0e35f8', contentBox: [77, 173, 1002, 1177], eyePx: [290, 487] },
     tree:             { file: 'img/tree.png',             sha256: 'c88e8a312a93fdae64759316e45d844f349a6406e2b4ebc3bd1ce98fef28cf6b', contentBox: [31, 0, 1049, 1350] },
-    blindfoldProbePx: { R: [360, 620], L: [719, 620] },  // inside blindfold rect, transparent in open image (tests)
+    blindfoldProbePx: { R: [700, 445], L: [379, 445] },  // inside blindfold rect, transparent in open image (tests)
   },
   grating: {                          // adaptor 'grating' only (Exp 1 rig check), p2
     gratingPeriodDeg: 0.8, gratingWidthDeg: 14.7, gratingHeightDeg: 5.7,

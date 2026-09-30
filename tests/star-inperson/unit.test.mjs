@@ -10,7 +10,7 @@ import { cmPerDeg, ppdCss, computeCalibration } from '../../static/star-inperson
 
 // SPEC §3.3 normative defaults (copied verbatim from the spec).
 const SPEC_DEFAULTS = {
-  experimentName: 'star-inperson', experimentVersion: '1.0.0',
+  experimentName: 'star-inperson', experimentVersion: '1.1.0',
   viewingDistanceCm: 54, backgroundRgb: [128, 128, 128], inkRgb: [0, 0, 0], requireFullscreen: true,
   requireRulerCheck: true, rulerLengthCm: 10, ppdChangeTolerance: 0.005,
   itiMinMs: 1000, itiMaxMs: 2000, fixationMs: 1500, adaptorMs: 1500, responseWindowMs: 2000, tooSlowMs: 5000,
@@ -20,10 +20,10 @@ const SPEC_DEFAULTS = {
   shadlenSets: 3, stimulusHeightDeg: 5.7, innerEdgeDeg: 2.5, gazeLineYDeg: 0, mirrorTreeWithSide: true,
   face_open_R: { file: 'img/face_open_R.png', sha256: '00bc1ab62bdf578e7c3658fad8dc22e0888a225fdecbee403ac58e3a5ea320a8', contentBox: [78, 173, 1003, 1177], eyePx: [789, 487] },
   face_open_L: { file: 'img/face_open_L.png', sha256: '85ecb8c0675c4f9d497a2b7e0fa27b666d266736009450d3144c4412d6678be8', contentBox: [77, 173, 1002, 1177], eyePx: [290, 487] },
-  face_blindfold_R: { file: 'img/face_blindfold_R.png', sha256: '21ba5701c4d51db62be083c75599f67b6f09025dcddcb2ebc43b94b13cb8ea6e', contentBox: [78, 173, 1003, 1177], eyePx: [789, 487] },
-  face_blindfold_L: { file: 'img/face_blindfold_L.png', sha256: '37b9d60015308a27c32ae8a07ba038d201f6de62b195a9f16ff9b7ae900991ad', contentBox: [77, 173, 1002, 1177], eyePx: [290, 487] },
+  face_blindfold_R: { file: 'img/face_blindfold_R.png', sha256: '2311cf6dfb908b4a9c736dbc4c30908756a6a28d189286136c976dc1d40465da', contentBox: [78, 173, 1003, 1177], eyePx: [789, 487] },
+  face_blindfold_L: { file: 'img/face_blindfold_L.png', sha256: 'd24dfabd45b3441779aec64cdd87697bbcf3816e57fe902494dcb59c4e0e35f8', contentBox: [77, 173, 1002, 1177], eyePx: [290, 487] },
   tree: { file: 'img/tree.png', sha256: 'c88e8a312a93fdae64759316e45d844f349a6406e2b4ebc3bd1ce98fef28cf6b', contentBox: [31, 0, 1049, 1350] },
-  blindfoldProbePx: { R: [360, 620], L: [719, 620] },
+  blindfoldProbePx: { R: [700, 445], L: [379, 445] },
   gratingPeriodDeg: 0.8, gratingWidthDeg: 14.7, gratingHeightDeg: 5.7, gratingSpeedDegPerSec: 0.8, gratingContrast: 1.0,
   adaptor: 'face_tree', trialsPerCell: 30, blockSize: 20, requeueTimeouts: true, maxTimeoutsPerSession: 40,
   practiceTrials: 10, practicePassAccuracy: 0.80, practiceMaxAttempts: 4,

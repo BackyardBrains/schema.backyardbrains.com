@@ -390,7 +390,9 @@ test('T30 hygiene: local requests only, no CDN/remote references, js files <= 40
   }
   // every file the page loads is fingerprinted (data.js CODE_FILES == file tree)
   const { CODE_FILES } = await import('../../static/star-inperson/js/data.js');
-  const tree = files.map((f) => path.relative(root, f).split(path.sep).join('/')).sort();
+  // bench.html is a standalone rig benchmark page (not loaded by the experiment, not fingerprinted)
+  const TOOL_PAGES = ['bench.html'];
+  const tree = files.map((f) => path.relative(root, f).split(path.sep).join('/')).filter((f) => !TOOL_PAGES.includes(f)).sort();
   assert.deepEqual([...CODE_FILES].sort(), tree);
   const diff = execSync('git diff --stat main -- static/star app.py', { cwd: REPO }).toString().trim();
   assert.equal(diff, '', diff);

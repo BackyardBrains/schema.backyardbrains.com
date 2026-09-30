@@ -103,13 +103,15 @@ test('T16 end-to-end measured dot speed from pixels (guterstam2020 + shadlen, DP
 
 // ---------- T17 ----------
 test('T17 images: byte copies, sha256, contentBox/eyePx re-derived, blindfold covers eye only, L = mirrored R', () => {
+  // blindfold faces are built by tools/make_blindfold.py (open face + band blindfold from BlindfoldDrawingRight.png),
+  // so they are checked by sha256 and the pixel invariants below rather than byte-identity with a star/ file
   const src = { face_open_R: 'BlankFaceLookingRight (1).png', face_open_L: 'BlankFaceLookingLeft (1).png',
-    face_blindfold_R: 'BlankFaceLookingRightBlindfold (1).png', face_blindfold_L: 'BlankFaceLookingLeftBlindfold (1).png', tree: 'Tree.png' };
+    face_blindfold_R: null, face_blindfold_L: null, tree: 'Tree.png' };
   const dec = {};
   for (const [id, star] of Object.entries(src)) {
     const spec = CONFIG.images[id];
     const mine = fs.readFileSync(path.join(REPO, 'static/star-inperson', spec.file));
-    assert.ok(mine.equals(fs.readFileSync(path.join(STAR, star))), `${id} not byte-identical to ${star}`);
+    if (star) assert.ok(mine.equals(fs.readFileSync(path.join(STAR, star))), `${id} not byte-identical to ${star}`);
     assert.equal(crypto.createHash('sha256').update(mine).digest('hex'), spec.sha256, `${id} sha256`);
     const png = (dec[id] = decodePNG(mine));
     assert.equal(png.width, 1080); assert.equal(png.height, 1350);
@@ -144,6 +146,14 @@ test('T17 images: byte copies, sha256, contentBox/eyePx re-derived, blindfold co
     for (let i = 0; i < o.length; i++) { if (o[i] > 0 && b[i] === 0) onlyOpen++; if (b[i] > 0 && o[i] === 0) extra++; }
     assert.equal(onlyOpen, 0, `${s}: pixels opaque only in the open image`);
     assert.ok(extra > 50000, 'blindfold adds a filled area');
+    // outside the band rows the blindfold face is pixel-identical to the open face (only the blindfold differs)
+    const oR = dec[`face_open_${s}`].pixels, bR = dec[`face_blindfold_${s}`].pixels;
+    assert.ok(dec[`face_open_${s}`].channels === 4 && dec[`face_blindfold_${s}`].channels === 4, 'RGBA faces');
+    {
+      let outside = 0;
+      for (let y = 0; y < 1350; y++) { if (y >= 350 && y < 666) continue; for (let x = 0; x < 1080 * 4; x++) if (oR[y * 4320 + x] !== bR[y * 4320 + x]) outside++; }
+      assert.equal(outside, 0, `${s}: blindfold face differs from the open face outside the band rows`);
+    }
     // probe point: inside the blindfold (opaque) and transparent in the open face (+-4 px)
     const [px, py] = CONFIG.images.blindfoldProbePx[s];
     for (let dy = -4; dy <= 4; dy++) for (let dx = -4; dx <= 4; dx++) {
