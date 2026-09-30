@@ -1,0 +1,129 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>Starfield render benchmark</title>
+<style>
+  html, body { margin: 0; height: 100%; background: #808080; overflow: hidden; font: 16px -apple-system, system-ui, sans-serif; }
+  canvas { position: fixed; inset: 0; width: 100vw; height: 100vh; }
+  #panel { position: fixed; left: 50%; top: 50%; transform: translate(-50%, -50%); background: #eee; padding: 20px 24px;
+           border-radius: 8px; max-width: 640px; z-index: 2; }
+  table { border-collapse: collapse; margin: 10px 0; }
+  td, th { padding: 4px 10px; border-bottom: 1px solid #ccc; text-align: right; }
+  td:first-child, th:first-child { text-align: left; }
+  .ok { color: #070; font-weight: bold; } .bad { color: #a00; font-weight: bold; }
+  button { font-size: 18px; padding: 8px 16px; }
+</style>
+</head>
+<body>
+<canvas id="c2d"></canvas>
+<canvas id="cgl" style="display:none"></canvas>
+<div id="panel">
+  <h2 style="margin-top:0">Starfield render benchmark</h2>
+  <p>Draws 1,250 moving dots (5° field, 0.05° dots) five different ways, 5 s each, and reports the frame rate.
+     Nothing is saved. Run it in the same way you run the experiment (Home Screen app), plugged in, Low Power Mode off.</p>
+  <button id="go">Start (about 30 s)</button>
+</div>
+<script>
+// Dot field geometry matches the experiment on the 12.9" iPad Pro at 54 cm: ~98 device px/deg, 5 deg aperture,
+// 0.05 deg dots (5 device px), 50 dots/deg^2 per frame = 1,250 dots, 1.4 deg/s. Only drawing cost is measured here.
+const N = 1250, DUR = 5000, DPR = window.devicePixelRatio || 1;
+const c2d = document.getElementById('c2d'), cgl = document.getElementById('cgl');
+const W = Math.round(innerWidth * DPR), H = Math.round(innerHeight * DPR);
+const PPD = 98 * DPR / 2, AP = Math.round(5 * PPD), DOT = Math.max(1, Math.round(0.05 * PPD));
+const AX = Math.round(W / 2 - AP / 2), AY = Math.round(H / 2 - AP / 2);
+const xs = new Float32Array(N), ys = new Float32Array(N), vx = new Float32Array(N);
+for (let i = 0; i < N; i++) { xs[i] = Math.random() * AP; ys[i] = Math.random() * AP; vx[i] = (i < 500 ? 1 : Math.random() * 2 - 1) * 1.4 * PPD; }
+function move(dt) { for (let i = 0; i < N; i++) { xs[i] = (xs[i] + vx[i] * dt + AP) % AP; } }
+
+let ctx = null, gl = null, img = null, glDraw = null;
+function setup2d() {
+  cgl.style.display = 'none'; c2d.style.display = 'block';
+  c2d.width = W; c2d.height = H; ctx = c2d.getContext('2d', { alpha: false });
+  ctx.fillStyle = '#808080'; ctx.fillRect(0, 0, W, H);
+}
+const methods = {
+  'A current: full-screen clear + one path': () => {
+    ctx.fillStyle = '#808080'; ctx.fillRect(0, 0, W, H); ctx.fillStyle = '#000'; ctx.beginPath();
+    for (let i = 0; i < N; i++) ctx.rect(AX + (xs[i] | 0), AY + (ys[i] | 0), DOT, DOT);
+    ctx.fill();
+  },
+  'B aperture-only clear + one path': () => {
+    ctx.fillStyle = '#808080'; ctx.fillRect(AX - DOT, AY - DOT, AP + 2 * DOT, AP + 2 * DOT); ctx.fillStyle = '#000'; ctx.beginPath();
+    for (let i = 0; i < N; i++) ctx.rect(AX + (xs[i] | 0), AY + (ys[i] | 0), DOT, DOT);
+    ctx.fill();
+  },
+  'C aperture-only clear + fillRect per dot': () => {
+    ctx.fillStyle = '#808080'; ctx.fillRect(AX - DOT, AY - DOT, AP + 2 * DOT, AP + 2 * DOT); ctx.fillStyle = '#000';
+    for (let i = 0; i < N; i++) ctx.fillRect(AX + (xs[i] | 0), AY + (ys[i] | 0), DOT, DOT);
+  },
+  'D pixel buffer (putImageData) of aperture': () => {
+    if (!img) img = ctx.createImageData(AP + DOT, AP + DOT);
+    const d = new Uint32Array(img.data.buffer), w = AP + DOT;
+    d.fill(0xFF808080);
+    for (let i = 0; i < N; i++) {
+      const x0 = xs[i] | 0, y0 = ys[i] | 0;
+      for (let y = y0; y < y0 + DOT; y++) { const r = y * w; for (let x = x0; x < x0 + DOT; x++) d[r + x] = 0xFF000000; }
+    }
+    ctx.putImageData(img, AX, AY);
+  },
+  'E WebGL points': () => glDraw(),
+};
+function setupGL() {
+  c2d.style.display = 'none'; cgl.style.display = 'block'; cgl.width = W; cgl.height = H;
+  gl = cgl.getContext('webgl', { antialias: false, alpha: false });
+  if (!gl) { glDraw = () => { throw new Error('WebGL unavailable'); }; return; }
+  const sh = (t, s) => { const o = gl.createShader(t); gl.shaderSource(o, s); gl.compileShader(o); return o; };
+  const p = gl.createProgram();
+  gl.attachShader(p, sh(gl.VERTEX_SHADER, 'attribute vec2 a; uniform vec2 r; uniform float s; void main(){ gl_Position=vec4(a/r*2.0-1.0,0,1); gl_Position.y=-gl_Position.y; gl_PointSize=s; }'));
+  gl.attachShader(p, sh(gl.FRAGMENT_SHADER, 'precision mediump float; void main(){ gl_FragColor=vec4(0,0,0,1); }'));
+  gl.linkProgram(p); gl.useProgram(p);
+  const buf = gl.createBuffer(), pos = new Float32Array(2 * N), loc = gl.getAttribLocation(p, 'a');
+  gl.bindBuffer(gl.ARRAY_BUFFER, buf); gl.enableVertexAttribArray(loc); gl.vertexAttribPointer(loc, 2, gl.FLOAT, false, 0, 0);
+  gl.uniform2f(gl.getUniformLocation(p, 'r'), W, H); gl.uniform1f(gl.getUniformLocation(p, 's'), DOT);
+  gl.viewport(0, 0, W, H); gl.clearColor(128 / 255, 128 / 255, 128 / 255, 1);
+  glDraw = () => {
+    for (let i = 0; i < N; i++) { pos[2 * i] = AX + (xs[i] | 0) + DOT / 2; pos[2 * i + 1] = AY + (ys[i] | 0) + DOT / 2; }
+    gl.clear(gl.COLOR_BUFFER_BIT); gl.bufferData(gl.ARRAY_BUFFER, pos, gl.DYNAMIC_DRAW); gl.drawArrays(gl.POINTS, 0, N);
+  };
+}
+function runOne(name) {
+  return new Promise((resolve) => {
+    if (name.startsWith('E')) setupGL(); else setup2d();
+    img = null;
+    const iv = []; let t0 = null, prev = null, err = null, workMax = 0;
+    const tick = (ts) => {
+      if (t0 === null) t0 = ts;
+      if (prev !== null) { iv.push(ts - prev); move((ts - prev) / 1000); }
+      const w0 = performance.now();
+      try { methods[name](); } catch (e) { err = String(e); }
+      workMax = Math.max(workMax, performance.now() - w0);
+      prev = ts;
+      if (!err && ts - t0 < DUR) requestAnimationFrame(tick); else resolve({ name, iv, err, workMax, dur: ts - t0 });
+    };
+    requestAnimationFrame(tick);
+  });
+}
+const med = (a) => { const s = [...a].sort((x, y) => x - y); return s[Math.floor(s.length / 2)]; };
+const p95 = (a) => { const s = [...a].sort((x, y) => x - y); return s[Math.floor(0.95 * s.length)]; };
+document.getElementById('go').onclick = async () => {
+  const panel = document.getElementById('panel'); panel.style.display = 'none';
+  const res = [];
+  for (const name of Object.keys(methods)) res.push(await runOne(name));
+  c2d.style.display = 'block'; cgl.style.display = 'none';
+  const rows = res.map((r) => {
+    if (r.err) return `<tr><td>${r.name}</td><td colspan="4" class="bad">${r.err}</td></tr>`;
+    const fps = r.iv.length / (r.dur / 1000), dropped = r.iv.filter((x) => x > 12.5).length;
+    const cls = fps >= 114 && dropped <= 0.01 * r.iv.length ? 'ok' : 'bad';
+    return `<tr><td>${r.name}</td><td class="${cls}">${fps.toFixed(1)}</td><td>${med(r.iv).toFixed(1)}</td><td>${p95(r.iv).toFixed(1)}</td><td>${dropped}/${r.iv.length}</td></tr>`;
+  }).join('');
+  panel.innerHTML = `<h2 style="margin-top:0">Results</h2><p>canvas ${W}×${H} · DPR ${DPR} · dot ${DOT}px · aperture ${AP}px · ${navigator.userAgent.includes('Mac') ? 'Safari/WebKit' : navigator.userAgent}</p>
+    <table><tr><th>method</th><th>fps</th><th>median ms</th><th>p95 ms</th><th>&gt;12.5 ms</th></tr>${rows}</table>
+    <p>Green = holds 120 Hz. Take a screenshot and send it back.</p><button onclick="location.reload()">Run again</button>`;
+  panel.style.display = 'block';
+};
+</script>
+</body>
+</html>
