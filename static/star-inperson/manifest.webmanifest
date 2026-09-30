@@ -1,0 +1,10 @@
+{
+  "name": "Starfield (in person)",
+  "short_name": "Starfield",
+  "start_url": "./",
+  "scope": "./",
+  "display": "fullscreen",
+  "orientation": "landscape",
+  "background_color": "#808080",
+  "theme_color": "#808080"
+}

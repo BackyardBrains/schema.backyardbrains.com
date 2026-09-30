@@ -1,0 +1,80 @@
+/* star-inperson.css — overlays, forms and banners. The stimulus canvas is fixed full-viewport underneath. */
+html, body {
+  margin: 0; padding: 0; overflow: hidden;
+  overscroll-behavior: none;              /* iPad: no rubber-band scrolling */
+  -webkit-text-size-adjust: 100%; -webkit-tap-highlight-color: transparent;
+  background: rgb(128, 128, 128);
+  font: 17px/1.45 Arial, Helvetica, sans-serif; color: #000;
+}
+
+#stage {
+  position: fixed; left: 0; top: 0;
+  width: 100vw; height: 100vh;    /* replaced by exact CSS px at calibration (calibration.js sizeCanvas) */
+  display: block;
+  touch-action: none;                     /* iPad: no scroll / pinch / double-tap zoom on the stage */
+  -webkit-user-select: none; user-select: none; -webkit-touch-callout: none;
+}
+body[data-screen="trials"] #stage, body[data-screen="trials"] { cursor: none; }
+
+#banner { position: fixed; left: 0; right: 0; top: 0; z-index: 30; }
+#banner:empty { display: none; }
+#banner .orange, #banner .blue, #banner .red {
+  padding: 6px 14px; font-weight: bold; color: #000;
+}
+#banner .orange { background: #ff9d2e; }
+#banner .blue { background: #7fb6ff; }
+#banner .red { background: #ff6b6b; }
+
+.panel, #screen {
+  position: fixed; z-index: 20; box-sizing: border-box;
+  left: 50%; top: 50%; transform: translate(-50%, -50%);
+  max-width: min(780px, 94vw); max-height: 92vh; overflow: auto;
+  background: rgb(128, 128, 128); padding: 18px 26px;
+}
+#setup { background: #eee; border-radius: 6px; box-shadow: 0 2px 12px rgba(0, 0, 0, .35); width: 560px; }
+#setup h1 { font-size: 21px; margin: 0 0 6px; }
+#setup label { display: block; margin: 9px 0; font-weight: bold; }
+#setup label small { display: block; font-weight: normal; color: #333; }
+#setup input[type=text], #setup input:not([type]), #setup input[type=number] {
+  display: block; width: 100%; box-sizing: border-box; padding: 5px 7px; font-size: 16px; margin-top: 3px;
+}
+#setup label.check { font-weight: normal; }
+#setup select { display: block; margin-top: 3px; font-size: 16px; padding: 4px; }
+#setup details { font-size: 14px; margin: 6px 0; }
+#setup details ul { margin: 4px 0; padding-left: 20px; }
+#rotate { position: fixed; inset: 0; z-index: 50; background: #222; color: #fff; display: flex;
+  align-items: center; justify-content: center; font-size: 28px; text-align: center; padding: 20px; }
+#rotate[hidden] { display: none; }
+.meta { font: 13px/1.5 monospace; background: #fff; padding: 6px 9px; border-radius: 4px; }
+.errors, .warn { color: #b00000; font-weight: bold; }
+.ok { color: #005a00; font-weight: bold; }
+
+button {
+  font-size: 16px; padding: 7px 14px; margin: 8px 8px 0 0; cursor: pointer;
+  border: 1px solid #333; border-radius: 4px; background: #fafafa;
+}
+button:disabled { opacity: .45; cursor: default; }
+
+/* Participant text screens: centred on the neutral gray, black text. */
+#screen h1 { font-size: 26px; margin: 0 0 10px; }
+#screen p { margin: 10px 0; }
+#screen.center { text-align: center; }
+
+/* Calibration panel sits at the bottom so the ruler, card and aperture drawn on the canvas stay visible. */
+#screen.calib {
+  top: auto; bottom: 10px; transform: translate(-50%, 0);
+  background: rgba(238, 238, 238, .96); border-radius: 6px; font-size: 15px; padding: 10px 16px;
+}
+#screen.calib input[type=number] { width: 90px; font-size: 15px; }
+
+/* Questionnaire */
+#screen.form { background: #eee; border-radius: 6px; width: 700px; }
+#screen.form label { display: block; margin: 8px 0 3px; font-weight: bold; }
+#screen.form textarea { width: 100%; box-sizing: border-box; min-height: 52px; font: inherit; }
+#screen.form .radios label { display: inline-block; font-weight: normal; margin-right: 16px; }
+#screen.form h2 { font-size: 18px; margin: 18px 0 4px; border-top: 1px solid #999; padding-top: 10px; }
+
+/* Pause overlay */
+#screen.pause { background: #eee; border-radius: 6px; box-shadow: 0 2px 12px rgba(0, 0, 0, .35); }
+#screen.error { background: #fff; border: 3px solid #b00000; }
+#screen.error pre { white-space: pre-wrap; font-size: 14px; }

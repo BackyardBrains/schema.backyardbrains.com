@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+  <!-- iPad rig: can run as a Home Screen web app (fullscreen, landscape) -->
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Moving dots">
+  <link rel="manifest" href="manifest.webmanifest">
+  <meta name="robots" content="noindex">
+  <title>Starfield (in person)</title>
+  <link rel="stylesheet" href="css/star-inperson.css">
+  <script type="module" src="js/main.js"></script>
+</head>
+<body data-screen="loading">
+  <!-- The ONLY stimulus surface. Everything the participant sees during trials is drawn here in device px. -->
+  <canvas id="stage" width="300" height="150"></canvas>
+
+  <!-- Orange: non-default parameters. Blue: pilot / grating rig-check mode. Setup screen only. -->
+  <div id="banner"></div>
+
+  <!-- Experimenter setup form (SPEC §2.1). -->
+  <form id="setup" class="panel" hidden autocomplete="off" novalidate>
+    <h1>Starfield in-person — setup</h1>
+    <div id="setup-meta" class="meta"></div>
+    <label>Participant ID
+      <input id="participant_id" name="participant_id" required pattern="[A-Za-z0-9_\-]{1,32}" maxlength="32">
+    </label>
+    <label>Experimenter initials (optional)
+      <input id="experimenter" name="experimenter" maxlength="8">
+    </label>
+    <label>Screen preset
+      <select id="monitor_preset" name="monitor_preset"><option value="">— none: measure and type the width —</option></select>
+    </label>
+    <label>Visible screen width (cm)
+      <small>Width of the lit image area, edge to edge, not the bezel</small>
+      <input id="monitor_width_cm" name="monitor_width_cm" type="number" min="10" max="200" step="0.1" required>
+    </label>
+    <label>Expected refresh rate (Hz)
+      <small>Every participant of a study must run at the same rate. iPad Pro: 120.</small>
+      <select id="expected_refresh_hz" name="expected_refresh_hz"><option value="120">120</option><option value="60">60</option></select>
+    </label>
+    <div id="refresh-readout" class="meta">Measuring refresh rate…</div>
+    <details id="ipad-notes"><summary>iPad / Safari refresh checklist</summary>
+      <ul>
+        <li>Safari caps animation at 60 Hz unless <b>Settings → Apps → Safari → Advanced → Feature Flags →
+          "Prefer Page Rendering Updates near 60fps"</b> is turned <b>OFF</b>.</li>
+        <li><b>Low Power Mode</b> must be off (it caps at 60 Hz).</li>
+        <li><b>Settings → Accessibility → Motion → "Limit Frame Rate"</b> must be off (caps at 60 Hz).</li>
+        <li>Run from the Home Screen icon (Share → Add to Home Screen) for true fullscreen, landscape only.</li>
+      </ul>
+    </details>
+    <label>Response keyboard
+      <select id="input_device" name="input_device" required><option value="">— choose —</option></select>
+    </label>
+    <label>Viewing distance (cm)
+      <input id="viewing_distance_cm" name="viewing_distance_cm" type="number" min="20" max="200" step="0.1" required>
+    </label>
+    <label class="check"><input id="chinrest_used" name="chinrest_used" type="checkbox" checked> Chinrest used</label>
+    <label class="check"><input id="room_dark" name="room_dark" type="checkbox" checked> Room darkened</label>
+    <label>Monitor model / notes (optional)
+      <input id="monitor_model" name="monitor_model" maxlength="200">
+    </label>
+    <div id="setup-errors" class="errors"></div>
+    <button id="setup-go" type="submit">Enter fullscreen and check calibration</button>
+    <div id="backups"></div>
+  </form>
+
+  <!-- Every other DOM screen (calibration panel, instructions, feedback, breaks, questionnaire, pause, end, error). -->
+  <div id="screen" hidden></div>
+</body>
+</html>
