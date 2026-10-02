@@ -165,7 +165,7 @@ export class TrialRunner {
   _draw(ts) {
     const st = this.stage, T = this.T;
     let nDots = 0, images = NO_IMAGES, fixationDrawn = false;
-    st.clear();
+    if (this.state === DOTS && T.dotsFrames > 0) st.clearAperture(); else st.clear();   // first dots frame clears all
     if (this.state === FIXATION) { st.drawFixation(); fixationDrawn = true; }
     else if (this.state === ADAPTOR) {
       const c = T.spec.config;

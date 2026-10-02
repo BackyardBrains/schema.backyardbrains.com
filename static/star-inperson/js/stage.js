@@ -65,16 +65,24 @@ export class Stage {
 
   dotSizePx() { return Math.max(1, Math.round(this.cfg.rdk.dotDiameterDeg * this.ppd)); }
 
+  // Clear only the dot aperture (+ one dot of margin). Used on dots frames after the first, which clears the whole
+  // screen: on the iPad Pro this (with fillRect dots) holds 120 Hz; full-screen path fills ran at ~59 Hz (bench.html).
+  clearAperture() {
+    const r = this.cfg.rdk, m = this.dotSizePx() + 1, p = this.ppd;
+    const x0 = Math.floor(this.X(-r.apertureWidthDeg / 2) - m), y0 = Math.floor(this.Y(this.cfg.geometry.gazeLineYDeg + r.apertureHeightDeg / 2) - m);
+    this.ctx.fillStyle = this.bg;
+    this.ctx.fillRect(x0, y0, Math.ceil(r.apertureWidthDeg * p + 2 * m), Math.ceil(r.apertureHeightDeg * p + 2 * m));
+  }
+
   // f: engine frame {n, xs, ys} in deg relative to the aperture centre (0, gazeLineYDeg).
+  // One fillRect per dot: a single path of 1,250 rects rasterised at ~59 Hz in iPad Safari (bench.html, 2026-10-02).
   drawDots(f) {
     const c = this.ctx, s = this.dotSizePx(), h = s / 2;
     const cx = this.X(0), cy = this.Y(this.cfg.geometry.gazeLineYDeg), p = this.ppd;
     c.fillStyle = this.ink;
-    c.beginPath();
     for (let i = 0; i < f.n; i++) {
-      c.rect(Math.round(cx + f.xs[i] * p - h), Math.round(cy - f.ys[i] * p - h), s, s);
+      c.fillRect(Math.round(cx + f.xs[i] * p - h), Math.round(cy - f.ys[i] * p - h), s, s);
     }
-    c.fill();
   }
 
   // Draw image `id` whose full source canvas occupies rect (leftDeg, topDeg, wDeg, hDeg); optionally mirrored.

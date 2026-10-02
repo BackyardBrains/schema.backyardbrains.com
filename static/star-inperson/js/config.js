@@ -12,7 +12,7 @@
 export const CONFIG = {
   meta: {
     experimentName: 'star-inperson',   // POST /data "experiment"; suffixed by mode in params.js (-grating/-pilot/-test)
-    experimentVersion: '1.1.0',       // bump on ANY change to static/star-inperson/; 1.1.0 (2026-09-30): band blindfold face
+    experimentVersion: '1.2.0',       // bump on ANY change to static/star-inperson/; 1.1.0 band blindfold; 1.2.0 fast dot drawing
   },
 
   display: {

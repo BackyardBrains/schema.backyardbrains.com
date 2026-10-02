@@ -21,7 +21,7 @@ function runDots(exp, durationMs) {
       if (t0 === null) t0 = ts;
       if (prev !== null && n < iv.length) iv[n] = ts - prev;
       const w0 = performance.now();
-      stage.clear();
+      if (prev === null) stage.clear(); else stage.clearAperture();   // same as a trial's dots phase
       stage.drawDots(eng.frame(ts));
       if (prev !== null && n < iv.length) work[n++] = performance.now() - w0;
       prev = ts;

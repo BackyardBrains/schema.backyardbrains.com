@@ -10,7 +10,7 @@ import { cmPerDeg, ppdCss, computeCalibration } from '../../static/star-inperson
 
 // SPEC §3.3 normative defaults (copied verbatim from the spec).
 const SPEC_DEFAULTS = {
-  experimentName: 'star-inperson', experimentVersion: '1.1.0',
+  experimentName: 'star-inperson', experimentVersion: '1.2.0',
   viewingDistanceCm: 54, backgroundRgb: [128, 128, 128], inkRgb: [0, 0, 0], requireFullscreen: true,
   requireRulerCheck: true, rulerLengthCm: 10, ppdChangeTolerance: 0.005,
   itiMinMs: 1000, itiMaxMs: 2000, fixationMs: 1500, adaptorMs: 1500, responseWindowMs: 2000, tooSlowMs: 5000,

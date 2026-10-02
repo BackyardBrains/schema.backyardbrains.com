@@ -508,3 +508,14 @@ Round-2 fixes (2026-09-30, from `/root/claude/graziano-lab-verify/round2/REPORT.
   frame, so the cost is Safari rasterising the dot path on the full-screen DPR-2 canvas). The benchmark times five
   drawing methods on the device to choose a renderer that holds 120 Hz.
 - Tests after these changes: Node 46/46, Python 14/14.
+
+## 11. Fast dot drawing (v1.2.0, 2026-10-02)
+
+`bench.html` on the 12.9" iPad Pro (Home Screen app, 120 Hz): A full-screen clear + one path 58.0 fps (all frames
+> 12.5 ms); B aperture clear + one path 60.9 fps; **C aperture clear + fillRect per dot 120.0 fps, 0/600 slow
+frames**; D putImageData 119.9 fps (1/600); E WebGL points 120.1 fps (0/601). The single 1,250-rect path was the
+bottleneck. v1.2.0 uses C: `stage.drawDots` issues one `fillRect` per dot, and every dots frame after the first
+clears only the aperture (`stage.clearAperture`, one dot of margin); the first dots frame still clears the whole
+screen so the face/tree is gone. `?diag=1` draws the same way. This also removes the ~22 ms first dots frame
+(the "30 ms gap" between the face and the dots seen in the 2026-10-02 pilot). Data from v1.0.0/v1.1.0 pilots ran the
+dots at ~59 Hz. Tests: Node 46/46, Python 14/14.
