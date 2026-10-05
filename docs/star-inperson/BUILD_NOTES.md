@@ -1,5 +1,7 @@
 # BUILD NOTES — `static/star-inperson/` (in-lab Guterstam & Graziano 2020 Exp 2 replication)
 
+> **Project history, status and next steps live in [CHANGELOG.md](CHANGELOG.md).** Add an entry there for every change or session that matters.
+
 Built 2026-09-29 from `SPEC.md` v1.0, plus the **iPad-rig amendment** Greg Gage sent during the build (see
 "iPad rig" below). Revised 2026-09-30 to fix every finding of the independent verification
 (`/root/claude/graziano-lab-verify/REPORT.md`, verdict "READY AFTER FIXES"); see §9 "Fixes after verification". Nothing is committed or deployed. `static/star/`, `app.py` and the other experiments are
