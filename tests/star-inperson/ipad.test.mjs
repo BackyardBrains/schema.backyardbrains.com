@@ -109,7 +109,9 @@ test('iPad-2 geometry from pixels at DPR 2, blindfold probe, every-frame drawing
   const fm = r.fin.display.refresh_median_interval_ms;
   for (const t of r.trials) {
     const fr = r.frames.filter((f) => f.trial_phase === t.phase && f.attempt_index === t.attempt_index);
-    assert.deepEqual([...new Set(fr.map((f) => f.phase))].slice(0, 4), ['iti', 'fixation', 'adaptor', 'dots']);
+    // practice has no adaptor since v1.3.0 (practiceBlankMs 0): fixation is followed directly by the dots
+    const want = t.phase === 'practice' ? ['iti', 'fixation', 'dots'] : ['iti', 'fixation', 'adaptor', 'dots'];
+    assert.deepEqual([...new Set(fr.map((f) => f.phase))].slice(0, want.length), want);
     for (let i = 1; i < fr.length; i++) {
       if (r.cap.heavy.includes(fr[i - 1].ts)) continue;
       assert.ok(fr[i].ts - fr[i - 1].ts <= 1.5 * fm + 1, `gap ${fr[i].ts - fr[i - 1].ts} ms in ${fr[i].phase}`);

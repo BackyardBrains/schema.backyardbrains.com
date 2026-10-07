@@ -12,7 +12,7 @@
 export const CONFIG = {
   meta: {
     experimentName: 'star-inperson',   // POST /data "experiment"; suffixed by mode in params.js (-grating/-pilot/-test)
-    experimentVersion: '1.2.0',       // bump on ANY change to static/star-inperson/; 1.1.0 band blindfold; 1.2.0 fast dot drawing
+    experimentVersion: '1.3.0',       // bump on ANY change to static/star-inperson/; 1.1.0 band blindfold; 1.2.0 fast dots; 1.3.0 no practice pause
   },
 
   display: {
@@ -34,6 +34,9 @@ export const CONFIG = {
     itiMaxMs: 2000,                   // ms. p2; distribution unstated -> ours: uniform continuous
     fixationMs: 1500,                 // ms. p2
     adaptorMs: 1500,                  // ms. p2, p4, p7
+    practiceBlankMs: 0,               // ms of blank screen between fixation and dots on PRACTICE trials (paper silent).
+                                      // 0 = the dots replace the fixation point on the next frame. v1.0-1.2 used 1500,
+                                      // which looked like a pause (Luca, 2026-10-07).
     responseWindowMs: 2000,           // ms. p2 "maximum 2 s"
     tooSlowMs: 5000,                  // ms. p2 "Too Slow!" for 5 s
     droppedFrameFactor: 1.5,          // x median frame interval. coordinator 2026-09-29: interval > 1.5 x median = dropped
@@ -126,7 +129,7 @@ export const ENUMS = {
 export const RANGES = {
   viewingDistanceCm: [20, 200], rulerLengthCm: [1, 50], ppdChangeTolerance: [0, 0.5],
   expectedRefreshHz: [30, 240], refreshMeasureMinMs: [500, 20000], diagDurationMs: [500, 120000],
-  itiMinMs: [1, 60000], itiMaxMs: [1, 60000], fixationMs: [1, 60000], adaptorMs: [1, 60000],
+  itiMinMs: [1, 60000], itiMaxMs: [1, 60000], fixationMs: [1, 60000], adaptorMs: [1, 60000], practiceBlankMs: [0, 60000],
   responseWindowMs: [1, 60000], tooSlowMs: [1, 60000], droppedFrameFactor: [1, 10],
   fixationDiameterDeg: [0.01, 5], apertureWidthDeg: [0.1, 40], apertureHeightDeg: [0.1, 40],
   densityDotsPerDeg2: [0.01, 500], densityDotsPerDeg2PerSec: [0.01, 5000], dotDiameterDeg: [0.001, 2],

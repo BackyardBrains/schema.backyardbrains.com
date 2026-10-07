@@ -82,7 +82,12 @@ test('T23 RT zero = first dots frame; rt = key time - onset; default-duration ph
   const all = trials.filter((t) => !t.aborted);
   assert.equal(all.filter((t) => t.phase === 'main').length, 8);
   for (const t of all) {
-    assert.ok(Math.abs(t.adaptor_actual_ms - 1500) <= frameMs + 1, `adaptor ${t.adaptor_actual_ms}`);
+    // practice: no adaptor, dots replace the fixation point on the next frame (practiceBlankMs 0, v1.3.0)
+    const adaptorMs = t.phase === 'practice' ? 0 : 1500;
+    assert.ok(Math.abs(t.adaptor_actual_ms - adaptorMs) <= frameMs + 1, `${t.phase} adaptor ${t.adaptor_actual_ms}`);
+    if (t.phase === 'practice') assert.equal(t.adaptor_frames_drawn, 0, 'practice draws no blank adaptor frames');
+    // nothing is shown between the last face/tree (or fixation) frame and the first dots frame: one refresh
+    if (!t.has_dropped_frame) assert.ok(t.last_frame_before_dots_ms > 0 && t.last_frame_before_dots_ms <= frameMs + 1, `gap ${t.last_frame_before_dots_ms}`);
     assert.ok(Math.abs(t.fixation_actual_ms - 1500) <= frameMs + 1, `fixation ${t.fixation_actual_ms}`);
     if (!t.has_dropped_frame) assert.ok(Math.abs(t.onset_latency_ms) <= frameMs, `onset latency ${t.onset_latency_ms}`);
     assert.ok(t.iti_actual_ms >= 1000 - frameMs && t.iti_actual_ms <= 2000 + frameMs);

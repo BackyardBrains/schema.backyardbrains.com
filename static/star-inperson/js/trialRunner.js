@@ -36,6 +36,12 @@ export function keyDirection(e, keys) {
 // Canonical key name for a recognised direction ('ArrowLeft' / 'ArrowRight'), whatever .key/.code reported.
 export const canonicalKey = (dir, keys) => (dir === 'left' ? keys.keyLeft : dir === 'right' ? keys.keyRight : null);
 
+// Latest frame timestamp strictly before t (frameTs is in time order).
+function lastBefore(frameTs, t) {
+  for (let i = frameTs.length - 1; i >= 0; i--) if (frameTs[i] < t) return frameTs[i];
+  return t;
+}
+
 export class TrialRunner {
   constructor({ stage, cfg, seed, display, hooks = null, session = {} }) {
     this.stage = stage; this.cfg = cfg; this.seed = seed; this.hooks = hooks; this.session = session;
@@ -144,8 +150,13 @@ export class TrialRunner {
     const T = this.T, t = this.cfg.timing, half = this.frameMs / 2, el = ts - T.phaseOnset;
     switch (this.state) {
       case ITI: if (el >= T.itiPlanned - half) this._enter(FIXATION, ts); break;
-      case FIXATION: if (el >= t.fixationMs - half) this._enter(ADAPTOR, ts); break;
-      case ADAPTOR: if (el >= t.adaptorMs - half) this._enter(DOTS, ts); break;
+      case FIXATION:
+        if (el >= t.fixationMs - half) {
+          this._enter(ADAPTOR, ts);
+          if (this._adaptorMs(T) - half <= 0) this._enter(DOTS, ts);   // no adaptor (practice): dots on this frame
+        }
+        break;
+      case ADAPTOR: if (el >= this._adaptorMs(T) - half) this._enter(DOTS, ts); break;
       case DOTS:
         if (T.response) this._finish(ts, ts);
         else if (ts - T.onset.dots >= t.responseWindowMs - half) { T.timedOut = true; T.onset.dots_offset = ts; this._enter(TOO_SLOW, ts); }
@@ -154,6 +165,9 @@ export class TrialRunner {
       default: break;
     }
   }
+
+  // Adaptor duration for this trial: the face/tree or grating for 1.5 s; practice ('blank') uses practiceBlankMs.
+  _adaptorMs(T) { return T.spec.config.adaptor_type === 'blank' ? this.cfg.timing.practiceBlankMs : this.cfg.timing.adaptorMs; }
 
   _finish(ts, dotsOffsetTs) {
     const rec = this._record(this.T, { dotsOffsetTs, endTs: ts });
@@ -238,7 +252,10 @@ export class TrialRunner {
       adaptor_actual_ms: dotsOn !== null ? r1(dotsOn - o.adaptor) : null,
       trial_start_ts: r1(o.iti), fixation_onset_ts: r1(o.fixation), adaptor_onset_ts: r1(o.adaptor),
       dots_onset_ts: r1(dotsOn), dots_offset_ts: r1(offset),
-      onset_latency_ms: dotsOn !== null ? r1(dotsOn - (o.adaptor + cfg.timing.adaptorMs)) : null,
+      onset_latency_ms: dotsOn !== null ? r1(dotsOn - (o.adaptor + this._adaptorMs(T))) : null,
+      // time from the last frame before the dots (face/tree, or fixation in practice) to the first dots frame:
+      // one display refresh (~8.3 ms at 120 Hz) when nothing is shown in between
+      last_frame_before_dots_ms: dotsOn !== null ? r1(dotsOn - lastBefore(T.frameTs, dotsOn)) : null,
       dots_frames_drawn: T.dotsFrames,
       dots_frame_interval_median_ms: r1(median(dotsIv)),
       dots_frame_interval_max_ms: dotsIv.length ? r1(Math.max(...dotsIv)) : null,

@@ -110,7 +110,7 @@ Page numbers refer to the 10-page PDF `/root/claude/sa-star/papers/Guterstam_beh
 | D4 | 2 °/s | **1.4 °/s** (Greg 2026-09-29) | `dotSpeedDegPerSec` override to 2.0 by URL for a paper-literal run; the effective value is in every payload. Pre-register the speed. |
 | D5 | Head's eye height relative to fixation not reported | Eye (pupil centre) placed on the horizontal line through fixation and aperture centre (`gazeLineYDeg = 0`) | Geometry logged (`geometry` block in session). Paper's Fig. 3 head/tree boxes span y ≈ −3.2…+2.5°; ours span −3.92…+1.78° (0.7° lower) because we anchor the eye, not the box. §11.5 Q3. |
 | D6 | The authors' head/tree drawings | Our BYB line-drawing head (`BlankFaceLooking*`) and silhouette tree (`Tree.png`) | Pair chosen so open and blindfold images differ **only** by the blindfold (verified pixel-exactly, §3.4). Ask Arvid for the originals (§11.5 Q4). |
-| D7 | Practice content unspecified | Practice = fixation → 1.5 s blank gray → dots (no head/tree) | Same rhythm as main trials; no pre-exposure to the adaptor. Our choice. |
+| D7 | Practice content unspecified | Practice = fixation → dots on the next frame (no head/tree, no blank; `practiceBlankMs` 0 since v1.3.0, was a 1.5 s blank) | No pre-exposure to the adaptor. Our choice. |
 | D8 | Dots presumably round | Square dots, side = round(0.05° x ppd_device) device px, min 1 | At 1.5–4 device px a square and a disc are indistinguishable. Logged `dot_size_device_px`. |
 | D9 | Re-queue position unspecified | Re-queued config inserted at a random later position in the remaining queue (never immediately next when ≥ 1 other trial remains) | `requeued_from` logged. |
 | D10 | Background luminance / grating contrast unreported | mid-gray 128; grating Michelson contrast 1.0 | §11.5 Q5. |
@@ -685,6 +685,7 @@ not modified. `session_uuid` = `crypto.randomUUID()`.
 | `congruent` | bool \| null | `test_direction === implied_direction` |
 | `congruent_gaze` | bool \| null | `test_direction === gaze_direction` (recomputable for future away designs) |
 | `grating_direction`, `grating_phase0` | str/num \| null | grating mode |
+| `last_frame_before_dots_ms` | num \| null | dots onset − timestamp of the last frame before it (face/tree, or fixation in practice); one refresh when nothing is shown in between (v1.3.0) |
 | `face_img`, `tree_img` | str \| null | file names actually drawn (e.g. `face_blindfold_R.png`) |
 | `tree_mirrored` | bool \| null | |
 | `adaptor_images_drawn` | str[] | distinct image ids drawn during the adaptor (from the draw call, not the plan) |
