@@ -20,8 +20,8 @@ session that matters, or make a decision (template at the bottom).
 
 ## Current status (2026-10-07)
 
-- **Version 1.2.0 is live** and runs the dots at 120 Hz on the 12.9" iPad Pro. **v1.3.0** (no practice pause, frame-gap
-  logging) is built and tested on branch `star-inperson`, waiting to be merged.
+- **Version 1.3.0 is live** (2026-10-07): dots at 120 Hz on the 12.9" iPad Pro, no pause in practice, every trial
+  logs the face-to-dots frame gap, and the end-of-session questions match last year's online survey.
 - The rig is set up: iPad Pro with ProMotion, the Safari 60 Hz cap turned off, an Apple Magic Keyboard wired over
   USB-C with Bluetooth off, the chin holder at 54 cm.
 - **No real participants yet.** Every session so far is a test (see the data table below).
@@ -40,9 +40,7 @@ session that matters, or make a decision (template at the bottom).
    sat relative to fixation, and whether we can have their original head and tree drawings.
 6. The server's `/uploads/` folder is publicly browsable (directory listing on). Close it before real data arrives.
 7. People who tried the demo have seen the faces and blindfold. Do not recruit them as participants.
-8. **Decide the end-of-session questions** (see 2026-10-07): last year's Google Form had different questions from
-   the built-in questionnaire.
-9. Luca's 2026-10-07 session stopped receiving answers for long stretches (95 timeouts). Find out whether he stepped
+8. Luca's 2026-10-07 session stopped receiving answers for long stretches (95 timeouts). Find out whether he stepped
    away or the keyboard stopped working.
 
 ## Test sessions so far (none are study data)
@@ -58,7 +56,7 @@ session that matters, or make a decision (template at the bottom).
 
 ---
 
-## 2026-10-07: v1.3.0, no pause in practice; proof of the face-to-dots switch; end-form question
+## 2026-10-07: v1.3.0, no pause in practice; proof of the face-to-dots switch; last year's end questions
 
 **What happened**
 - Luca reported that practice trials pause for about 1.5 s after the fixation dot. He also noticed that the
@@ -81,14 +79,16 @@ session that matters, or make a decision (template at the bottom).
   16 minutes. The session ended itself at the 40-timeout limit with 65 trials completed. This is either the
   person stepping away or the keyboard dropping out; check with Luca.
 
-**What changed (v1.3.0, on branch, not yet live)**
+**What changed (v1.3.0, live 2026-10-07)**
 - Practice trials now go straight from the fixation dot to the dots on the next frame, with no blank screen. This is
   set by `practiceBlankMs` (0) in `js/config.js`; setting it to 1500 brings back the old behavior.
 - New field on every trial, `last_frame_before_dots_ms`: the time from the last face/tree frame (or fixation frame in
   practice) to the first dots frame. It should be one refresh (~8.3 ms). Any session can now be checked for gaps.
+- **End-of-session questions now match last year's online survey** (Greg chose option A, below). Answers are
+  saved in the session's data file, so there is no separate form or ID to copy.
 - Tests: 46/46 browser tests, 14/14 analysis tests.
 
-**Decision needed: end-of-session questions**
+**Decision: end-of-session questions (option A chosen)**
 - Last year's online study sent people to a Google Form ("Backyard Brains Starfield Survey v1.8"):
   - What do you think the purpose of the experiment is?
   - How do you think human vision works?
@@ -99,7 +99,24 @@ session that matters, or make a decision (template at the bottom).
   - Experimental ID and Prolific ID
 - The in-person build instead asks two questions on the iPad, saved with the data: what the person thought the
   study was about, and whether the head/tree affected their answers. These are the questions the paper reports.
-- Options are listed in the 2026-10-07 reply to Greg; record the choice here once made.
+- The options were: (A) put last year's questions into the built-in questionnaire; (B) send people to the old
+  Google Form with the session ID pre-filled, which means answers in a separate spreadsheet matched by ID; (C) keep
+  the two built-in questions. **Greg chose A.**
+- The built-in questionnaire now asks:
+  - "What do you think the purpose of the experiment is?" (required)
+  - "How do you think human vision works? Describe in detail how we are able to see." (required)
+  - "Do you think the faces affected your ability to determine the direction of the stars?" Yes / No / Not sure
+    (required), then "If so, how?"
+  - Gender (optional): Male / Female / Other / Prefer not to say
+  - Age group (optional): last year's seven groups
+- Differences from last year:
+  - two typos fixed ("effected"; "How do you think does the human vision work");
+  - continent dropped, since everyone is in person;
+  - Prolific and experiment ID dropped, since they are recorded automatically;
+  - gender gained "Other" and "Prefer not to say".
+- The yes / no / not sure answer keeps a clean awareness flag (`q_influence`) for the analysis. The experimenter
+  section (fixation rating, notes) is unchanged. Data fields: `q_purpose`, `q_vision`, `q_influence`,
+  `q_influence_how`, `q_gender`, `q_age` (SPEC §6.5).
 
 ## 2026-10-05: first full run on v1.2.0; change log started
 

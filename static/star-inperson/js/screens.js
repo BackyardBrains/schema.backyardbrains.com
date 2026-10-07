@@ -159,10 +159,12 @@ export function showQuestionnaire(mode) {
   const el = show(`
     <form id="qform">
       <label for="q_purpose">${Q.q_purpose}</label><textarea id="q_purpose"></textarea>
+      <label for="q_vision">${Q.q_vision}</label><textarea id="q_vision"></textarea>
       <label>${mode === 'grating' ? Q.q_influence_grating : Q.q_influence}</label>
       ${radio('q_influence', [['yes', 'Yes'], ['no', 'No'], ['not_sure', 'Not sure']])}
       <label for="q_influence_how">${Q.q_influence_how}</label><textarea id="q_influence_how"></textarea>
-      <label for="q_comments">${Q.q_comments}</label><textarea id="q_comments"></textarea>
+      <label>${Q.q_gender}</label>${radio('q_gender', Q.genderOptions)}
+      <label>${Q.q_age}</label>${radio('q_age', Q.ageOptions)}
       <h2>${Q.experimenterHeading}</h2>
       <label>${Q.fixationRating}</label>
       ${radio('experimenter_fixation_rating', [['good', 'Good'], ['some_lapses', 'Some lapses'], ['poor', 'Poor']])}
@@ -177,12 +179,16 @@ export function showQuestionnaire(mode) {
       const a = {
         q_purpose: el.querySelector('#q_purpose').value,
         q_influence: pick('q_influence'),
+        q_vision: el.querySelector('#q_vision').value,
         q_influence_how: el.querySelector('#q_influence_how').value,
-        q_comments: el.querySelector('#q_comments').value,
+        q_gender: pick('q_gender'),
+        q_age: pick('q_age'),
         experimenter_fixation_rating: pick('experimenter_fixation_rating'),
         experimenter_notes: el.querySelector('#experimenter_notes').value,
       };
-      if (!a.q_influence) { el.querySelector('#q-err').textContent = 'Please answer the yes / no / not sure question.'; return; }
+      const err = (m) => { el.querySelector('#q-err').textContent = m; };
+      if (!a.q_purpose.trim() || !a.q_vision.trim()) { err('Please answer the first two questions.'); return; }
+      if (!a.q_influence) { err('Please answer the yes / no / not sure question.'); return; }
       hide();
       resolve(a);
     };

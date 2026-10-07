@@ -173,7 +173,8 @@ def generate_session(seed, participant_id='P001', uuid=None, drt_open=25.0, drt_
     if save('main_done', main_done=True):
         return out
     session['questionnaire'] = {'q_purpose': 'reaction time', 'q_influence': rng.choice(['no', 'not_sure', 'yes']),
-                                'q_influence_how': '', 'q_comments': ''}
+                                'q_influence_how': '', 'q_vision': 'light enters the eye',
+                                'q_gender': None, 'q_age': None}
     end = datetime.datetime.strptime(start_iso[:19], '%Y-%m-%dT%H:%M:%S') + datetime.timedelta(minutes=18)
     session['timing']['end_iso'] = end.strftime('%Y-%m-%dT%H:%M:%S.000Z')
     save('final', status='complete', partial=False, complete=True)

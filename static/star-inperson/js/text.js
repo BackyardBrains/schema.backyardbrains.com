@@ -45,11 +45,19 @@ export const TEXT = {
   endAborted: 'The session was ended by the experimenter.',
 
   questionnaire: {
-    q_purpose: 'What do you think this study was about?',
-    q_influence: 'Did the drawing of the head and tree affect how you responded to the moving dots?',
-    q_influence_grating: 'Did the moving stripes affect how you responded to the moving dots?',
-    q_influence_how: 'If yes or not sure, how?',
-    q_comments: 'Anything else you noticed or would like to tell us?',
+    // Same questions as the 2025-26 online study's Google Form ("Backyard Brains Starfield Survey v1.8"), chosen by
+    // Greg 2026-10-07 so answers compare with the online data. Two typos fixed ("effected", "How do you think does");
+    // continent and Prolific fields dropped; gender gained "Other" and "Prefer not to say".
+    q_purpose: 'What do you think the purpose of the experiment is?',
+    q_vision: 'How do you think human vision works? Describe in detail how we are able to see.',
+    q_influence: 'Do you think the faces affected your ability to determine the direction of the stars?',
+    q_influence_grating: 'Do you think the moving stripes affected your ability to determine the direction of the stars?',
+    q_influence_how: 'If so, how?',
+    q_gender: 'Gender (optional)',
+    q_age: 'Age group (optional)',
+    genderOptions: [['male', 'Male'], ['female', 'Female'], ['other', 'Other'], ['prefer_not', 'Prefer not to say']],
+    ageOptions: [['under_18', 'Under 18 y'], ['18_24', '18 to 24 y'], ['25_34', '25 to 34 y'], ['35_44', '35 to 44 y'],
+      ['45_54', '45 to 54 y'], ['55_64', '55 to 64 y'], ['65_up', '65 and up']],
     experimenterHeading: 'Experimenter only — please hand back the keyboard',
     fixationRating: 'How well did the participant keep fixation?',
     experimenterNotes: 'Notes',

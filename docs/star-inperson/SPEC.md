@@ -642,12 +642,16 @@ Please let the experimenter know you are finished."
 
 6.4 Break: see §5.8. Too slow: "Too Slow!". End: "Thank you! The session is complete. Please let the experimenter know."
 
-6.5 Awareness questionnaire (after the main task; DOM form; answers logged verbatim):
-- `q_purpose` (free text, optional): "What do you think this study was about?"
-- `q_influence` (radio, required: `yes` / `no` / `not_sure`): "Did the drawing of the head and tree affect how you
-  responded to the moving dots?"
-- `q_influence_how` (free text, optional, shown always): "If yes or not sure, how?"
-- `q_comments` (free text, optional): "Anything else you noticed or would like to tell us?"
+6.5 Awareness questionnaire (after the main task; DOM form; answers logged verbatim). **Changed 2026-10-07 (Greg):**
+same questions as the 2025-26 online study's Google Form "Backyard Brains Starfield Survey v1.8", so answers compare
+with the online data (typos fixed, continent and Prolific fields dropped, gender options extended):
+- `q_purpose` (free text, required): "What do you think the purpose of the experiment is?"
+- `q_vision` (free text, required): "How do you think human vision works? Describe in detail how we are able to see."
+- `q_influence` (radio, required: `yes` / `no` / `not_sure`): "Do you think the faces affected your ability to
+  determine the direction of the stars?" (grating mode: "the moving stripes")
+- `q_influence_how` (free text, optional): "If so, how?"
+- `q_gender` (radio, optional): `male` / `female` / `other` / `prefer_not`
+- `q_age` (radio, optional): `under_18`, `18_24`, `25_34`, `35_44`, `45_54`, `55_64`, `65_up`
 Experimenter section (heading "Experimenter only — please hand back the keyboard"): `experimenter_fixation_rating`
 (radio `good` / `some_lapses` / `poor`), `experimenter_notes` (free text).
 

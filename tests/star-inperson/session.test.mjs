@@ -117,6 +117,9 @@ test('T24 full flow: save order, flags, cumulative payloads, final content, down
   assert.equal(main.length, 8);
   assert.deepEqual(cellCounts(fin.data.trials), { open_true: 2, open_false: 2, blindfold_true: 2, blindfold_false: 2 });
   assert.equal(fin.data.session.questionnaire.q_influence, 'no');
+  assert.equal(fin.data.session.questionnaire.q_vision, 'light enters the eye');
+  assert.equal(fin.data.session.questionnaire.q_age, '25_34');
+  assert.equal(fin.data.session.questionnaire.q_gender, null, 'gender is optional');
   assert.equal(fin.data.session.questionnaire.experimenter_fixation_rating, 'good');
   const dl = F.downloads.find((d) => d.json.data.session.save_reason === 'final');
   assert.ok(dl, 'final download');

@@ -110,8 +110,9 @@ export async function drive(ctx, opts = {}) {
 
 export async function fillQuestionnaire(page) {
   await page.fill('#q_purpose', 'test purpose');
+  await page.fill('#q_vision', 'light enters the eye');
   await page.check('input[name=q_influence][value=no]');
-  await page.fill('#q_comments', 'none');
+  await page.check('input[name=q_age][value="25_34"]');
   await page.check('input[name=experimenter_fixation_rating][value=good]');
   await page.click('#q-submit');
 }
